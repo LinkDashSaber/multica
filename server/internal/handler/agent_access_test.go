@@ -457,10 +457,10 @@ func TestMentionAgent_RejectsCrossWorkspaceAgentUUID(t *testing.T) {
 	// Multica's mention format is markdown-linked: [@Name](mention://agent/<uuid>).
 	mention := "[@Foreign](mention://agent/" + foreignAgentID + ")"
 	if err := testPool.QueryRow(ctx, `
-		INSERT INTO comment (issue_id, author_type, author_id, content)
-		VALUES ($1, 'member', $2, $3)
+		INSERT INTO comment (workspace_id, issue_id, author_type, author_id, content)
+		VALUES ($1, $2, 'member', $3, $4)
 		RETURNING id
-	`, issueID, testUserID, mention).Scan(&commentID); err != nil {
+	`, testWorkspaceID, issueID, testUserID, mention).Scan(&commentID); err != nil {
 		t.Fatalf("create test comment: %v", err)
 	}
 	t.Cleanup(func() {
