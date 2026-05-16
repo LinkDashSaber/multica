@@ -181,51 +181,95 @@ func (h *Handler) DeleteComputer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// D2: aggregate active-agents check across every runtime under this daemon.
-	var totalActive int64
+	// D2 (§6.3): block delete when any runtime under this daemon is still
+	// occupied — either by an unarchived agent or a non-terminal task. The
+	// response surfaces both id lists so the UI can route the user to "See
+	// agents" / "See tasks" before the Remove button re-enables. Counting
+	// only active agents (the prior behaviour) would let a delete succeed
+	// while queued/dispatched/running tasks are still pointed at this
+	// runtime, which then cascade-delete via the agent_task_queue FK and
+	// either 500 (race) or silently destroy history (lose).
+	var activeAgentIDs []string
+	var activeTaskIDs []string
 	for _, rt := range group {
-		count, err := h.Queries.CountActiveAgentsByRuntime(r.Context(), rt.ID)
+		agentIDs, err := h.Queries.ListActiveAgentsByRuntime(r.Context(), rt.ID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to check computer dependencies")
 			return
 		}
-		totalActive += count
+		for _, id := range agentIDs {
+			activeAgentIDs = append(activeAgentIDs, uuidToString(id))
+		}
+		taskIDs, err := h.Queries.ListActiveTasksByRuntime(r.Context(), rt.ID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to check computer dependencies")
+			return
+		}
+		for _, id := range taskIDs {
+			activeTaskIDs = append(activeTaskIDs, uuidToString(id))
+		}
 	}
-	if totalActive > 0 {
+	if len(activeAgentIDs) > 0 || len(activeTaskIDs) > 0 {
 		writeJSON(w, http.StatusConflict, map[string]any{
-			"error":         "computer has active agents bound to it. Archive or reassign the agents first.",
-			"active_agents": totalActive,
+			"error":         "computer is still in use. Cancel running tasks and unbind agents before removing it.",
+			"active_agents": activeAgentIDs,
+			"active_tasks":  activeTaskIDs,
 		})
 		return
 	}
 
-	// Per-runtime delete: clean up archived agents, then DELETE the row.
-	// Mirrors DeleteAgentRuntime so foreign-key behaviour is identical and
-	// any future per-runtime side effects (e.g. usage rollup invalidation)
-	// only need to be wired in one place.
+	// D4: delete runtime rows and revoke the daemon_token in the same DB
+	// transaction. Revoke is the kill switch — if it doesn't land, the
+	// daemon still holds a usable mdt_ and could re-register the Computer
+	// back into existence after the rows are gone. Token cache invalidation
+	// runs only after commit (a successful revoke that the cache doesn't
+	// see yet is fine; an invalidated cache for a failed revoke would
+	// briefly mask a still-valid token).
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		slog.Error("delete computer: begin tx failed", "error", err, "daemon_id", daemonID)
+		writeError(w, http.StatusInternalServerError, "failed to delete computer")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+
 	for _, rt := range group {
-		if err := h.Queries.DeleteArchivedAgentsByRuntime(r.Context(), rt.ID); err != nil {
+		if err := qtx.DeleteArchivedAgentsByRuntime(r.Context(), rt.ID); err != nil {
+			slog.Error("delete computer: clean archived agents failed", "error", err, "runtime_id", uuidToString(rt.ID))
 			writeError(w, http.StatusInternalServerError, "failed to clean up archived agents")
 			return
 		}
-		if err := h.Queries.DeleteAgentRuntime(r.Context(), rt.ID); err != nil {
+		if err := qtx.DeleteAgentRuntime(r.Context(), rt.ID); err != nil {
+			slog.Error("delete computer: delete runtime failed", "error", err, "runtime_id", uuidToString(rt.ID))
 			writeError(w, http.StatusInternalServerError, "failed to delete computer")
 			return
 		}
 	}
 
-	// Revoke daemon_token in this workspace only. D4 revoke (revoked_at = now())
-	// is a soft mark — the row stays until cleanup or natural expiry — so the
-	// daemon's other workspace bindings are untouched.
-	revoked, err := h.Queries.RevokeDaemonTokensByWorkspaceAndDaemon(r.Context(), db.RevokeDaemonTokensByWorkspaceAndDaemonParams{
+	revoked, err := qtx.RevokeDaemonTokensByWorkspaceAndDaemon(r.Context(), db.RevokeDaemonTokensByWorkspaceAndDaemonParams{
 		WorkspaceID: parseUUID(workspaceID),
 		DaemonID:    daemonID,
 	})
 	if err != nil {
-		// Non-fatal: the agent_runtime rows are already gone; auth path
-		// will fail on the next lookup. Log and continue.
-		slog.Warn("delete computer: revoke daemon tokens failed", "error", err, "daemon_id", daemonID)
+		// Hard failure: do not commit. Otherwise the runtime rows would be
+		// gone but the daemon's mdt_ would survive, contradicting D4 ("kill
+		// switch on credential") and letting the daemon silently re-register.
+		slog.Error("delete computer: revoke daemon tokens failed, rolling back", "error", err, "daemon_id", daemonID)
+		writeError(w, http.StatusInternalServerError, "failed to revoke daemon credentials")
+		return
 	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("delete computer: commit failed", "error", err, "daemon_id", daemonID)
+		writeError(w, http.StatusInternalServerError, "failed to delete computer")
+		return
+	}
+
+	// Cache invalidation must run AFTER commit. Running it before would
+	// briefly mask the still-valid token if the tx rolled back; running it
+	// after means the worst case is a small window where a cached identity
+	// outlives the revoked DB row, which the next cache miss resolves.
 	for _, hash := range revoked {
 		h.DaemonTokenCache.Invalidate(r.Context(), hash)
 	}

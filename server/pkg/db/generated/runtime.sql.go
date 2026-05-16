@@ -458,6 +458,65 @@ func (q *Queries) InsertTaskUsageDailyForRuntime(ctx context.Context, runtimeID 
 	return result.RowsAffected(), nil
 }
 
+const listActiveAgentsByRuntime = `-- name: ListActiveAgentsByRuntime :many
+SELECT id FROM agent WHERE runtime_id = $1 AND archived_at IS NULL ORDER BY created_at
+`
+
+// Returns the ids of unarchived agents bound to a runtime. The Remove
+// Computer 409 response surfaces these so the UI can offer "See agents" /
+// "Unbind agents first" guidance instead of a faceless counter.
+func (q *Queries) ListActiveAgentsByRuntime(ctx context.Context, runtimeID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listActiveAgentsByRuntime, runtimeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listActiveTasksByRuntime = `-- name: ListActiveTasksByRuntime :many
+SELECT id FROM agent_task_queue
+WHERE runtime_id = $1
+  AND status IN ('queued', 'dispatched', 'running')
+ORDER BY created_at
+`
+
+// Returns the ids of non-terminal tasks dispatched against this runtime.
+// "Active" matches the runtime-side cancellation set used by
+// CancelTasksByRuntimes / D2: queued, dispatched, or running. Surfaced in
+// the Remove Computer 409 response so the UI can route the user to
+// "See tasks" before delete is allowed.
+func (q *Queries) ListActiveTasksByRuntime(ctx context.Context, runtimeID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listActiveTasksByRuntime, runtimeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAgentRuntimes = `-- name: ListAgentRuntimes :many
 SELECT id, workspace_id, daemon_id, name, runtime_mode, provider, status, device_info, metadata, last_seen_at, created_at, updated_at, owner_id, legacy_daemon_id, timezone, visibility FROM agent_runtime
 WHERE workspace_id = $1
