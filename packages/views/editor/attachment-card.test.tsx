@@ -74,6 +74,60 @@ describe("AttachmentCard — kind dispatch", () => {
     expect(screen.getByText("report.html")).toBeTruthy();
   });
 
+  it("hides the Eye button for an html URL-only source (the modal's /content proxy is ID-keyed)", () => {
+    // Regression: a cross-comment / copy-pasted `!file[report.html](url)`
+    // used to surface a dead Eye button — the AttachmentCard allowed
+    // preview when `previewableFromUrl` was true even without an
+    // attachmentId, but the modal's tryOpen rejects URL-only text kinds
+    // and the click became a silent no-op.
+    render(
+      <AttachmentCard
+        filename="report.html"
+        contentType="text/html"
+        href="https://cdn.example/report.html"
+        onPreview={() => {}}
+        onDownload={() => {}}
+      />,
+    );
+    expect(screen.queryByTitle("Preview")).toBeNull();
+    // Download stays available — the underlying URL is still reachable.
+    expect(screen.getByTitle("Download")).toBeTruthy();
+  });
+
+  it("still shows the Eye button for an html source when an attachmentId is available", () => {
+    getAttachmentTextContentMock.mockResolvedValueOnce({
+      text: "<p>ok</p>",
+      originalContentType: "text/html",
+    });
+    render(
+      <AttachmentCard
+        filename="report.html"
+        contentType="text/html"
+        attachmentId="att-1"
+        href="https://cdn.example/report.html"
+        onPreview={() => {}}
+        onDownload={() => {}}
+      />,
+    );
+    expect(screen.getByTitle("Preview")).toBeTruthy();
+  });
+
+  it("shows the Eye button for a URL-only pdf source (modal renders pdfs directly from URL)", () => {
+    // Counterpart to the html regression: media kinds (pdf/video/audio)
+    // ARE URL-previewable because the modal renders them via
+    // <iframe src=url>/<video>/<audio>, not via the /content proxy.
+    render(
+      <AttachmentCard
+        filename="manual.pdf"
+        contentType="application/pdf"
+        href="https://cdn.example/manual.pdf"
+        onPreview={() => {}}
+        onDownload={() => {}}
+      />,
+    );
+    expect(screen.getByTitle("Preview")).toBeTruthy();
+  });
+
   it("renders an inline iframe with sandbox='allow-scripts' for an HTML attachment", async () => {
     getAttachmentTextContentMock.mockResolvedValueOnce({
       text: "<p>chart goes here</p>",

@@ -58,6 +58,13 @@ import "./content-editor.css";
 
 const lowlight = createLowlight(common);
 
+// Code fences that the `code` renderer returns as a non-<code> React element
+// (Mermaid diagram, HTML preview iframe). The `pre` renderer below unwraps
+// these so the default <pre><code> envelope doesn't clamp their styles.
+// Anchored to whole class tokens so `language-htmlbars` / `language-mermaidx`
+// don't accidentally match and lose their <pre> wrapper.
+const PRE_UNWRAP_RE = /(^|\s)language-(html|mermaid)(\s|$)/;
+
 // ---------------------------------------------------------------------------
 // Sanitization schema — extends GitHub defaults to allow file-card data attrs
 // ---------------------------------------------------------------------------
@@ -276,7 +283,6 @@ function ReadonlyFileCard({
       href={href}
       onPreview={handlePreviewClick}
       onDownload={handleDownloadClick}
-      previewableFromUrl
     />
   );
 }
@@ -384,13 +390,13 @@ function buildComponents(
       // identify "this block was meant to be unwrapped" by inspecting the
       // child's className (`language-mermaid`, `language-html`), not by
       // checking `children.type === MermaidDiagram`, which never matches.
+      //
+      // Match by exact class token: a substring `includes("language-html")`
+      // would also fire on neighboring languages like `language-htmlbars`
+      // and silently strip their <pre> wrapper.
       if (isValidElement(children)) {
         const childProps = children.props as { className?: string };
-        const className = childProps.className ?? "";
-        if (
-          className.includes("language-mermaid") ||
-          className.includes("language-html")
-        ) {
+        if (PRE_UNWRAP_RE.test(childProps.className ?? "")) {
           return <>{children}</>;
         }
       }

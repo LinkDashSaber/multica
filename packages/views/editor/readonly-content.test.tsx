@@ -222,4 +222,34 @@ describe("ReadonlyContent HTML block rendering", () => {
     expect(frame?.getAttribute("srcdoc")).toContain('<h1 id="x">hi</h1>');
     expect(container.querySelector("pre")).toBeNull();
   });
+
+  it("keeps the <pre><code> wrapper for adjacent languages like htmlbars / mermaidx", () => {
+    // Regression: the previous `className.includes("language-html")` check
+    // matched `language-htmlbars` too, so an htmlbars fence lost its outer
+    // <pre> envelope and rendered as bare lowlight-highlighted spans. The
+    // unwrap rule must match the exact class token, not a prefix.
+    const { container } = render(
+      <ReadonlyContent
+        content={[
+          "```htmlbars",
+          "<div>{{name}}</div>",
+          "```",
+          "",
+          "```mermaidx",
+          "not a real lang",
+          "```",
+        ].join("\n")}
+      />,
+    );
+    const pres = container.querySelectorAll("pre");
+    // Both fences keep their <pre> wrapper.
+    expect(pres.length).toBe(2);
+    // And the inner <code> still carries the original language class.
+    expect(
+      container.querySelector("pre code.language-htmlbars"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector("pre code.language-mermaidx"),
+    ).not.toBeNull();
+  });
 });

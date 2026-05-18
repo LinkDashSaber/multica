@@ -174,12 +174,6 @@ export interface AttachmentCardProps {
   /** Pressed when the Download button is clicked. */
   onDownload: () => void;
   /**
-   * Some inline kinds (pdf / video / audio) are previewable from a URL
-   * source via the modal. Callers can broaden the preview gate by passing
-   * `previewableFromUrl: true` even when no attachment record is available.
-   */
-  previewableFromUrl?: boolean;
-  /**
    * Set to false to disable the HTML inline preview branch (and behave like
    * the legacy chrome-only card). Useful for editor NodeViews while a draft
    * upload is still in flight.
@@ -195,13 +189,18 @@ export function AttachmentCard({
   uploading,
   onPreview,
   onDownload,
-  previewableFromUrl,
   inlineHtmlEnabled = true,
 }: AttachmentCardProps) {
   const kind = filename ? getPreviewKind(contentType, filename) : null;
-  const isMediaKind = kind === "pdf" || kind === "video" || kind === "audio";
+  // Media kinds (pdf/video/audio) are previewable from a URL alone — the
+  // modal renders them as <video>/<audio>/<iframe src=url>. Text kinds
+  // (markdown/html/text) need the ID-keyed `/api/attachments/{id}/content`
+  // proxy, so they only preview when we have an attachmentId — otherwise
+  // the Eye button would call tryOpen, get rejected, and do nothing.
+  const isUrlPreviewableKind =
+    kind === "pdf" || kind === "video" || kind === "audio";
   const canPreview =
-    !!href && kind !== null && (!!attachmentId || isMediaKind || !!previewableFromUrl);
+    !!href && kind !== null && (!!attachmentId || isUrlPreviewableKind);
 
   // Mount the inline iframe only when we can hit the /content proxy
   // (attachmentId present) AND kind is HTML AND no upload is in flight.

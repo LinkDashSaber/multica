@@ -64,7 +64,6 @@ function FileCardView({ node }: NodeViewProps) {
           uploading={uploading}
           onPreview={openPreview}
           onDownload={() => openByUrl(href)}
-          previewableFromUrl
         />
       </div>
       {preview.modal}
