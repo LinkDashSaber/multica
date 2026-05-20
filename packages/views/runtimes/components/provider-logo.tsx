@@ -126,8 +126,9 @@ function KimiLogo({ className }: { className: string }) {
   );
 }
 
-// Gemini (Google) — official 4-point "spark" mark with Google's signature
-// blue → purple → pink gradient. Path matches the public Gemini brand SVG.
+// Gemini (Google) — official 4-point "spark" mark with Google's current
+// multicolor AI gradient (cyan → blue → purple → pink → orange) used on
+// gemini.google.com and the Gemini mobile app.
 function GeminiLogo({ className }: { className: string }) {
   const gradientId = `gemini-logo-gradient-${useId().replace(/:/g, "")}`;
 
@@ -136,15 +137,17 @@ function GeminiLogo({ className }: { className: string }) {
       <defs>
         <linearGradient
           id={gradientId}
-          x1="2"
-          y1="4"
-          x2="22"
-          y2="20"
+          x1="0"
+          y1="12"
+          x2="24"
+          y2="12"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0" stopColor="#1C7EFF" />
-          <stop offset="0.52" stopColor="#9168C0" />
-          <stop offset="1" stopColor="#D96570" />
+          <stop offset="0" stopColor="#1BA1E3" />
+          <stop offset="0.3" stopColor="#5489D6" />
+          <stop offset="0.55" stopColor="#9B72CB" />
+          <stop offset="0.8" stopColor="#D96570" />
+          <stop offset="1" stopColor="#F49C46" />
         </linearGradient>
       </defs>
       <path
