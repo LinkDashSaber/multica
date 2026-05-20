@@ -1309,7 +1309,12 @@ func (s *TaskService) MaybeRetryFailedTask(ctx context.Context, parent db.AgentT
 //   - sourceTaskID Valid: rerun the agent that ran that task (and reuse its
 //     leader/worker role). This is what the execution log retry button uses
 //     so a per-row retry survives a subsequent assignee change and correctly
-//     re-fires the squad worker or mention agent whose row was clicked.
+//     re-fires the squad worker or mention agent whose row was clicked. The
+//     source task's trigger_comment_id is also inherited (when the caller
+//     didn't pass one) so a per-row rerun of a comment- or mention-triggered
+//     task stays comment-triggered — the daemon's buildCommentPrompt path
+//     keys on TriggerCommentID, and losing it would degrade the rerun into
+//     a generic issue run that no longer carries the original comment.
 //   - sourceTaskID empty: fall back to the issue's current assignee (agent
 //     or squad leader). This preserves the CLI / API contract for callers
 //     that have an issue ID but no specific task to target.
@@ -1347,6 +1352,15 @@ func (s *TaskService) RerunIssue(ctx context.Context, issueID pgtype.UUID, sourc
 		}
 		agentID = sourceTask.AgentID
 		isLeader = sourceTask.IsLeaderTask
+		// Inherit trigger provenance so a per-row rerun of a comment- or
+		// mention-triggered task stays a comment-triggered task. Without
+		// this the daemon's buildCommentPrompt path is skipped (it keys on
+		// TriggerCommentID) and the rerun degrades into a generic issue
+		// run that has lost the original comment context. Only override
+		// when the caller didn't pass one explicitly.
+		if !triggerCommentID.Valid && sourceTask.TriggerCommentID.Valid {
+			triggerCommentID = sourceTask.TriggerCommentID
+		}
 	} else {
 		switch {
 		case issue.AssigneeType.String == "agent" && issue.AssigneeID.Valid:

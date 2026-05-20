@@ -32,9 +32,13 @@ func setupRerunTestFixture(t *testing.T) (string, string, string) {
 	}
 
 	var issueID string
+	// Pick the next per-workspace number to avoid colliding with the
+	// uq_issue_workspace_number unique constraint when multiple fixtures
+	// coexist in the same test (e.g. TestRerunIssueRejectsCrossIssueTask).
 	if err := testPool.QueryRow(ctx, `
-		INSERT INTO issue (workspace_id, title, status, priority, creator_type, creator_id, assignee_type, assignee_id)
-		SELECT $1, 'Rerun test issue', 'todo', 'none', 'member', m.user_id, 'agent', $2
+		INSERT INTO issue (workspace_id, title, status, priority, creator_type, creator_id, assignee_type, assignee_id, number)
+		SELECT $1, 'Rerun test issue', 'todo', 'none', 'member', m.user_id, 'agent', $2,
+		       (SELECT COALESCE(MAX(number), 0) + 1 FROM issue WHERE workspace_id = $1)
 		FROM member m WHERE m.workspace_id = $1 LIMIT 1
 		RETURNING id
 	`, testWorkspaceID, agentID).Scan(&issueID); err != nil {
@@ -383,11 +387,15 @@ func TestRerunIssueRejectsCrossIssueTask(t *testing.T) {
 	ctx := context.Background()
 
 	// Second issue in the same workspace, with a task that does NOT belong
-	// to issue A. The handler must reject this.
+	// to issue A. The handler must reject this. Take the next available
+	// per-workspace number so the uq_issue_workspace_number constraint
+	// (both issues default to number=0 otherwise) doesn't fire before the
+	// rerun assertion can.
 	var issueBID string
 	if err := testPool.QueryRow(ctx, `
-		INSERT INTO issue (workspace_id, title, status, priority, creator_type, creator_id, assignee_type, assignee_id)
-		SELECT $1, 'Rerun cross-issue test', 'todo', 'none', 'member', m.user_id, 'agent', $2
+		INSERT INTO issue (workspace_id, title, status, priority, creator_type, creator_id, assignee_type, assignee_id, number)
+		SELECT $1, 'Rerun cross-issue test', 'todo', 'none', 'member', m.user_id, 'agent', $2,
+		       (SELECT COALESCE(MAX(number), 0) + 1 FROM issue WHERE workspace_id = $1)
 		FROM member m WHERE m.workspace_id = $1 LIMIT 1
 		RETURNING id
 	`, testWorkspaceID, agentID).Scan(&issueBID); err != nil {
@@ -420,6 +428,78 @@ func TestRerunIssueRejectsCrossIssueTask(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("expected RerunIssue to reject a source task from a different issue")
+	}
+}
+
+// TestRerunIssueInheritsTriggerCommentFromSourceTask locks the trigger
+// provenance contract: a per-row rerun of a comment- or mention-triggered
+// task must carry the original trigger_comment_id through to the new task.
+// Otherwise the daemon's buildCommentPrompt path (which keys on
+// TriggerCommentID) is skipped and the rerun degrades into a generic
+// issue run that has lost the original comment context — see MUL-2457
+// review feedback.
+func TestRerunIssueInheritsTriggerCommentFromSourceTask(t *testing.T) {
+	if testPool == nil {
+		t.Skip("no database connection")
+	}
+
+	issueID, agentID, runtimeID := setupRerunTestFixture(t)
+	t.Cleanup(func() { cleanupRerunFixture(t, issueID) })
+
+	ctx := context.Background()
+
+	// Create a comment to stand in as the original mention / reply trigger.
+	var triggerCommentID string
+	if err := testPool.QueryRow(ctx, `
+		INSERT INTO comment (issue_id, workspace_id, author_type, author_id, content, type)
+		SELECT $1, $2, 'member', m.user_id, 'please retry this', 'comment'
+		FROM member m WHERE m.workspace_id = $2 LIMIT 1
+		RETURNING id
+	`, issueID, testWorkspaceID).Scan(&triggerCommentID); err != nil {
+		t.Fatalf("insert trigger comment: %v", err)
+	}
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM comment WHERE id = $1`, triggerCommentID)
+	})
+
+	// Source task carries the trigger_comment_id — this is the row whose
+	// retry button the user clicks in the execution log.
+	var sourceTaskID string
+	if err := testPool.QueryRow(ctx, `
+		INSERT INTO agent_task_queue (agent_id, runtime_id, issue_id, status, priority,
+		                              started_at, completed_at, failure_reason,
+		                              trigger_comment_id)
+		VALUES ($1, $2, $3, 'failed', 0,
+		        now() - interval '1 minute', now() - interval '30 seconds', 'agent_error',
+		        $4)
+		RETURNING id
+	`, agentID, runtimeID, issueID, triggerCommentID).Scan(&sourceTaskID); err != nil {
+		t.Fatalf("insert source task: %v", err)
+	}
+
+	queries := db.New(testPool)
+	hub := realtime.NewHub()
+	go hub.Run()
+	bus := events.New()
+	taskService := service.NewTaskService(queries, nil, hub, bus)
+
+	task, err := taskService.RerunIssue(
+		ctx,
+		pgtype.UUID{Bytes: parseUUIDBytes(issueID), Valid: true},
+		pgtype.UUID{Bytes: parseUUIDBytes(sourceTaskID), Valid: true},
+		pgtype.UUID{},
+	)
+	if err != nil {
+		t.Fatalf("RerunIssue failed: %v", err)
+	}
+	if task == nil {
+		t.Fatal("RerunIssue returned nil task")
+	}
+	if !task.TriggerCommentID.Valid {
+		t.Fatal("expected per-row rerun to inherit trigger_comment_id from source task, got NULL")
+	}
+	if got := util.UUIDToString(task.TriggerCommentID); got != triggerCommentID {
+		t.Fatalf("trigger_comment_id mismatch: got %s, want %s", got, triggerCommentID)
 	}
 }
 
