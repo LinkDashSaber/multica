@@ -132,6 +132,29 @@ const TitleEditor = forwardRef<TitleEditorRef, TitleEditorProps>(
       return undefined;
     }, [autoFocus, editor]);
 
+    // Sync external `defaultValue` changes into the editor.
+    // Tiptap `useEditor` consumes `content` only at mount, so a WS-driven
+    // title update would otherwise leave the editor showing stale text — and
+    // the next blur would silently roll the external change back via onBlur's
+    // value-vs-issue.title compare.
+    useEffect(() => {
+      if (!editor || editor.isDestroyed) return;
+      // User is typing — preserve in-flight edits.
+      if (editor.isFocused) return;
+      if (editor.getText() === defaultValue) return;
+      editor.commands.setContent(
+        defaultValue
+          ? {
+              type: "doc",
+              content: [
+                { type: "paragraph", content: [{ type: "text", text: defaultValue }] },
+              ],
+            }
+          : "",
+        { emitUpdate: false },
+      );
+    }, [defaultValue, editor]);
+
     useImperativeHandle(ref, () => ({
       getText: () => editor?.getText() ?? "",
       focus: () => {
