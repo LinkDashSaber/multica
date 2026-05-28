@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -188,11 +189,13 @@ type AgentTaskResponse struct {
 	// RelativeWorkDir is a privacy-safe display form of WorkDir intended for
 	// the UI. For standard tasks it strips the daemon's workspaces root so
 	// the user sees `<wsUUID>/<taskShort>/workdir`; for local_directory
-	// tasks the absolute path lives outside the envRoot layout, so we fall
-	// back to the last two path segments to avoid leaking the home dir or
-	// username. Empty when WorkDir is empty or workspace can't be resolved.
-	// See relativeWorkDir() for the full rules. Older clients can still
-	// read WorkDir directly; newer UIs should prefer RelativeWorkDir.
+	// tasks the absolute path lives outside the envRoot layout, so we strip
+	// recognised home-directory prefixes (`/Users/<name>/`, `/home/<name>/`,
+	// `<drive>:/Users/<name>/`) and otherwise fall back to the basename so
+	// the field never carries the user's home dir or account name. Empty
+	// when WorkDir is empty, or when stripping leaves nothing. See
+	// relativeWorkDir() for the full rules. Older clients can still read
+	// WorkDir directly; newer UIs should prefer RelativeWorkDir.
 	RelativeWorkDir         string                `json:"relative_work_dir,omitempty"`
 	TriggerCommentID        *string               `json:"trigger_comment_id,omitempty"`        // comment that triggered this task
 	TriggerCommentContent   string                `json:"trigger_comment_content,omitempty"`   // content of the triggering comment
@@ -310,21 +313,28 @@ func taskToResponse(t db.AgentTaskQueue, workspaceID string) AgentTaskResponse {
 }
 
 // relativeWorkDir produces a privacy-safe display form of the daemon-reported
-// absolute work_dir.
+// absolute work_dir. The contract: the returned string must never contain
+// the user's home directory prefix or their account name. The chip is
+// rendered in transcripts that frequently end up in screen shares,
+// screenshots, and recordings, so this function is the only guard.
 //
 //   - For standard tasks (work_dir laid out as `<workspacesRoot>/<wsUUID>/
 //     <taskShort>/workdir` by execenv.Prepare), it strips everything up to and
 //     including the workspaces root, returning `<wsUUID>/<taskShort>/workdir`.
-//   - For local_directory tasks where work_dir is the user's own absolute
-//     path, the envRoot substring is absent. We fall back to the last two
-//     path segments — enough context ("repos/foo") for the user to
-//     recognise the directory without leaking the home dir or username.
+//   - For local_directory tasks the absolute path lives outside the envRoot
+//     layout. We try to recognise common home-directory prefixes
+//     (`/Users/<name>/`, `/home/<name>/`, `<drive>:/Users/<name>/`) and strip
+//     them, returning the remainder (e.g. `repos/foo`). When the prefix
+//     can't be recognised — unusual home layouts, network mounts, paths
+//     under `/opt`, `/srv`, etc. — we fall back to the basename so we never
+//     accidentally render a path component that happens to be a username.
 //
-// Returns empty when work_dir is empty or workspace_id / task_id are
-// missing. shortTaskID() must stay in lock-step with
-// server/internal/daemon/execenv/git.go:shortID — both consume the same
-// task UUID; if that helper changes, this one must too or the envRoot
-// match silently degrades to the local_directory fallback.
+// Returns empty when work_dir is empty, or when stripping leaves nothing
+// (i.e. work_dir was exactly the user's home — rendering nothing is
+// preferable to a chip that says `<name>`). shortTaskID() must stay in
+// lock-step with server/internal/daemon/execenv/git.go:shortID — both
+// consume the same task UUID; if that helper changes, this one must too
+// or the envRoot match silently degrades to the local_directory fallback.
 func relativeWorkDir(workDir, workspaceID, taskID string) string {
 	if workDir == "" {
 		return ""
@@ -340,7 +350,11 @@ func relativeWorkDir(workDir, workspaceID, taskID string) string {
 		}
 	}
 
-	return tailPathSegments(normalized, 2)
+	if stripped, ok := stripHomePrefix(normalized); ok {
+		return stripped
+	}
+
+	return basename(normalized)
 }
 
 // shortTaskID mirrors execenv.shortID — first 8 hex chars of the UUID
@@ -355,23 +369,46 @@ func shortTaskID(uuid string) string {
 	return s
 }
 
-// tailPathSegments returns the trailing n non-empty segments of a forward-
-// slash path, joined with "/". Used as the privacy-safe fallback for
-// local_directory work_dirs — n=2 keeps "<parent>/<basename>" which is
-// usually enough context without leaking $HOME or the username.
-func tailPathSegments(p string, n int) string {
-	if n <= 0 || p == "" {
+// homeDirPattern matches the well-known per-user home layouts on macOS,
+// Linux, and Windows after backslash normalization:
+//
+//	/Users/<name>[/<rest>]
+//	/home/<name>[/<rest>]
+//	<drive>:/Users/<name>[/<rest>]
+//
+// Case-insensitive because macOS and Windows are case-insensitive at the
+// filesystem layer; matching `/users/...` the same as `/Users/...` keeps
+// the strip robust against unusual casings seen on shared drives.
+// Capture group 1 is the optional remainder after the username segment.
+var homeDirPattern = regexp.MustCompile(`(?i)^(?:[A-Za-z]:)?/(?:Users|home)/[^/]+(?:/(.*))?$`)
+
+// stripHomePrefix recognises common home-directory layouts and returns
+// the path remainder after the username segment. Returns (remainder, true)
+// when a known home prefix matched. The remainder may be the empty string
+// (work_dir was exactly the home directory) — the caller treats that as
+// "nothing safe to display".
+func stripHomePrefix(p string) (string, bool) {
+	m := homeDirPattern.FindStringSubmatch(p)
+	if m == nil {
+		return "", false
+	}
+	return m[1], true
+}
+
+// basename returns the last non-empty segment of a forward-slash path.
+// Used as the ultimate privacy-safe fallback when we can't otherwise
+// recognise the path: a single segment can never expose the home prefix,
+// and the leaf is almost always the most useful piece of context anyway
+// (typically the repo directory name for local_directory tasks).
+func basename(p string) string {
+	p = strings.TrimRight(p, "/")
+	if p == "" {
 		return ""
 	}
-	parts := strings.Split(p, "/")
-	out := make([]string, 0, n)
-	for i := len(parts) - 1; i >= 0 && len(out) < n; i-- {
-		if parts[i] == "" {
-			continue
-		}
-		out = append([]string{parts[i]}, out...)
+	if idx := strings.LastIndex(p, "/"); idx >= 0 {
+		return p[idx+1:]
 	}
-	return strings.Join(out, "/")
+	return p
 }
 
 // computeTaskKind picks the source-discriminator string the activity UI uses

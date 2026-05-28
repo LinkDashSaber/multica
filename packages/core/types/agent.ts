@@ -129,10 +129,13 @@ export interface AgentTask {
    * Privacy-safe display form of `work_dir`, derived on the server. For
    * standard tasks the daemon's workspaces root has been stripped off
    * (`<wsUUID>/<taskShort>/workdir`); for local_directory tasks where the
-   * path lives outside that layout, only the trailing two path segments
-   * are returned so neither the home directory nor the username leak into
-   * the UI. Older backends omit the field — render it conditionally and
-   * fall back to hiding the chip rather than rendering `work_dir` raw.
+   * path lives outside that layout, the server strips recognised home
+   * prefixes (`/Users/<name>/`, `/home/<name>/`, `<drive>:/Users/<name>/`)
+   * and otherwise falls back to the basename so neither the home directory
+   * nor the username leak into the UI. Older backends omit the field —
+   * render it conditionally and never render `work_dir` raw (not even in
+   * a tooltip / `title` / `aria-label`, since the goal is that screen
+   * shares and screenshots also stay safe).
    */
   relative_work_dir?: string;
 }

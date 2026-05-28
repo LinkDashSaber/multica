@@ -14,8 +14,11 @@ import (
 //     doesn't expose the user's home directory or username (the bug in
 //     PR #3379 that this fix replaces).
 //  2. local_directory tasks have a work_dir outside the envRoot layout —
-//     we must NOT leak `/Users/<name>/...`, so the fallback returns only
-//     the trailing two path segments.
+//     we must NOT leak `/Users/<name>/...`, `/home/<name>/...`, or
+//     `<drive>:/Users/<name>/...` even on shallow paths like
+//     `/Users/alice/foo`. The function strips recognised home prefixes
+//     and otherwise falls back to the basename, which can never carry a
+//     username segment.
 func TestRelativeWorkDir(t *testing.T) {
 	const (
 		wsID   = "a05b0e10-ee7a-4603-a72d-a548b2390cb2"
@@ -51,25 +54,74 @@ func TestRelativeWorkDir(t *testing.T) {
 			expected: wsID + "/5c57b65b",
 		},
 		{
-			name:     "local_directory path keeps last two segments (no home leak)",
+			name:     "local_directory path under /Users home is stripped",
 			workDir:  "/Users/df007df/repos/foo",
 			wsID:     wsID,
 			taskID:   taskID,
 			expected: "repos/foo",
 		},
 		{
-			name:     "local_directory deep path still trims to two segments",
+			name:     "local_directory deep path under home keeps full remainder",
 			workDir:  "/Users/df007df/code/work/projects/multica/foo",
 			wsID:     wsID,
 			taskID:   taskID,
-			expected: "multica/foo",
+			expected: "code/work/projects/multica/foo",
 		},
 		{
-			name:     "short local path returns what's available",
+			name:     "shallow /Users home path strips username segment",
+			workDir:  "/Users/alice/foo",
+			wsID:     wsID,
+			taskID:   taskID,
+			expected: "foo",
+		},
+		{
+			name:     "shallow Linux /home path strips username segment",
+			workDir:  "/home/alice/project",
+			wsID:     wsID,
+			taskID:   taskID,
+			expected: "project",
+		},
+		{
+			name:     "shallow Windows /Users path strips username segment",
+			workDir:  `C:\Users\alice\foo`,
+			wsID:     wsID,
+			taskID:   taskID,
+			expected: "foo",
+		},
+		{
+			name:     "exact home directory returns empty (would only render username)",
+			workDir:  "/Users/alice",
+			wsID:     wsID,
+			taskID:   taskID,
+			expected: "",
+		},
+		{
+			name:     "exact home directory with trailing slash returns empty",
+			workDir:  "/Users/alice/",
+			wsID:     wsID,
+			taskID:   taskID,
+			expected: "",
+		},
+		{
+			name:     "Windows local_directory path under home strips username",
+			workDir:  `C:\Users\alice\repos\foo`,
+			wsID:     wsID,
+			taskID:   taskID,
+			expected: "repos/foo",
+		},
+		{
+			name:     "non-home local path falls back to basename only",
 			workDir:  "/opt/foo",
 			wsID:     wsID,
 			taskID:   taskID,
-			expected: "opt/foo",
+			expected: "foo",
+		},
+		{
+			name:     "non-home deep local path falls back to basename only",
+			workDir:  "/srv/git/repo",
+			wsID:     wsID,
+			taskID:   taskID,
+			expected: "repo",
 		},
 		{
 			name:     "single-segment local path returns the segment",
@@ -86,25 +138,18 @@ func TestRelativeWorkDir(t *testing.T) {
 			expected: wsID + "/5c57b65b/workdir",
 		},
 		{
-			name:     "Windows local_directory path falls back to tail segments",
-			workDir:  `C:\Users\alice\repos\foo`,
-			wsID:     wsID,
-			taskID:   taskID,
-			expected: "repos/foo",
-		},
-		{
-			name:     "missing workspace_id falls back to tail segments even for envRoot path",
+			name:     "missing workspace_id under home strips home prefix instead of envRoot",
 			workDir:  "/Users/alice/multica_workspaces/" + wsID + "/5c57b65b/workdir",
 			wsID:     "",
 			taskID:   taskID,
-			expected: "5c57b65b/workdir",
+			expected: "multica_workspaces/" + wsID + "/5c57b65b/workdir",
 		},
 		{
-			name:     "missing task_id falls back to tail segments even for envRoot path",
+			name:     "missing task_id under home strips home prefix instead of envRoot",
 			workDir:  "/Users/alice/multica_workspaces/" + wsID + "/5c57b65b/workdir",
 			wsID:     wsID,
 			taskID:   "",
-			expected: "5c57b65b/workdir",
+			expected: "multica_workspaces/" + wsID + "/5c57b65b/workdir",
 		},
 		{
 			name:     "trailing slash on envRoot path is preserved in returned suffix",
@@ -114,11 +159,18 @@ func TestRelativeWorkDir(t *testing.T) {
 			expected: wsID + "/5c57b65b/workdir/",
 		},
 		{
-			name:     "wsID prefix appearing elsewhere only matches when followed by shortID",
+			name:     "wsID prefix appearing elsewhere falls back to basename when not under home",
 			workDir:  "/var/" + wsID + "/something/else",
 			wsID:     wsID,
 			taskID:   taskID,
-			expected: "something/else",
+			expected: "else",
+		},
+		{
+			name:     "case-insensitive /users matches the same as /Users",
+			workDir:  "/users/alice/repos/foo",
+			wsID:     wsID,
+			taskID:   taskID,
+			expected: "repos/foo",
 		},
 	}
 
