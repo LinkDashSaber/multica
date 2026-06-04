@@ -165,7 +165,14 @@ const desktopAPI = {
 };
 
 interface DaemonStatus {
-  state: "running" | "stopped" | "starting" | "stopping" | "installing_cli" | "cli_not_found";
+  state:
+    | "running"
+    | "stopped"
+    | "starting"
+    | "stopping"
+    | "installing_cli"
+    | "cli_not_found"
+    | "auth_expired";
   pid?: number;
   uptime?: string;
   daemonId?: string;

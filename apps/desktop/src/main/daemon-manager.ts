@@ -19,12 +19,18 @@ import { homedir, hostname } from "os";
 import type { DaemonStatus, DaemonPrefs } from "../shared/daemon-types";
 import { ensureManagedCli, managedCliPath } from "./cli-bootstrap";
 import { decideVersionAction } from "./version-decision";
+import { classifyAuthProbe, type AuthProbeResult } from "./daemon-auth-probe";
 
 const DEFAULT_HEALTH_PORT = 19514;
 const POLL_INTERVAL_MS = 5_000;
 const PREFS_PATH = join(homedir(), ".multica", "desktop_prefs.json");
 const LOG_TAIL_RETRY_MS = 2_000;
 const LOG_TAIL_MAX_RETRIES = 5;
+// How long a start may sit in "starting" (with no /health) before we probe the
+// token to find out whether login expired. The daemon's own startup can legitimately
+// take a while (it renews the PAT and lists workspaces before serving /health), so we
+// wait past the common case to avoid probing healthy-but-slow starts.
+const AUTH_PROBE_GRACE_MS = 10_000;
 
 const DEFAULT_PREFS: DaemonPrefs = { autoStart: true, autoStop: false };
 
@@ -47,6 +53,15 @@ let cachedCliBinaryVersion: string | null | undefined = undefined;
 let pendingVersionRestart = false;
 let targetApiBaseUrl: string | null = null;
 let activeProfile: ActiveProfile | null = null;
+
+// Auth-probe state for the current start attempt. When a start fails to reach
+// "running", we probe the daemon's token once (after AUTH_PROBE_GRACE_MS) to
+// decide whether the cause is an expired/invalid login. `authExpired` is sticky
+// until the next start attempt or a successful /health, so the UI keeps showing
+// the re-login prompt instead of flapping back to "starting". See #3512.
+let startingSince: number | null = null;
+let authProbeDone = false;
+let authExpired = false;
 
 // Serialize all writes to any profile config file. Multiple paths
 // (syncToken, resolveActiveProfile, clearToken, watch/unwatch handlers)
@@ -161,6 +176,36 @@ async function fetchHealthAtPort(
   }
 }
 
+/**
+ * Validates the daemon profile's token against the backend to find out whether
+ * a stuck start is an auth problem. Hits the same endpoint `multica auth status`
+ * uses (GET /api/me) with the exact token the daemon loads from config.json, so
+ * the verdict matches what the daemon itself would get from the server.
+ *
+ * Only the HTTP status is inspected (never the body) so a future change to the
+ * /api/me response shape can't break this — a 401 means the token is rejected,
+ * a 2xx means it's fine, and a thrown request means the network is the problem,
+ * not auth. See classifyAuthProbe for the full rule set.
+ */
+async function probeTokenValidity(profile: string): Promise<AuthProbeResult> {
+  if (!targetApiBaseUrl) return "unknown";
+  const cfg = await readProfileConfig(profile);
+  const token = typeof cfg.token === "string" ? cfg.token : "";
+  if (!token) return classifyAuthProbe({ noToken: true });
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4_000);
+    const res = await fetch(`${targetApiBaseUrl.replace(/\/+$/, "")}/api/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    return classifyAuthProbe({ status: res.status });
+  } catch {
+    return classifyAuthProbe({ networkError: true });
+  }
+}
+
 // Desktop owns a dedicated CLI profile named after the target API host, so it
 // never reads or writes the user's hand-configured profiles. Profile dir:
 //   ~/.multica/profiles/desktop-<host>/
@@ -249,11 +294,39 @@ async function fetchHealth(): Promise<DaemonStatus> {
   const data = await fetchHealthAtPort(active.port);
 
   if (!data || data.status !== "running") {
+    // A start that never reaches "running" is the symptom; an expired/invalid
+    // login is the most common cause and the one with no other signal (the
+    // daemon exits before it can serve /health, so we can't read the reason
+    // from it). Probe the token once per attempt, after a grace period, to
+    // surface a re-login prompt instead of spinning on "starting" forever.
+    if (
+      currentState === "starting" &&
+      !authExpired &&
+      !authProbeDone &&
+      startingSince !== null &&
+      Date.now() - startingSince >= AUTH_PROBE_GRACE_MS
+    ) {
+      authProbeDone = true;
+      if ((await probeTokenValidity(active.name)) === "auth_expired") {
+        authExpired = true;
+      }
+    }
+    // Sticky: once login is known-expired, keep reporting it (even after
+    // currentState flips away from "starting") until the next start attempt or
+    // a successful /health clears the flag.
+    if (authExpired) {
+      return { state: "auth_expired", profile: active.name };
+    }
     return {
       state: currentState === "starting" ? "starting" : "stopped",
       profile: active.name,
     };
   }
+
+  // A live, authenticated daemon clears any prior auth-failure verdict so the
+  // re-login prompt disappears once the user reconnects.
+  authExpired = false;
+  startingSince = null;
 
   // Safety: if we have a target URL and the daemon on our port reports a
   // different server_url, it's not "our" daemon — drop it and re-resolve.
@@ -657,6 +730,10 @@ async function startDaemon(): Promise<{ success: boolean; error?: string }> {
   }
 
   currentState = "starting";
+  // Begin a fresh auth-probe window for this attempt.
+  startingSince = Date.now();
+  authProbeDone = false;
+  authExpired = false;
   sendStatus({ state: "starting" });
 
   const args = ["daemon", "start", ...profileArgs(active)];
@@ -689,6 +766,9 @@ async function stopDaemon(): Promise<{ success: boolean; error?: string }> {
 
   const active = await ensureActiveProfile();
   currentState = "stopping";
+  // An explicit stop is a clean reset — drop any pending auth-failure verdict.
+  authExpired = false;
+  startingSince = null;
   sendStatus({ state: "stopping" });
 
   const args = ["daemon", "stop", ...profileArgs(active)];
