@@ -1,4 +1,4 @@
-import type { Editor } from "@tiptap/core";
+import { type Editor, InputRule } from "@tiptap/core";
 import { ListItem, TaskItem } from "@tiptap/extension-list";
 
 /**
@@ -44,9 +44,41 @@ export const PatchedListItem = ListItem.extend({
  * applied to checkbox task items so they behave identically to bullet/ordered
  * lists. `nested: true` lets a task item hold nested lists (so Tab indents into
  * a sub-task and nested markdown round-trips), matching GitHub / Notion.
+ *
+ * It also adds the GitHub-style `- [ ] ` typing flow. TaskItem's built-in input
+ * rule only converts `[ ] ` / `[x] ` typed at the start of a PLAIN paragraph;
+ * once a leading `- ` (or `1. `) has turned the line into a bullet/ordered
+ * item, that rule no longer fires and `[ ]` stays as literal text. The extra
+ * rule below catches the checkbox token when it is the entire content of a
+ * freshly-typed list item and converts just that item into a task item —
+ * sibling items in the same list are left untouched (lift then re-wrap).
  */
 export const PatchedTaskItem = TaskItem.extend({
   addKeyboardShortcuts() {
     return listItemKeymap(this.editor, this.name);
+  },
+  addInputRules() {
+    return [
+      ...(this.parent?.() ?? []),
+      new InputRule({
+        find: /^\[([ xX])?\]\s$/,
+        handler: ({ state, range, match, chain }) => {
+          // Only when the checkbox token is the whole content of a list item.
+          // Plain-paragraph typing is handled by the inherited rule above; the
+          // anchored regex guarantees there is no other text before it. When
+          // the guard fails the handler leaves the transaction untouched, so
+          // the rule is a no-op and ProseMirror falls through.
+          if (state.selection.$from.node(-1)?.type.name === "listItem") {
+            const checked = (match[1] ?? "").toLowerCase() === "x";
+            chain()
+              .deleteRange(range)
+              .liftListItem("listItem")
+              .toggleList("taskList", "taskItem")
+              .updateAttributes("taskItem", { checked })
+              .run();
+          }
+        },
+      }),
+    ];
   },
 }).configure({ nested: true });
