@@ -2015,20 +2015,13 @@ func (s *TaskService) createAgentComment(ctx context.Context, issueID, agentID p
 	if err != nil {
 		return
 	}
-	// Resolve the direct parent and thread root for reply side effects without
-	// overwriting parentID. The stored parent_id must remain the exact comment
-	// being replied to; recursive thread reads recover the root when needed.
+	// Resolve the direct parent for reply side effects without overwriting
+	// parentID. The stored parent_id must remain the exact comment being
+	// replied to; recursive thread reads recover the root when needed.
 	var parentComment *db.Comment
-	var rootComment *db.Comment
 	if parentID.Valid {
 		if parent, err := s.Queries.GetComment(ctx, parentID); err == nil && util.UUIDToString(parent.IssueID) == util.UUIDToString(issueID) {
 			parentComment = &parent
-		}
-		if root, err := s.Queries.GetThreadRoot(ctx, db.GetThreadRootParams{
-			CommentID:   parentID,
-			WorkspaceID: issue.WorkspaceID,
-		}); err == nil {
-			rootComment = &root
 		}
 	}
 	// Expand bare issue identifiers (e.g. MUL-117) into mention links.
@@ -2065,15 +2058,14 @@ func (s *TaskService) createAgentComment(ctx context.Context, issueID, agentID p
 			"issue_status": issue.Status,
 		},
 	})
-	s.AutoUnresolveCommentsOnReply(ctx, []*db.Comment{parentComment, rootComment}, util.UUIDToString(issue.WorkspaceID), "agent", util.UUIDToString(agentID))
+	s.AutoUnresolveCommentsOnReply(ctx, []*db.Comment{parentComment}, util.UUIDToString(issue.WorkspaceID), "agent", util.UUIDToString(agentID))
 }
 
 // AutoUnresolveCommentsOnReply clears resolved_at on resolved comments that a
 // new reply re-opens, and broadcasts comment:unresolved for each changed row.
-// Callers pass the direct parent plus the thread root: the direct parent is
-// the new per-comment behavior, while the root preserves the old thread-level
-// reopen contract. Errors are logged — the reply itself already committed, the
-// desync is recoverable on next read.
+// Callers pass the direct parent comment only; unrelated resolved roots or
+// ancestors stay resolved. Errors are logged — the reply itself already
+// committed, the desync is recoverable on next read.
 func (s *TaskService) AutoUnresolveCommentsOnReply(ctx context.Context, comments []*db.Comment, workspaceID, actorType, actorID string) {
 	seen := make(map[string]struct{}, len(comments))
 	for _, comment := range comments {

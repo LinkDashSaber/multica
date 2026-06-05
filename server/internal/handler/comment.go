@@ -871,19 +871,9 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	// entity-encode Markdown syntax characters (>, ", &, <) and corrupt the
 	// source. See issue #1303 / discussion in MUL-1119, MUL-1125.
 
-	// parent_id stores the exact comment being replied to. Thread-level behavior
-	// (for example auto-unresolving a resolved thread) resolves the root
-	// separately so storing a reply-to-reply does not destroy the direct-parent
-	// signal used by trigger decisions.
-	var rootComment *db.Comment
-	if parentID.Valid {
-		if root, err := h.Queries.GetThreadRoot(r.Context(), db.GetThreadRootParams{
-			CommentID:   parentID,
-			WorkspaceID: issue.WorkspaceID,
-		}); err == nil {
-			rootComment = &root
-		}
-	}
+	// parent_id stores the exact comment being replied to. Per-comment
+	// auto-reopen uses only that direct parent so unrelated resolved ancestors
+	// or siblings stay resolved.
 
 	comment, err := h.Queries.CreateComment(r.Context(), db.CreateCommentParams{
 		IssueID:     issue.ID,
@@ -917,11 +907,10 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		"issue_status":        issue.Status,
 	})
 
-	// A reply to resolved context re-opens the direct parent comment and, for
-	// compatibility with the previous thread-level behavior, the thread root.
+	// A reply to a resolved direct parent re-opens that parent comment.
 	// Done after CreateComment commits so the reply is visible regardless of
 	// the unresolve outcome.
-	h.TaskService.AutoUnresolveCommentsOnReply(r.Context(), []*db.Comment{parentComment, rootComment}, uuidToString(issue.WorkspaceID), authorType, authorID)
+	h.TaskService.AutoUnresolveCommentsOnReply(r.Context(), []*db.Comment{parentComment}, uuidToString(issue.WorkspaceID), authorType, authorID)
 
 	h.triggerTasksForComment(r.Context(), issue, comment, parentComment, authorType, authorID)
 

@@ -158,3 +158,38 @@ func TestCreateComment_AutoUnresolvesResolvedDirectParent(t *testing.T) {
 		t.Fatal("unresolved root should not be changed by direct-parent auto reopen")
 	}
 }
+
+func TestCreateComment_DoesNotAutoUnresolveResolvedRootWhenReplyingToUnresolvedReply(t *testing.T) {
+	if testHandler == nil || testPool == nil {
+		t.Skip("database not available")
+	}
+	issueID, rootID, replyID := createResolveCommentFixture(t)
+	if _, err := testPool.Exec(context.Background(), `
+		UPDATE comment
+		SET resolved_at = now(), resolved_by_type = 'member', resolved_by_id = $2
+		WHERE id = $1
+	`, rootID, testUserID); err != nil {
+		t.Fatalf("seed root resolved state: %v", err)
+	}
+
+	w := httptest.NewRecorder()
+	req := newRequest(http.MethodPost, "/api/issues/"+issueID+"/comments", map[string]any{
+		"content":   "reply to unresolved sibling",
+		"parent_id": replyID,
+	})
+	req = withURLParam(req, "id", issueID)
+	testHandler.CreateComment(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("CreateComment reply: expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var rootResolved bool
+	if err := testPool.QueryRow(context.Background(), `
+		SELECT resolved_at IS NOT NULL FROM comment WHERE id = $1
+	`, rootID).Scan(&rootResolved); err != nil {
+		t.Fatalf("query root resolved state: %v", err)
+	}
+	if !rootResolved {
+		t.Fatal("replying to an unresolved reply must not reopen a resolved thread root")
+	}
+}
