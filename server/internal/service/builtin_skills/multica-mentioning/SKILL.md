@@ -57,11 +57,10 @@ match, or the link resolves to the wrong entity (or to nothing).
 | link a person        | `member` | member.user_id  | renders a link; enqueues NOTHING — no agent run          |
 | reference an issue   | `issue`  | issue.id        | renders a link; enqueues NOTHING — always safe           |
 
-The enqueue logic lives in `enqueueMentionedAgentTasks`
-(`server/internal/handler/comment.go`). The actual mention trigger set is
-computed by `computeMentionedAgentCommentTriggers`, then the comment path
-passes that result through `computeCommentAgentTriggers` before enqueueing. It
-acts on two types only: the `squad` branch resolves the squad and adds its
+The mention trigger set is computed by `computeMentionedAgentCommentTriggers`
+(`server/internal/handler/comment.go`); the comment path folds that result into
+`computeCommentAgentTriggers` and enqueues it via `enqueueCommentAgentTriggers`.
+It acts on two types only: the `squad` branch resolves the squad and adds its
 leader to the trigger set; everything that is not `agent` after that is skipped
 (`if m.Type != "agent" { continue }`), then the `agent` branch adds that agent.
 A `member` or `issue` mention reaches neither branch, so it enqueues no task.

@@ -30,37 +30,37 @@ a pointer. Branch where verified: `feat/builtin-skills`.
 
 | Fact | Source |
 | --- | --- |
-| `computeCommentAgentTriggers` is the shared comment trigger computation used before enqueueing | `server/internal/handler/comment.go:1101-1133` |
-| `enqueueMentionedAgentTasks` now delegates to the mention trigger computation and shared enqueue helper | `server/internal/handler/comment.go:1308-1310` |
-| It is called for comment creation via `triggerTasksForComment`, which computes triggers, applies suppressions, then enqueues | `server/internal/handler/comment.go:1037-1040` |
-| `squad` branch: resolve squad in workspace, read `LeaderID`, add the leader trigger | `server/internal/handler/comment.go:1330-1369` |
-| `squad` → shared enqueue helper calls `EnqueueTaskForSquadLeader` | `server/internal/handler/comment.go:1083-1089` |
-| Everything not `agent` after the squad branch is skipped: `if m.Type != "agent" { continue }` | `server/internal/handler/comment.go:1372-1374` |
-| `agent` branch: load agent in workspace, then add the agent trigger | `server/internal/handler/comment.go:1375-1402` |
-| `agent` → shared enqueue helper calls `EnqueueTaskForMention` (a run for that agent) | `server/internal/handler/comment.go:1090-1096` |
-| **`member` and `issue` mentions reach neither branch — they enqueue NOTHING.** A `member` mention fails the `!= "agent"` skip at lines 1372-1374 (the squad branch above it only matches `squad`); an `issue` mention does the same. | `server/internal/handler/comment.go:1330,1372-1374` |
+| `computeCommentAgentTriggers` is the shared comment trigger computation used before enqueueing | `server/internal/handler/comment.go:1124-1160` |
+| `computeMentionedAgentCommentTriggers` builds the mention trigger set; `enqueueCommentAgentTriggers` is the shared enqueue helper | `server/internal/handler/comment.go:1335,1089` |
+| Comment creation runs `triggerTasksForComment`, which computes triggers, applies suppressions, then enqueues | `server/internal/handler/comment.go:1057-1064` |
+| `squad` branch: resolve squad in workspace, read `LeaderID`, add the leader trigger | `server/internal/handler/comment.go:1352-1391` |
+| `squad` → shared enqueue helper calls `EnqueueTaskForSquadLeader` | `server/internal/handler/comment.go:1104-1112` |
+| Everything not `agent` after the squad branch is skipped: `if m.Type != "agent" { continue }` | `server/internal/handler/comment.go:1394-1396` |
+| `agent` branch: load agent in workspace, then add the agent trigger | `server/internal/handler/comment.go:1397-1424` |
+| `agent` → shared enqueue helper calls `EnqueueTaskForMention` (a run for that agent) | `server/internal/handler/comment.go:1113-1119` |
+| **`member` and `issue` mentions reach neither branch — they enqueue NOTHING.** A `member` mention fails the `!= "agent"` skip at lines 1394-1396 (the squad branch above it only matches `squad`); an `issue` mention does the same. | `server/internal/handler/comment.go:1352,1394-1396` |
 
 ## Preview and suppression
 
 | Fact | Source |
 | --- | --- |
-| Preview route: `POST /api/issues/{id}/comments/trigger-preview` | `server/cmd/server/router.go:667` |
-| Preview handler loads the issue and parent comment, expands issue identifiers, then calls `computeCommentAgentTriggers` | `server/internal/handler/comment.go:830-874` |
-| Preview response returns agent `id`, `name`, optional `avatar_url`, `source`, and `reason` | `server/internal/handler/comment.go:781-827` |
-| `CreateCommentRequest` accepts optional `suppress_agent_ids` | `server/internal/handler/comment.go:768-774` |
-| `suppress_agent_ids` is parsed as request-boundary UUID input | `server/internal/handler/comment.go:920-927` |
-| Create comment computes the full trigger set, then applies `filterSuppressedCommentAgentTriggers` before enqueueing | `server/internal/handler/comment.go:1037-1064` |
+| Preview route: `POST /api/issues/{id}/comments/trigger-preview` | `server/cmd/server/router.go:707` |
+| Preview handler loads the issue and parent comment, expands issue identifiers, then calls `computeCommentAgentTriggers` | `server/internal/handler/comment.go:832-877` |
+| Preview response returns agent `id`, `name`, optional `avatar_url`, `source`, and `reason` | `server/internal/handler/comment.go:783-793` |
+| `CreateCommentRequest` accepts optional `suppress_agent_ids` | `server/internal/handler/comment.go:770-776` |
+| `suppress_agent_ids` is parsed as request-boundary UUID input | `server/internal/handler/comment.go:925-928` |
+| Create comment computes the full trigger set, then applies `filterSuppressedCommentAgentTriggers` before enqueueing | `server/internal/handler/comment.go:1057-1087` |
 
 ## Guards that make a valid mention a silent no-op
 
 | Guard | Source |
 | --- | --- |
-| agent archived / no runtime → `continue` (`RuntimeID` invalid or `ArchivedAt` set) | `server/internal/handler/comment.go:1382-1387` |
-| squad leader archived / no runtime → `continue` | `server/internal/handler/comment.go:1349-1355` |
-| private agent the actor cannot access → `continue` (`canAccessPrivateAgent`) | `server/internal/handler/comment.go:1389-1392` |
-| private squad leader the actor cannot trigger → `continue` (`canAccessPrivateAgent`) | `server/internal/handler/comment.go:1357-1360` |
-| already-pending dedup (agent) → `HasPendingTaskForIssueAndAgent` → `continue` | `server/internal/handler/comment.go:1394-1400` |
-| already-pending dedup (squad leader) → `continue` | `server/internal/handler/comment.go:1361-1368` |
+| agent archived / no runtime → `continue` (`RuntimeID` invalid or `ArchivedAt` set) | `server/internal/handler/comment.go:1408-1410` |
+| squad leader archived / no runtime → `continue` | `server/internal/handler/comment.go:1376-1378` |
+| private agent the actor cannot access → `continue` (`canAccessPrivateAgent`) | `server/internal/handler/comment.go:1413-1415` |
+| private squad leader the actor cannot trigger → `continue` (`canAccessPrivateAgent`) | `server/internal/handler/comment.go:1380-1382` |
+| already-pending dedup (agent) → `HasPendingTaskForIssueAndAgent` → `continue` | `server/internal/handler/comment.go:1417-1423` |
+| already-pending dedup (squad leader) → `continue` | `server/internal/handler/comment.go:1384-1390` |
 | `canAccessPrivateAgent` definition | `server/internal/handler/agent_access.go` (search `func (h *Handler) canAccessPrivateAgent`) |
 | `canEnqueueSquadLeader` (loads leader, delegates to `canAccessPrivateAgent`) | `server/internal/handler/agent_access.go:82-91` |
 
@@ -68,10 +68,10 @@ a pointer. Branch where verified: `feat/builtin-skills`.
 
 | Fact | Source |
 | --- | --- |
-| `commentMentionsOthersButNotAssignee` — decides whether to suppress the assignee's on-comment trigger | `server/internal/handler/comment.go:1179` |
-| `@all` is treated as a broadcast → returns true → assignee auto-trigger suppressed | `server/internal/handler/comment.go:1191-1194` |
-| Comment-flow computation that consults it | `server/internal/handler/comment.go:1113-1115` |
-| `@all` never enqueues a specific agent: it is neither `squad` nor `agent`, so it is skipped in the mention trigger computation | `server/internal/handler/comment.go:1372-1374` |
+| `commentMentionsOthersButNotAssignee` — decides whether to suppress the assignee's on-comment trigger | `server/internal/handler/comment.go:1206` |
+| `@all` is treated as a broadcast → returns true → assignee auto-trigger suppressed | `server/internal/handler/comment.go:1217-1221` |
+| Comment-flow computation that consults it | `server/internal/handler/comment.go:1140-1142` |
+| `@all` never enqueues a specific agent: it is neither `squad` nor `agent`, so it is skipped in the mention trigger computation | `server/internal/handler/comment.go:1394-1396` |
 
 ## CLI id sources (where the UUID comes from)
 
@@ -87,9 +87,9 @@ a pointer. Branch where verified: `feat/builtin-skills`.
 
 The skill deliberately does **not** assert that a `member` mention "sends a
 notification." `server/internal/handler/comment.go` has no notification
-delivery path for member (or issue) mentions: `enqueueMentionedAgentTasks`
+delivery path for member (or issue) mentions: `computeMentionedAgentCommentTriggers`
 branches only on `squad` and `agent`
-(`server/internal/handler/comment.go:1330,1372-1374`), and a grep of the file for
+(`server/internal/handler/comment.go:1352,1394-1396`), and a grep of the file for
 `notif` returns only an unrelated comment about avoiding "log spam" on
 unchanged threads — no member-notification call. The verified contract is
 narrow: a `member` or `issue` mention renders as a link and enqueues no agent
