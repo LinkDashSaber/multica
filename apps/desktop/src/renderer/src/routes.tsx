@@ -17,6 +17,7 @@ import { AttachmentPreviewRoute } from "./pages/attachment-preview-page";
 import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { DashboardPage } from "@multica/views/dashboard";
+import { OverviewPage } from "@multica/views/overview";
 import { AutopilotsPage } from "@multica/views/autopilots/components";
 import { MyIssuesPage } from "@multica/views/my-issues";
 import { SkillsPage } from "@multica/views/skills";
@@ -116,7 +117,12 @@ export const appRoutes: RouteObject[] = [
         path: ":workspaceSlug",
         element: <WorkspaceRouteLayout />,
         children: [
-          { index: true, element: <Navigate to="issues" replace /> },
+          { index: true, element: <Navigate to="overview" replace /> },
+          {
+            path: "overview",
+            element: <OverviewPage />,
+            handle: { title: "Overview" },
+          },
           {
             path: "issues",
             element: <IssuesPage />,

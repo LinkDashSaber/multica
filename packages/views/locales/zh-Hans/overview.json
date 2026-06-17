@@ -1,0 +1,88 @@
+{
+  "title": "概览",
+  "heading": "工作区概览",
+  "subtitle": "查看此工作区的动态、项目变化和用量。",
+  "window_label": "最近 {{days}} 天",
+  "tabs": {
+    "activity": "动态",
+    "wrapup": "总结",
+    "usage": "用量"
+  },
+  "summary": {
+    "cost_label": "成本 - {{days}} 天",
+    "runtime_hint": "{{duration}} 运行时间",
+    "tokens_label": "Token - {{days}} 天",
+    "tokens_hint": "输入 {{input}} - 输出 {{output}}",
+    "tasks_label": "任务 - {{days}} 天",
+    "failed_hint_one": "{{count}} 个失败",
+    "failed_hint_other": "{{count}} 个失败",
+    "open_work_label": "未完成工作",
+    "open_work_hint_one": "{{count}} 个工作中的 agent",
+    "open_work_hint_other": "{{count}} 个工作中的 agent"
+  },
+  "duration": {
+    "less_than_minute": "<1m"
+  },
+  "dates": {
+    "today": "今天",
+    "yesterday": "昨天"
+  },
+  "activity": {
+    "title": "最新动态",
+    "description": "最近的 issue、项目和 agent 变化。",
+    "empty_title": "暂无动态",
+    "empty_body": "工作开始推进后，工作区动态会显示在这里。",
+    "issue_count_one": "{{count}} 个 issue",
+    "issue_count_other": "{{count}} 个 issue",
+    "kind": {
+      "issue": "Issue",
+      "project": "项目",
+      "agent": "Agent"
+    },
+    "actions": {
+      "issue_created": "创建了",
+      "issue_updated": "更新了",
+      "issue_done": "完成了",
+      "issue_blocked": "阻塞了",
+      "project_created": "创建了项目",
+      "project_updated": "更新了项目",
+      "agent_created": "创建了 agent",
+      "agent_updated": "更新了 agent",
+      "agent_archived": "归档了 agent"
+    }
+  },
+  "wrapup": {
+    "title": "项目",
+    "description": "按最近动态排序的项目分组。",
+    "empty_title": "暂无项目",
+    "empty_body": "创建项目或未分组 issue 后会显示在这里。",
+    "no_project": "无项目",
+    "open_issues_one": "{{count}} 个未完成",
+    "open_issues_other": "{{count}} 个未完成",
+    "done_issues_one": "{{count}} 个已完成",
+    "done_issues_other": "{{count}} 个已完成",
+    "resources_one": "{{count}} 个资源",
+    "resources_other": "{{count}} 个资源"
+  },
+  "usage": {
+    "title": "用量",
+    "description": "最近 {{days}} 天的 agent 成本、Token 和运行时间。",
+    "cost": "成本",
+    "tokens": "Token",
+    "run_time": "运行时间",
+    "tasks_one": "{{count}} 个任务",
+    "tasks_other": "{{count}} 个任务",
+    "unknown_agent": "未知 agent",
+    "empty_title": "暂无用量",
+    "empty_body": "Agent 完成任务后，用量会显示在这里。"
+  },
+  "status": {
+    "agent": {
+      "idle": "空闲",
+      "working": "工作中",
+      "blocked": "阻塞",
+      "error": "错误",
+      "offline": "离线"
+    }
+  }
+}

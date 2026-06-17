@@ -1,0 +1,88 @@
+{
+  "title": "Overview",
+  "heading": "Workspace Overview",
+  "subtitle": "Activity, project changes, and usage across this workspace.",
+  "window_label": "Last {{days}} days",
+  "tabs": {
+    "activity": "Activity",
+    "wrapup": "Wrap-up",
+    "usage": "Usage"
+  },
+  "summary": {
+    "cost_label": "Cost - {{days}}D",
+    "runtime_hint": "{{duration}} run time",
+    "tokens_label": "Tokens - {{days}}D",
+    "tokens_hint": "Input {{input}} - Output {{output}}",
+    "tasks_label": "Tasks - {{days}}D",
+    "failed_hint_one": "{{count}} failed",
+    "failed_hint_other": "{{count}} failed",
+    "open_work_label": "Open work",
+    "open_work_hint_one": "{{count}} working agent",
+    "open_work_hint_other": "{{count}} working agents"
+  },
+  "duration": {
+    "less_than_minute": "<1m"
+  },
+  "dates": {
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "activity": {
+    "title": "Latest activity",
+    "description": "Recent issue, project, and agent changes.",
+    "empty_title": "No activity yet",
+    "empty_body": "Workspace activity will appear here as work starts moving.",
+    "issue_count_one": "{{count}} issue",
+    "issue_count_other": "{{count}} issues",
+    "kind": {
+      "issue": "Issue",
+      "project": "Project",
+      "agent": "Agent"
+    },
+    "actions": {
+      "issue_created": "Created",
+      "issue_updated": "Updated",
+      "issue_done": "Completed",
+      "issue_blocked": "Blocked",
+      "project_created": "Created project",
+      "project_updated": "Updated project",
+      "agent_created": "Created agent",
+      "agent_updated": "Updated agent",
+      "agent_archived": "Archived agent"
+    }
+  },
+  "wrapup": {
+    "title": "Projects",
+    "description": "Recent project groups sorted by last activity.",
+    "empty_title": "No projects yet",
+    "empty_body": "Projects and ungrouped issues will appear here once they exist.",
+    "no_project": "No project",
+    "open_issues_one": "{{count}} open",
+    "open_issues_other": "{{count}} open",
+    "done_issues_one": "{{count}} done",
+    "done_issues_other": "{{count}} done",
+    "resources_one": "{{count}} resource",
+    "resources_other": "{{count}} resources"
+  },
+  "usage": {
+    "title": "Usage",
+    "description": "Agent cost, tokens, and run time over {{days}} days.",
+    "cost": "Cost",
+    "tokens": "Tokens",
+    "run_time": "Run time",
+    "tasks_one": "{{count}} task",
+    "tasks_other": "{{count}} tasks",
+    "unknown_agent": "Unknown agent",
+    "empty_title": "No usage yet",
+    "empty_body": "Agent usage will appear here after tasks complete."
+  },
+  "status": {
+    "agent": {
+      "idle": "Idle",
+      "working": "Working",
+      "blocked": "Blocked",
+      "error": "Error",
+      "offline": "Offline"
+    }
+  }
+}

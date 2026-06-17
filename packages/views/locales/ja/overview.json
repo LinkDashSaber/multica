@@ -1,0 +1,88 @@
+{
+  "title": "概要",
+  "heading": "ワークスペース概要",
+  "subtitle": "このワークスペースのアクティビティ、プロジェクト変更、使用量です。",
+  "window_label": "直近 {{days}} 日",
+  "tabs": {
+    "activity": "アクティビティ",
+    "wrapup": "まとめ",
+    "usage": "使用量"
+  },
+  "summary": {
+    "cost_label": "コスト - {{days}} 日",
+    "runtime_hint": "実行時間 {{duration}}",
+    "tokens_label": "トークン - {{days}} 日",
+    "tokens_hint": "入力 {{input}} - 出力 {{output}}",
+    "tasks_label": "タスク - {{days}} 日",
+    "failed_hint_one": "{{count}} 件失敗",
+    "failed_hint_other": "{{count}} 件失敗",
+    "open_work_label": "未完了の作業",
+    "open_work_hint_one": "作業中の agent {{count}} 件",
+    "open_work_hint_other": "作業中の agent {{count}} 件"
+  },
+  "duration": {
+    "less_than_minute": "<1m"
+  },
+  "dates": {
+    "today": "今日",
+    "yesterday": "昨日"
+  },
+  "activity": {
+    "title": "最新アクティビティ",
+    "description": "最近のイシュー、プロジェクト、agent の変更です。",
+    "empty_title": "まだアクティビティがありません",
+    "empty_body": "作業が動き始めると、ワークスペースのアクティビティがここに表示されます。",
+    "issue_count_one": "{{count}} 件のイシュー",
+    "issue_count_other": "{{count}} 件のイシュー",
+    "kind": {
+      "issue": "イシュー",
+      "project": "プロジェクト",
+      "agent": "Agent"
+    },
+    "actions": {
+      "issue_created": "作成",
+      "issue_updated": "更新",
+      "issue_done": "完了",
+      "issue_blocked": "ブロック",
+      "project_created": "プロジェクトを作成",
+      "project_updated": "プロジェクトを更新",
+      "agent_created": "agent を作成",
+      "agent_updated": "agent を更新",
+      "agent_archived": "agent をアーカイブ"
+    }
+  },
+  "wrapup": {
+    "title": "プロジェクト",
+    "description": "最近のアクティビティ順のプロジェクトグループです。",
+    "empty_title": "まだプロジェクトがありません",
+    "empty_body": "プロジェクトや未分類のイシューが作成されると、ここに表示されます。",
+    "no_project": "プロジェクトなし",
+    "open_issues_one": "{{count}} 件未完了",
+    "open_issues_other": "{{count}} 件未完了",
+    "done_issues_one": "{{count}} 件完了",
+    "done_issues_other": "{{count}} 件完了",
+    "resources_one": "{{count}} 件のリソース",
+    "resources_other": "{{count}} 件のリソース"
+  },
+  "usage": {
+    "title": "使用量",
+    "description": "{{days}} 日間の agent コスト、トークン、実行時間です。",
+    "cost": "コスト",
+    "tokens": "トークン",
+    "run_time": "実行時間",
+    "tasks_one": "{{count}} 件のタスク",
+    "tasks_other": "{{count}} 件のタスク",
+    "unknown_agent": "不明な agent",
+    "empty_title": "まだ使用量がありません",
+    "empty_body": "Agent のタスクが完了すると、使用量がここに表示されます。"
+  },
+  "status": {
+    "agent": {
+      "idle": "待機中",
+      "working": "作業中",
+      "blocked": "ブロック",
+      "error": "エラー",
+      "offline": "オフライン"
+    }
+  }
+}
