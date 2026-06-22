@@ -50,8 +50,22 @@
     "toast_failed": "Failed to add sub-issue",
     "toast_success": "Added {{identifier}} as sub-issue"
   },
-  "backlog_hint": {
-    "toast_status_failed": "Failed to update status"
+  "run_confirm": {
+    "title_assign": "Start a run?",
+    "title_status": "Start runs?",
+    "will_start_named": "This will start a run for {{name}}.",
+    "will_start": "This will start {{count}} runs.",
+    "nothing_assign": "Assigned — no run will start (parked in Backlog).",
+    "nothing_status": "No runs will start.",
+    "note_label": "Handoff note (optional)",
+    "note_placeholder": "Scope this run for the agent…",
+    "note_unsupported": "This runtime is too old to receive a note; it will be ignored.",
+    "start": "Start",
+    "dont_start": "Don't start now",
+    "apply": "Apply",
+    "toast_failed": "Failed to apply change",
+    "create_will_start": "Will start {{name}} on create.",
+    "create_parked": "Assigned — won't start in Backlog."
   },
   "create_squad": {
     "title": "Create Squad",

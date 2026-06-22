@@ -50,8 +50,22 @@
     "toast_failed": "하위 이슈를 추가하지 못했습니다",
     "toast_success": "{{identifier}}을(를) 하위 이슈로 추가했습니다"
   },
-  "backlog_hint": {
-    "toast_status_failed": "상태를 업데이트하지 못했습니다"
+  "run_confirm": {
+    "title_assign": "실행을 시작할까요?",
+    "title_status": "실행을 시작할까요?",
+    "will_start_named": "{{name}}의 실행을 시작합니다.",
+    "will_start": "{{count}}개의 실행을 시작합니다.",
+    "nothing_assign": "할당됨 — 백로그라 실행이 시작되지 않습니다.",
+    "nothing_status": "실행이 시작되지 않습니다.",
+    "note_label": "인계 메모 (선택)",
+    "note_placeholder": "이 실행의 범위를 에이전트에게 알려주세요…",
+    "note_unsupported": "이 런타임은 너무 오래되어 메모를 받을 수 없습니다. 무시됩니다.",
+    "start": "시작",
+    "dont_start": "지금 시작 안 함",
+    "apply": "적용",
+    "toast_failed": "변경 적용에 실패했습니다",
+    "create_will_start": "생성 시 {{name}}을(를) 시작합니다.",
+    "create_parked": "할당됨 — 백로그에서는 시작되지 않습니다."
   },
   "create_squad": {
     "title": "스쿼드 만들기",

@@ -92,6 +92,22 @@ vi.mock("@multica/core/issues/queries", () => ({
   }),
 }));
 
+// CreateRunHint's pre-trigger preview + actor-name lookup are exercised in
+// their own suites; here we only need the create form to render without query
+// infra, so stub them to the inert "no run will start" state.
+vi.mock("../issues/hooks/use-issue-trigger-preview", () => ({
+  useIssueTriggerPreview: () => ({
+    triggers: [],
+    totalCount: 0,
+    isLoading: false,
+    handoffSupported: false,
+  }),
+}));
+
+vi.mock("@multica/core/workspace/hooks", () => ({
+  useActorName: () => ({ getActorName: () => "Agent" }),
+}));
+
 vi.mock("@multica/core/issues/stores/draft-store", () => ({
   useIssueDraftStore: Object.assign(
     (selector?: (state: typeof mockDraftStore) => unknown) =>
@@ -596,8 +612,6 @@ describe("CreateIssueModal", () => {
         onSwitchMode={onSwitchMode}
         isExpanded={false}
         setIsExpanded={vi.fn()}
-        backlogHintIssueId={null}
-        setBacklogHintIssueId={vi.fn()}
       />,
     );
 
@@ -714,8 +728,6 @@ describe("CreateIssueModal", () => {
         data={{ project_id: "proj-1" }}
         isExpanded={false}
         setIsExpanded={vi.fn()}
-        backlogHintIssueId={null}
-        setBacklogHintIssueId={vi.fn()}
       />,
     );
 
@@ -758,8 +770,6 @@ describe("CreateIssueModal", () => {
         }}
         isExpanded={false}
         setIsExpanded={vi.fn()}
-        backlogHintIssueId={null}
-        setBacklogHintIssueId={vi.fn()}
       />,
     );
 
@@ -810,8 +820,6 @@ describe("CreateIssueModal", () => {
         onSwitchMode={vi.fn()}
         isExpanded={false}
         setIsExpanded={vi.fn()}
-        backlogHintIssueId={null}
-        setBacklogHintIssueId={vi.fn()}
       />,
     );
 

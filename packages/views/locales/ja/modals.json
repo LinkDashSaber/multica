@@ -50,8 +50,22 @@
     "toast_failed": "サブイシューを追加できませんでした",
     "toast_success": "{{identifier}} をサブイシューとして追加しました"
   },
-  "backlog_hint": {
-    "toast_status_failed": "ステータスを更新できませんでした"
+  "run_confirm": {
+    "title_assign": "実行を開始しますか？",
+    "title_status": "実行を開始しますか？",
+    "will_start_named": "{{name}} の実行を開始します。",
+    "will_start": "{{count}} 件の実行を開始します。",
+    "nothing_assign": "割り当て済み — バックログのため実行は開始しません。",
+    "nothing_status": "実行は開始しません。",
+    "note_label": "引き継ぎメモ（任意）",
+    "note_placeholder": "この実行の範囲をエージェントに伝える…",
+    "note_unsupported": "このランタイムは古いためメモを受け取れません。無視されます。",
+    "start": "開始",
+    "dont_start": "今は開始しない",
+    "apply": "適用",
+    "toast_failed": "変更の適用に失敗しました",
+    "create_will_start": "作成時に {{name}} を開始します。",
+    "create_parked": "割り当て済み — バックログでは開始しません。"
   },
   "create_squad": {
     "title": "スクワッドを作成",

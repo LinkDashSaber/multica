@@ -17,6 +17,7 @@ import {
 import type { UpdateIssueRequest } from "@multica/core/types";
 import { useIssueSelectionStore } from "@multica/core/issues/stores/selection-store";
 import { useBatchUpdateIssues, useBatchDeleteIssues } from "@multica/core/issues/mutations";
+import { useModalStore } from "@multica/core/modals";
 import { StatusPicker, PriorityPicker, AssigneePicker } from "./pickers";
 import { useT } from "../../i18n";
 import { cn } from "@multica/ui/lib/utils";
@@ -43,6 +44,7 @@ export function BatchActionToolbar({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const batchUpdate = useBatchUpdateIssues();
   const batchDelete = useBatchDeleteIssues();
+  const openModal = useModalStore((s) => s.open);
   const loading = batchUpdate.isPending || batchDelete.isPending;
 
   if (count === 0) return null;
@@ -60,6 +62,28 @@ export function BatchActionToolbar({
           : t(($) => $.batch.update_failed),
       );
     }
+  };
+
+  // Status and agent/squad assignment can fan out runs across the selection, so
+  // route them through the pre-trigger confirm modal (aggregate "将启动 N 个" +
+  // collective handoff note for assign + 暂不启动). The modal applies the batch
+  // itself. Priority, member assign, and unassign never start a run — direct.
+  const handleBatchStatus = (updates: Partial<UpdateIssueRequest>) => {
+    if (!updates.status) return;
+    openModal("issue-run-confirm", { issueIds: ids, mode: "status", status: updates.status });
+  };
+
+  const handleBatchAssignee = (updates: Partial<UpdateIssueRequest>) => {
+    if ((updates.assignee_type === "agent" || updates.assignee_type === "squad") && updates.assignee_id) {
+      openModal("issue-run-confirm", {
+        issueIds: ids,
+        mode: "assign",
+        assigneeType: updates.assignee_type,
+        assigneeId: updates.assignee_id,
+      });
+      return;
+    }
+    void handleBatchUpdate(updates);
   };
 
   const handleBatchDelete = async () => {
@@ -102,7 +126,7 @@ export function BatchActionToolbar({
         {/* Status */}
         <StatusPicker
           status="todo"
-          onUpdate={handleBatchUpdate}
+          onUpdate={handleBatchStatus}
           open={statusOpen}
           onOpenChange={setStatusOpen}
           triggerRender={<Button variant="ghost" size="sm" disabled={loading} />}
@@ -125,7 +149,7 @@ export function BatchActionToolbar({
         <AssigneePicker
           assigneeType={null}
           assigneeId={null}
-          onUpdate={handleBatchUpdate}
+          onUpdate={handleBatchAssignee}
           open={assigneeOpen}
           onOpenChange={setAssigneeOpen}
           triggerRender={<Button variant="ghost" size="sm" disabled={loading} />}

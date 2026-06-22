@@ -36,8 +36,9 @@ import { Button } from "@multica/ui/components/ui/button";
 import { Switch } from "@multica/ui/components/ui/switch";
 import { ContentEditor, type ContentEditorRef, TitleEditor, useFileDropZone, FileDropOverlay } from "../editor";
 import { StatusIcon, StatusPicker, PriorityPicker, AssigneePicker, StartDatePicker, DueDatePicker } from "../issues/components";
-import { BacklogAgentHintContent } from "../issues/components/backlog-agent-hint-dialog";
 import { ProjectPicker } from "../projects/components/project-picker";
+import { useIssueTriggerPreview } from "../issues/hooks/use-issue-trigger-preview";
+import { useActorName } from "@multica/core/workspace/hooks";
 import { useCurrentWorkspace, useWorkspacePaths } from "@multica/core/paths";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useIssueDraftStore } from "@multica/core/issues/stores/draft-store";
@@ -77,14 +78,48 @@ function toDraftAttachment(attachment: Attachment): Attachment {
 // shell's local mode state.
 // ---------------------------------------------------------------------------
 
+// CreateRunHint is the create modal's passive pre-trigger label (MUL-3375 §4):
+// gray text that says whether saving will start a run, driven by the unified
+// backend predicate (preview, isCreate) — never a frontend guess. No dialog,
+// no blocking: creating is unaffected.
+function CreateRunHint({
+  assigneeType,
+  assigneeId,
+  status,
+}: {
+  assigneeType?: IssueAssigneeType;
+  assigneeId?: string;
+  status: IssueStatus;
+}) {
+  const { t } = useT("modals");
+  const { getActorName } = useActorName();
+  const isAgentLike = assigneeType === "agent" || assigneeType === "squad";
+  const preview = useIssueTriggerPreview({
+    isCreate: true,
+    assigneeType: assigneeType ?? null,
+    assigneeId: assigneeId ?? null,
+    status,
+    enabled: isAgentLike && !!assigneeId,
+  });
+
+  if (!isAgentLike || !assigneeId) return null;
+
+  const text =
+    preview.totalCount > 0
+      ? t(($) => $.run_confirm.create_will_start, {
+          name: getActorName("agent", preview.triggers[0]?.agent_id ?? assigneeId),
+        })
+      : t(($) => $.run_confirm.create_parked);
+
+  return <span className="truncate text-xs text-muted-foreground">{text}</span>;
+}
+
 export function ManualCreatePanel({
   onClose,
   onSwitchMode,
   data,
   isExpanded,
   setIsExpanded,
-  backlogHintIssueId,
-  setBacklogHintIssueId,
 }: {
   onClose: () => void;
   /** Called with the carry payload to seed the agent panel after switch. */
@@ -95,8 +130,6 @@ export function ManualCreatePanel({
    *  re-mount the Portal on mode swap and replay the open animation). */
   isExpanded: boolean;
   setIsExpanded: (v: boolean) => void;
-  backlogHintIssueId: string | null;
-  setBacklogHintIssueId: (id: string | null) => void;
 }) {
   const { t } = useT("modals");
   const router = useNavigation();
@@ -286,19 +319,16 @@ export function ManualCreatePanel({
       setLastAssignee(assigneeType, assigneeId);
       setLastMode("manual");
       clearDraft();
-      const shouldShowBacklogHint =
-        status === "backlog" && assigneeType === "agent" && assigneeId &&
-        localStorage.getItem("multica:backlog-agent-hint-dismissed") !== "true";
-
-      if (shouldShowBacklogHint) {
-        setBacklogHintIssueId(issue.id);
-      } else if (keepOpen) {
+      // The old post-create "agent paused in Backlog" blocking panel is gone —
+      // a passive inline hint now warns before submit (MUL-3375). Just close or
+      // reset and confirm the create.
+      if (keepOpen) {
         resetForNextIssue();
       } else {
         onClose();
       }
 
-      if (!shouldShowBacklogHint) {
+      {
         toast.custom((toastId) => (
           <div className="bg-popover text-popover-foreground border rounded-lg shadow-lg p-4 w-[360px]">
             <div className="flex items-center gap-2 mb-2">
@@ -425,33 +455,6 @@ export function ManualCreatePanel({
 
   return (
     <>
-        {backlogHintIssueId ? (
-          <BacklogAgentHintContent
-            onKeepInBacklog={() => {
-              setBacklogHintIssueId(null);
-              onClose();
-            }}
-            onDismissPermanently={() => {
-              localStorage.setItem("multica:backlog-agent-hint-dismissed", "true");
-            }}
-            onMoveToTodo={() => {
-              updateIssueMutation.mutate(
-                { id: backlogHintIssueId, status: "todo" },
-                {
-                  onError: (err) =>
-                    toast.error(
-                      err instanceof Error && err.message
-                        ? err.message
-                        : t(($) => $.backlog_hint.toast_status_failed),
-                    ),
-                },
-              );
-              setBacklogHintIssueId(null);
-              onClose();
-            }}
-          />
-        ) : (
-          <>
             <DialogTitle className="sr-only">{t(($) => $.create_issue.sr_manual)}</DialogTitle>
 
             {/* Header */}
@@ -721,6 +724,7 @@ export function ManualCreatePanel({
                 <FileUploadButton
                   onSelect={(file) => descEditorRef.current?.uploadFile(file)}
                 />
+                <CreateRunHint assigneeType={assigneeType} assigneeId={assigneeId} status={status} />
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <button
@@ -754,30 +758,21 @@ export function ManualCreatePanel({
                 )}
               </div>
             </div>
-          </>
-        )}
     </>
   );
 }
 
-/** className for DialogContent in manual mode — depends on isExpanded and the
- *  backlog-hint sub-state. Exported so the shell (which now owns the
- *  DialogContent) can apply the same visual treatment without duplicating it. */
-export function manualDialogContentClass(
-  isExpanded: boolean,
-  backlogHintIssueId: string | null,
-) {
+/** className for DialogContent in manual mode — depends on isExpanded.
+ *  Exported so the shell (which now owns the DialogContent) can apply the same
+ *  visual treatment without duplicating it. */
+export function manualDialogContentClass(isExpanded: boolean) {
   return cn(
     "p-0 gap-0 flex flex-col overflow-hidden",
     "!top-1/2 !left-1/2 !-translate-x-1/2",
-    backlogHintIssueId
-      ? "!max-w-[480px] !w-[calc(100vw-2rem)] !h-auto !-translate-y-1/2 !transition-none !duration-0"
-      : "!transition-all !duration-300 !ease-out",
-    !backlogHintIssueId && isExpanded
+    "!transition-all !duration-300 !ease-out",
+    isExpanded
       ? "!max-w-4xl !w-full !h-5/6 !-translate-y-1/2"
-      : !backlogHintIssueId
-        ? "!max-w-2xl !w-full !h-96 !-translate-y-1/2"
-        : "",
+      : "!max-w-2xl !w-full !h-96 !-translate-y-1/2",
   );
 }
 
@@ -791,20 +786,17 @@ export function CreateIssueModal(props: {
   data?: Record<string, unknown> | null;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [backlogHintIssueId, setBacklogHintIssueId] = useState<string | null>(null);
   return (
     <DialogRoot open onOpenChange={(v) => { if (!v) props.onClose(); }}>
       <DialogContent
         finalFocus={false}
         showCloseButton={false}
-        className={manualDialogContentClass(isExpanded, backlogHintIssueId)}
+        className={manualDialogContentClass(isExpanded)}
       >
         <ManualCreatePanel
           {...props}
           isExpanded={isExpanded}
           setIsExpanded={setIsExpanded}
-          backlogHintIssueId={backlogHintIssueId}
-          setBacklogHintIssueId={setBacklogHintIssueId}
         />
       </DialogContent>
     </DialogRoot>

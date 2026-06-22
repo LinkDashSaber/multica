@@ -50,8 +50,22 @@
     "toast_failed": "添加子 issue 失败",
     "toast_success": "已添加 {{identifier}} 为子 issue"
   },
-  "backlog_hint": {
-    "toast_status_failed": "更新状态失败"
+  "run_confirm": {
+    "title_assign": "启动 run？",
+    "title_status": "启动 run？",
+    "will_start_named": "这会为 {{name}} 启动一个 run。",
+    "will_start": "这会启动 {{count}} 个 run。",
+    "nothing_assign": "已指派 —— backlog 不会启动 run。",
+    "nothing_status": "不会启动 run。",
+    "note_label": "交接说明（可选）",
+    "note_placeholder": "给这个 run 交代一句范围……",
+    "note_unsupported": "此 runtime 版本较旧，备注可能不生效，会被忽略。",
+    "start": "启动",
+    "dont_start": "暂不启动",
+    "apply": "确定",
+    "toast_failed": "应用更改失败",
+    "create_will_start": "创建后将启动 {{name}}。",
+    "create_parked": "已指派，backlog 不会启动。"
   },
   "create_squad": {
     "title": "创建 Squad",
