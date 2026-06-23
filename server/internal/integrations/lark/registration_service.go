@@ -563,7 +563,7 @@ func (s *RegistrationService) finishSuccess(ctx context.Context, sess *registrat
 	defer tx.Rollback(ctx)
 	qtx := s.queries.WithTx(tx)
 
-	inst, err := qtx.UpsertLarkInstallation(ctx, db.UpsertLarkInstallationParams{
+	inst, err := qtx.UpsertLarkInstallation(ctx, UpsertInstallationParams{
 		WorkspaceID:        sess.workspaceID,
 		AgentID:            sess.agentID,
 		AppID:              res.ClientID,

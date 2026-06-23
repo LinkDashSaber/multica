@@ -23,13 +23,13 @@ func NewAuditLogger(queries *db.Queries) AuditLogger {
 }
 
 func (l *dbAuditLogger) RecordDrop(ctx context.Context, p AuditDropParams) error {
-	return l.queries.RecordLarkInboundDrop(ctx, db.RecordLarkInboundDropParams{
-		EventType:      p.EventType,
-		DropReason:     string(p.Reason),
-		InstallationID: p.InstallationID,
-		LarkChatID:     textIfNonEmpty(string(p.ChatID)),
-		LarkEventID:    textIfNonEmpty(p.LarkEventID),
-		LarkMessageID:  textIfNonEmpty(p.LarkMessageID),
+	return l.queries.RecordLarkInboundDrop(ctx, RecordInboundDropParams{
+		EventType:        p.EventType,
+		DropReason:       string(p.Reason),
+		InstallationID:   p.InstallationID,
+		ChannelChatID:    textIfNonEmpty(string(p.ChatID)),
+		ChannelEventID:   textIfNonEmpty(p.LarkEventID),
+		ChannelMessageID: textIfNonEmpty(p.LarkMessageID),
 	})
 }
 

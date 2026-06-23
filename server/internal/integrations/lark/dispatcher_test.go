@@ -37,13 +37,13 @@ type fakeDedupRow struct {
 // processed=false. The default empty map means "first delivery for
 // every message_id".
 type fakeQueries struct {
-	installationByApp db.LarkInstallation
+	installationByApp Installation
 	installationErr   error
-	userBinding       db.LarkUserBinding
+	userBinding       UserBinding
 	userBindingErr    error
 	// userBindingByOpenID, when set, overrides userBinding per Lark open ID so a
 	// test can simulate distinct senders in one chat (MUL-2645 latest-sender-wins).
-	userBindingByOpenID map[string]db.LarkUserBinding
+	userBindingByOpenID map[string]UserBinding
 	chatSession         db.ChatSession
 	chatSessionErr      error
 	workspace           db.Workspace
@@ -75,15 +75,15 @@ func (f *fakeQueries) mintToken() pgtype.UUID {
 	return validUUID(0xA0 + f.nextTokenByte)
 }
 
-func (f *fakeQueries) GetLarkInstallationByAppID(ctx context.Context, appID string) (db.LarkInstallation, error) {
+func (f *fakeQueries) GetLarkInstallationByAppID(ctx context.Context, appID string) (Installation, error) {
 	f.calledInstallation++
 	return f.installationByApp, f.installationErr
 }
 
-func (f *fakeQueries) GetLarkUserBindingByOpenID(ctx context.Context, arg db.GetLarkUserBindingByOpenIDParams) (db.LarkUserBinding, error) {
+func (f *fakeQueries) GetLarkUserBindingByOpenID(ctx context.Context, arg GetUserBindingByOpenIDParams) (UserBinding, error) {
 	f.calledUserBinding++
 	if f.userBindingByOpenID != nil {
-		if b, ok := f.userBindingByOpenID[arg.LarkOpenID]; ok {
+		if b, ok := f.userBindingByOpenID[arg.ChannelUserID]; ok {
 			return b, nil
 		}
 	}
@@ -104,10 +104,10 @@ func (f *fakeQueries) GetChatSession(ctx context.Context, id pgtype.UUID) (db.Ch
 //     returns the row.
 //   - Row present otherwise → ON CONFLICT WHERE filter excludes the
 //     UPDATE → RETURNING returns 0 rows → pgx.ErrNoRows.
-func (f *fakeQueries) ClaimLarkInboundDedup(ctx context.Context, arg db.ClaimLarkInboundDedupParams) (db.LarkInboundMessageDedup, error) {
+func (f *fakeQueries) ClaimLarkInboundDedup(ctx context.Context, arg ClaimInboundDedupParams) (InboundMessageDedup, error) {
 	f.calledClaim++
 	if f.dedupClaimErr != nil {
-		return db.LarkInboundMessageDedup{}, f.dedupClaimErr
+		return InboundMessageDedup{}, f.dedupClaimErr
 	}
 	if f.dedup == nil {
 		f.dedup = map[string]*fakeDedupRow{}
@@ -117,7 +117,7 @@ func (f *fakeQueries) ClaimLarkInboundDedup(ctx context.Context, arg db.ClaimLar
 	if !exists {
 		token := f.mintToken()
 		f.dedup[key] = &fakeDedupRow{token: token, rotations: 1}
-		return db.LarkInboundMessageDedup{
+		return InboundMessageDedup{
 			InstallationID: arg.InstallationID,
 			MessageID:      arg.MessageID,
 			ClaimToken:     token,
@@ -131,13 +131,13 @@ func (f *fakeQueries) ClaimLarkInboundDedup(ctx context.Context, arg db.ClaimLar
 		// tx rolls back.
 		row.token = f.mintToken()
 		row.rotations++
-		return db.LarkInboundMessageDedup{
+		return InboundMessageDedup{
 			InstallationID: arg.InstallationID,
 			MessageID:      arg.MessageID,
 			ClaimToken:     row.token,
 		}, nil
 	}
-	return db.LarkInboundMessageDedup{}, pgx.ErrNoRows
+	return InboundMessageDedup{}, pgx.ErrNoRows
 }
 
 // dedupKey mirrors the production (installation_id, message_id) composite
@@ -159,7 +159,7 @@ func dedupKey(installationID pgtype.UUID, messageID string) string {
 // while it is still in-flight (processed_at IS NULL). Mismatched token
 // or already-terminal row returns 0 rows affected (and nil error) —
 // the dispatcher relies on this for the in-tx ErrClaimLost path.
-func (f *fakeQueries) MarkLarkInboundDedupProcessed(ctx context.Context, arg db.MarkLarkInboundDedupProcessedParams) (int64, error) {
+func (f *fakeQueries) MarkLarkInboundDedupProcessed(ctx context.Context, arg MarkInboundDedupProcessedParams) (int64, error) {
 	f.calledMark++
 	if f.dedup == nil {
 		return 0, nil
@@ -193,7 +193,7 @@ func (f *fakeQueries) IsWorkspaceMember(ctx context.Context, workspaceID, userID
 	return !f.notWorkspaceMember, nil
 }
 
-func (f *fakeQueries) ReleaseLarkInboundDedup(ctx context.Context, arg db.ReleaseLarkInboundDedupParams) (int64, error) {
+func (f *fakeQueries) ReleaseLarkInboundDedup(ctx context.Context, arg ReleaseInboundDedupParams) (int64, error) {
 	f.calledRelease++
 	if f.dedup == nil {
 		return 0, nil
@@ -261,7 +261,7 @@ func (f *fakeChat) AppendUserMessage(ctx context.Context, p AppendUserMessagePar
 	// supplies a claim token, Mark in-tx; zero rows ↔ stale-reclaim
 	// rotated the token under our feet, surface ErrClaimLost.
 	if f.queries != nil && p.ClaimToken.Valid && p.LarkMessageID != "" {
-		rows, err := f.queries.MarkLarkInboundDedupProcessed(ctx, db.MarkLarkInboundDedupProcessedParams{
+		rows, err := f.queries.MarkLarkInboundDedupProcessed(ctx, MarkInboundDedupProcessedParams{
 			InstallationID: p.InstallationID,
 			MessageID:      p.LarkMessageID,
 			ClaimToken:     p.ClaimToken,
@@ -323,8 +323,8 @@ func validUUID(b byte) pgtype.UUID {
 	return u
 }
 
-func activeInstallation() db.LarkInstallation {
-	return db.LarkInstallation{
+func activeInstallation() Installation {
+	return Installation{
 		ID:              validUUID(0x11),
 		WorkspaceID:     validUUID(0x22),
 		AgentID:         validUUID(0x33),
@@ -341,13 +341,13 @@ func seedDedupKey(messageID string) string {
 	return dedupKey(validUUID(0x11), messageID)
 }
 
-func boundUser() db.LarkUserBinding {
-	return db.LarkUserBinding{
+func boundUser() UserBinding {
+	return UserBinding{
 		ID:             validUUID(0x44),
 		WorkspaceID:    validUUID(0x22),
 		MulticaUserID:  validUUID(0x55),
 		InstallationID: validUUID(0x11),
-		LarkOpenID:     "ou_user_a",
+		ChannelUserID:  "ou_user_a",
 	}
 }
 
@@ -988,7 +988,7 @@ type captureReply struct {
 	results []DispatchResult
 }
 
-func (c *captureReply) reply(_ context.Context, _ db.LarkInstallation, _ InboundMessage, res DispatchResult) {
+func (c *captureReply) reply(_ context.Context, _ Installation, _ InboundMessage, res DispatchResult) {
 	c.count++
 	c.results = append(c.results, res)
 }
@@ -1195,7 +1195,7 @@ func TestDispatcher_LatestSenderWinsAsInitiator(t *testing.T) {
 	queries := &fakeQueries{
 		installationByApp:   activeInstallation(),
 		chatSession:         db.ChatSession{ID: sessionID, AgentID: validUUID(0x33)},
-		userBindingByOpenID: map[string]db.LarkUserBinding{"ou_alice": alice, "ou_bob": bob},
+		userBindingByOpenID: map[string]UserBinding{"ou_alice": alice, "ou_bob": bob},
 	}
 	chat := &fakeChat{ensureID: sessionID, appendResult: AppendResult{}}
 	enq := &fakeEnqueuer{task: db.AgentTaskQueue{ID: validUUID(0x77)}}
@@ -1621,7 +1621,7 @@ func TestDispatcher_StaleReclaimRaceDoesNotDoubleWrite(t *testing.T) {
 		// Make the existing in-flight row reclaimable, then have
 		// worker B re-Claim. This rotates claim_token under A's feet.
 		queries.dedupReclaim = true
-		if _, err := queries.ClaimLarkInboundDedup(context.Background(), db.ClaimLarkInboundDedupParams{
+		if _, err := queries.ClaimLarkInboundDedup(context.Background(), ClaimInboundDedupParams{
 			InstallationID: p.InstallationID,
 			MessageID:      p.LarkMessageID,
 		}); err != nil {

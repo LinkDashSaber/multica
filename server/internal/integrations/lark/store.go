@@ -35,8 +35,8 @@ import (
 )
 
 // Installation is the flat, feishu-shaped view of a channel_installation row.
-// Field parity with the retired db.LarkInstallation is intentional: it keeps
-// the cutover a rename at the ~190 call sites. The feishu-specific fields
+// It keeps field parity with the lark_installation row it replaced, so the
+// cutover was a rename at the ~190 call sites. The feishu-specific fields
 // (AppID, AppSecretEncrypted, TenantKey, BotOpenID, BotUnionID, Region) come
 // from the JSONB config; the rest are flat columns.
 type Installation struct {
@@ -82,6 +82,42 @@ type ChatSessionBinding struct {
 	CreatedAt      pgtype.Timestamptz
 	LastMessageID  pgtype.Text
 	LastThreadID   pgtype.Text
+}
+
+// InboundMessageDedup is the flat view of a channel_inbound_message_dedup row.
+// Every field is a flat column (no JSON), so this mirrors the channel row 1:1.
+type InboundMessageDedup struct {
+	InstallationID pgtype.UUID
+	MessageID      string
+	ReceivedAt     pgtype.Timestamptz
+	ProcessedAt    pgtype.Timestamptz
+	ClaimToken     pgtype.UUID
+}
+
+// BindingTokenRow is the flat view of a channel_binding_token row. ChannelUserID
+// is the feishu open_id the token will bind once redeemed. (Named *Row to avoid
+// colliding with BindingToken in binding_token.go, which is the freshly-minted
+// raw-token shape returned to the caller.)
+type BindingTokenRow struct {
+	TokenHash      string
+	WorkspaceID    pgtype.UUID
+	InstallationID pgtype.UUID
+	ChannelUserID  string
+	ExpiresAt      pgtype.Timestamptz
+	ConsumedAt     pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+}
+
+// OutboundCardMessage is the flat view of a channel_outbound_card_message row.
+type OutboundCardMessage struct {
+	ID                   pgtype.UUID
+	ChatSessionID        pgtype.UUID
+	TaskID               pgtype.UUID
+	ChannelChatID        string
+	ChannelCardMessageID string
+	Status               string
+	LastPatchedAt        pgtype.Timestamptz
+	CreatedAt            pgtype.Timestamptz
 }
 
 // feishuInstallConfig is the JSON shape of channel_installation.config for the
@@ -190,6 +226,47 @@ func chatSessionBindingFromRow(row db.ChannelChatSessionBinding) ChatSessionBind
 		CreatedAt:      row.CreatedAt,
 		LastMessageID:  row.LastMessageID,
 		LastThreadID:   row.LastThreadID,
+	}
+}
+
+// dedupFromRow copies a channel_inbound_message_dedup row into the flat domain
+// struct. No JSON: every field is a flat column.
+func dedupFromRow(row db.ChannelInboundMessageDedup) InboundMessageDedup {
+	return InboundMessageDedup{
+		InstallationID: row.InstallationID,
+		MessageID:      row.MessageID,
+		ReceivedAt:     row.ReceivedAt,
+		ProcessedAt:    row.ProcessedAt,
+		ClaimToken:     row.ClaimToken,
+	}
+}
+
+// bindingTokenFromRow copies a channel_binding_token row into the flat domain
+// struct.
+func bindingTokenFromRow(row db.ChannelBindingToken) BindingTokenRow {
+	return BindingTokenRow{
+		TokenHash:      row.TokenHash,
+		WorkspaceID:    row.WorkspaceID,
+		InstallationID: row.InstallationID,
+		ChannelUserID:  row.ChannelUserID,
+		ExpiresAt:      row.ExpiresAt,
+		ConsumedAt:     row.ConsumedAt,
+		CreatedAt:      row.CreatedAt,
+	}
+}
+
+// outboundCardFromRow copies a channel_outbound_card_message row into the flat
+// domain struct.
+func outboundCardFromRow(row db.ChannelOutboundCardMessage) OutboundCardMessage {
+	return OutboundCardMessage{
+		ID:                   row.ID,
+		ChatSessionID:        row.ChatSessionID,
+		TaskID:               row.TaskID,
+		ChannelChatID:        row.ChannelChatID,
+		ChannelCardMessageID: row.ChannelCardMessageID,
+		Status:               row.Status,
+		LastPatchedAt:        row.LastPatchedAt,
+		CreatedAt:            row.CreatedAt,
 	}
 }
 

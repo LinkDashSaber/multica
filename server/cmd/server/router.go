@@ -1038,7 +1038,7 @@ func buildLarkConnectorFactory(installSvc *lark.InstallationService, apiClient l
 	}
 	decoder := lark.NewLarkJSONFrameDecoder()
 	dialer := lark.NewGorillaDialer()
-	credsProvider := lark.CredentialsProviderFunc(func(ctx context.Context, inst db.LarkInstallation) (lark.InstallationCredentials, error) {
+	credsProvider := lark.CredentialsProviderFunc(func(ctx context.Context, inst lark.Installation) (lark.InstallationCredentials, error) {
 		secret, err := installSvc.DecryptAppSecret(inst)
 		if err != nil {
 			return lark.InstallationCredentials{}, err
@@ -1074,7 +1074,7 @@ func buildLarkConnectorFactory(installSvc *lark.InstallationService, apiClient l
 		slog.Error("lark ws: connector init failed; falling back to noop", "error", err)
 		return lark.NoopConnectorFactory(slog.Default()), "noop"
 	}
-	return func(_ db.LarkInstallation) (lark.EventConnector, error) {
+	return func(_ lark.Installation) (lark.EventConnector, error) {
 		return conn, nil
 	}, "ws-long-conn"
 }

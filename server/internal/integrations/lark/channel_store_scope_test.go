@@ -119,10 +119,10 @@ VALUES ($1, $2, 'slack', 'oc_scope_slack', 'om_scope_slack', 'pending')
 		t.Fatalf("GetLarkInstallation(slack): err=%v, want pgx.ErrNoRows (scoped out)", err)
 	}
 
-	if got, err := store.GetLarkInstallationInWorkspace(ctx, db.GetLarkInstallationInWorkspaceParams{ID: feishuID, WorkspaceID: wsUUID}); err != nil || got.AppID != feishuApp {
+	if got, err := store.GetLarkInstallationInWorkspace(ctx, GetInstallationInWorkspaceParams{ID: feishuID, WorkspaceID: wsUUID}); err != nil || got.AppID != feishuApp {
 		t.Fatalf("GetLarkInstallationInWorkspace(feishu): got app=%q err=%v, want app=%q nil", got.AppID, err, feishuApp)
 	}
-	if _, err := store.GetLarkInstallationInWorkspace(ctx, db.GetLarkInstallationInWorkspaceParams{ID: slackID, WorkspaceID: wsUUID}); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := store.GetLarkInstallationInWorkspace(ctx, GetInstallationInWorkspaceParams{ID: slackID, WorkspaceID: wsUUID}); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("GetLarkInstallationInWorkspace(slack): err=%v, want pgx.ErrNoRows (scoped out)", err)
 	}
 

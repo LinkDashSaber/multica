@@ -104,11 +104,11 @@ func (s *BindingTokenService) Mint(ctx context.Context, workspaceID, installatio
 	hash := hashToken(raw)
 	expiresAt := s.now().Add(BindingTokenTTL)
 
-	if _, err := s.queries.CreateLarkBindingToken(ctx, db.CreateLarkBindingTokenParams{
+	if _, err := s.queries.CreateLarkBindingToken(ctx, CreateBindingTokenParams{
 		TokenHash:      hash,
 		WorkspaceID:    workspaceID,
 		InstallationID: installationID,
-		LarkOpenID:     string(openID),
+		ChannelUserID:  string(openID),
 		ExpiresAt:      pgtype.Timestamptz{Time: expiresAt, Valid: true},
 	}); err != nil {
 		return BindingToken{}, fmt.Errorf("persist token: %w", err)
@@ -174,11 +174,11 @@ func (s *BindingTokenService) RedeemAndBind(ctx context.Context, raw string, mul
 		return RedeemedBindingToken{}, ErrBindingNotWorkspaceMember
 	}
 
-	_, err = qtx.CreateLarkUserBinding(ctx, db.CreateLarkUserBindingParams{
+	_, err = qtx.CreateLarkUserBinding(ctx, CreateUserBindingParams{
 		WorkspaceID:    row.WorkspaceID,
 		MulticaUserID:  multicaUserID,
 		InstallationID: row.InstallationID,
-		LarkOpenID:     row.LarkOpenID,
+		ChannelUserID:  row.ChannelUserID,
 	})
 	if err != nil {
 		// pgx.ErrNoRows here means the conflict row exists but its
@@ -197,7 +197,7 @@ func (s *BindingTokenService) RedeemAndBind(ctx context.Context, raw string, mul
 	return RedeemedBindingToken{
 		WorkspaceID:    row.WorkspaceID,
 		InstallationID: row.InstallationID,
-		LarkOpenID:     OpenID(row.LarkOpenID),
+		LarkOpenID:     OpenID(row.ChannelUserID),
 	}, nil
 }
 
@@ -248,11 +248,11 @@ func (s *BindingTokenService) BindInstallerTx(ctx context.Context, qtx *ChannelS
 	if !isMember {
 		return ErrBindingNotWorkspaceMember
 	}
-	_, err = q.CreateLarkUserBinding(ctx, db.CreateLarkUserBindingParams{
+	_, err = q.CreateLarkUserBinding(ctx, CreateUserBindingParams{
 		WorkspaceID:    p.WorkspaceID,
 		MulticaUserID:  p.MulticaUserID,
 		InstallationID: p.InstallationID,
-		LarkOpenID:     string(p.LarkOpenID),
+		ChannelUserID:  string(p.LarkOpenID),
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
