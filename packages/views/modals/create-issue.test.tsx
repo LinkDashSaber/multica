@@ -112,6 +112,13 @@ vi.mock("@multica/core/workspace/hooks", () => ({
   useActorName: () => ({ getActorName: () => "Agent" }),
 }));
 
+// CreateRunHint now renders an ActorAvatar for agent/squad assignees. This
+// suite is about the create form, not the avatar (whose own workspace/presence/
+// navigation hook tree is exercised elsewhere), so stub it inert.
+vi.mock("../common/actor-avatar", () => ({
+  ActorAvatar: () => null,
+}));
+
 vi.mock("@multica/core/issues/stores/draft-store", () => ({
   useIssueDraftStore: Object.assign(
     (selector?: (state: typeof mockDraftStore) => unknown) =>
