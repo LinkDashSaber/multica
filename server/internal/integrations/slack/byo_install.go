@@ -22,6 +22,11 @@ import (
 var (
 	ErrInvalidBotToken = errors.New("slack: bot token must start with xoxb-")
 	ErrInvalidAppToken = errors.New("slack: app-level token must start with xapp- and embed an app id")
+	// ErrTokenAppMismatch is returned when the pasted bot token and app-level
+	// token belong to DIFFERENT Slack apps. Persisting that pair would "connect"
+	// but be broken: inbound arrives on the app token's socket (routed by its
+	// app id) while mention detection + outbound use the bot token's identity.
+	ErrTokenAppMismatch = errors.New("slack: the bot token and app-level token are from different Slack apps")
 )
 
 // RegisterBYOParams are the inputs for a bring-your-own-app install: the agent
@@ -69,8 +74,28 @@ func (s *InstallService) RegisterBYO(ctx context.Context, p RegisterBYOParams) (
 	if err != nil {
 		return db.ChannelInstallation{}, fmt.Errorf("slack auth.test: %w", err)
 	}
-	if auth.TeamID == "" || auth.UserID == "" {
-		return db.ChannelInstallation{}, errors.New("slack auth.test: response missing team_id / user_id")
+	if auth.TeamID == "" || auth.UserID == "" || auth.BotID == "" {
+		return db.ChannelInstallation{}, errors.New("slack auth.test: response missing team_id / user_id / bot_id")
+	}
+
+	// Prove the two tokens belong to the SAME Slack app: resolve the bot's
+	// OWNING app id (bots.info on the bot id auth.test returned) and require it to
+	// equal the app id embedded in the app-level token. Without this, pasting app
+	// A's bot token with app B's app token would "connect" but be broken —
+	// inbound arrives on app B's socket (routed by api_app_id=B) while mention
+	// detection + outbound use app A's bot identity / token (Niko review).
+	botAppID, err := s.botAppID(ctx, botToken, auth.BotID)
+	if err != nil {
+		return db.ChannelInstallation{}, fmt.Errorf("slack bots.info: %w", err)
+	}
+	if botAppID != appID {
+		return db.ChannelInstallation{}, ErrTokenAppMismatch
+	}
+
+	// Validate the app-level token is live (Socket Mode can actually open) so we
+	// never persist a token that will silently never receive events.
+	if err := s.validateAppToken(ctx, appToken); err != nil {
+		return db.ChannelInstallation{}, fmt.Errorf("slack apps.connections.open: %w", err)
 	}
 
 	sealedBot, err := s.box.Seal([]byte(botToken))
@@ -106,11 +131,11 @@ func (s *InstallService) RegisterBYO(ctx context.Context, p RegisterBYOParams) (
 	})
 }
 
-// authTest calls Slack auth.test with the given bot token, honoring the apiURL
-// override so tests can point it at an httptest server (mirrors exchangeCode).
-// The Slack SDK appends the method name to the endpoint, so the base must end
-// in a slash.
-func (s *InstallService) authTest(ctx context.Context, botToken string) (*slack.AuthTestResponse, error) {
+// slackOpts builds the slack.Client options shared by the install-time Web API
+// calls, honoring the apiURL override so tests can point them at an httptest
+// server. The Slack SDK appends the method name to the endpoint, so the base
+// must end in a slash. A fresh slice is returned each call (safe to append to).
+func (s *InstallService) slackOpts() []slack.Option {
 	httpClient := s.httpClient
 	if httpClient == nil {
 		httpClient = http.DefaultClient
@@ -123,7 +148,33 @@ func (s *InstallService) authTest(ctx context.Context, botToken string) (*slack.
 		}
 		opts = append(opts, slack.OptionAPIURL(base))
 	}
-	return slack.New(botToken, opts...).AuthTestContext(ctx)
+	return opts
+}
+
+// authTest calls Slack auth.test with the bot token: validates it and returns
+// the team id, the bot's own user id, and the bot id (for the bots.info lookup).
+func (s *InstallService) authTest(ctx context.Context, botToken string) (*slack.AuthTestResponse, error) {
+	return slack.New(botToken, s.slackOpts()...).AuthTestContext(ctx)
+}
+
+// botAppID resolves the Slack app that OWNS the bot, via bots.info on the bot id
+// from auth.test. It is the only token→app_id path for a bot token, so it is how
+// we prove the pasted bot + app tokens belong to the same app.
+func (s *InstallService) botAppID(ctx context.Context, botToken, botID string) (string, error) {
+	bot, err := slack.New(botToken, s.slackOpts()...).GetBotInfoContext(ctx, slack.GetBotInfoParameters{Bot: botID})
+	if err != nil {
+		return "", err
+	}
+	return bot.AppID, nil
+}
+
+// validateAppToken confirms the app-level token can open a Socket Mode
+// connection (apps.connections.open) — a live check that the xapp is valid for
+// THIS app, so we never store a token that will silently receive nothing.
+func (s *InstallService) validateAppToken(ctx context.Context, appToken string) error {
+	api := slack.New("", append(s.slackOpts(), slack.OptionAppLevelToken(appToken))...)
+	_, _, err := api.StartSocketModeContext(ctx)
+	return err
 }
 
 // parseSlackAppID extracts the real Slack app id from an app-level token. The

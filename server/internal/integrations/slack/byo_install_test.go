@@ -3,6 +3,7 @@ package slack
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,17 +14,49 @@ import (
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
-// authTestServer stubs Slack auth.test. ok=false drives the bad-token path.
-func authTestServer(t *testing.T, ok bool) *httptest.Server {
+// slackMock parameterizes the install-time Slack API stub. botAppID defaults to
+// the app id embedded in byoParams' xapp token (so the same-app check passes).
+type slackMock struct {
+	authOK     bool   // auth.test result
+	botAppID   string // bots.info -> bot.app_id
+	appTokenOK bool   // apps.connections.open result
+}
+
+// slackMockServer stubs the three Web API calls RegisterBYO makes: auth.test
+// (bot token), bots.info (bot id -> owning app id), apps.connections.open (app
+// token live check).
+func slackMockServer(t *testing.T, m slackMock) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	if m.botAppID == "" {
+		m.botAppID = "A0BCXGVCS7R"
+	}
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if !ok {
-			_, _ = w.Write([]byte(`{"ok":false,"error":"invalid_auth"}`))
-			return
+		switch r.URL.Path {
+		case "/auth.test":
+			if !m.authOK {
+				_, _ = w.Write([]byte(`{"ok":false,"error":"invalid_auth"}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"ok":true,"team_id":"T999","user_id":"UBOTBYO","bot_id":"B0BOT","team":"Acme Inc","url":"https://acme.slack.com/"}`))
+		case "/bots.info":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"ok":true,"bot":{"id":"B0BOT","app_id":%q,"user_id":"UBOTBYO"}}`, m.botAppID)))
+		case "/apps.connections.open":
+			if !m.appTokenOK {
+				_, _ = w.Write([]byte(`{"ok":false,"error":"invalid_auth"}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"ok":true,"url":"wss://example.test/link"}`))
+		default:
+			_, _ = w.Write([]byte(`{"ok":false,"error":"unknown_method"}`))
 		}
-		_, _ = w.Write([]byte(`{"ok":true,"team_id":"T999","user_id":"UBOTBYO","team":"Acme Inc","url":"https://acme.slack.com/"}`))
 	}))
+}
+
+// authTestServer is the happy-path stub (valid bot token, matching app id, live
+// app token) unless ok=false, which makes auth.test reject the bot token.
+func authTestServer(t *testing.T, ok bool) *httptest.Server {
+	return slackMockServer(t, slackMock{authOK: ok, appTokenOK: true})
 }
 
 func byoParams(ws, agent string) RegisterBYOParams {
@@ -217,5 +250,46 @@ func TestRegisterBYO_AgentMove_RetiresStaleSessionBindings(t *testing.T) {
 	}
 	if !q.deleteCalled {
 		t.Fatal("an agent change must retire the installation's chat-session bindings")
+	}
+}
+
+func TestRegisterBYO_TokenAppMismatch(t *testing.T) {
+	// The bot token belongs to a DIFFERENT app (bots.info -> A0OTHER) than the
+	// app id embedded in the xapp token (A0BCXGVCS7R) — must be rejected so we
+	// never persist a broken installation (Niko review).
+	srv := slackMockServer(t, slackMock{authOK: true, botAppID: "A0OTHERAPP", appTokenOK: true})
+	defer srv.Close()
+	q := &fakeInstallQueries{}
+	svc := newTestInstallService(t, q)
+	svc.apiURL = srv.URL + "/"
+
+	if _, err := svc.RegisterBYO(context.Background(), byoParams(
+		"11111111-1111-1111-1111-111111111111",
+		"22222222-2222-2222-2222-222222222222",
+	)); err != ErrTokenAppMismatch {
+		t.Fatalf("mismatched tokens = %v, want ErrTokenAppMismatch", err)
+	}
+	if q.upsertCalled {
+		t.Error("mismatched bot/app tokens must be rejected before the upsert")
+	}
+}
+
+func TestRegisterBYO_AppTokenNotLive(t *testing.T) {
+	// auth.test + same-app check pass, but apps.connections.open rejects the app
+	// token — we must not persist a token that will never receive events.
+	srv := slackMockServer(t, slackMock{authOK: true, appTokenOK: false})
+	defer srv.Close()
+	q := &fakeInstallQueries{}
+	svc := newTestInstallService(t, q)
+	svc.apiURL = srv.URL + "/"
+
+	if _, err := svc.RegisterBYO(context.Background(), byoParams(
+		"11111111-1111-1111-1111-111111111111",
+		"22222222-2222-2222-2222-222222222222",
+	)); err == nil {
+		t.Fatal("expected an error when the app-level token is not live")
+	}
+	if q.upsertCalled {
+		t.Error("an invalid app token must not persist an installation")
 	}
 }
