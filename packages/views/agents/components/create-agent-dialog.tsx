@@ -39,6 +39,24 @@ import {
 import { CharCounter } from "./char-counter";
 import { useT } from "../../i18n";
 
+// True when a duplicate would land on the template agent's own runtime — i.e.
+// that runtime still exists and is usable by the caller. When false the dialog
+// falls back to a different runtime, so template-runtime-scoped pre-fills (the
+// runtime itself and its per-provider `thinking_level`) must not be carried
+// over.
+function landsOnTemplateRuntime(
+  template: Agent | null | undefined,
+  runtimes: RuntimeDevice[],
+  currentUserId: string | null,
+): boolean {
+  if (!template?.runtime_id) return false;
+  const templateRuntime = runtimes.find((r) => r.id === template.runtime_id);
+  return (
+    templateRuntime != null &&
+    isRuntimeUsableForUser(templateRuntime, currentUserId)
+  );
+}
+
 export function CreateAgentDialog({
   runtimes,
   runtimesLoading,
@@ -89,9 +107,20 @@ export function CreateAgentDialog({
   );
   const [model, setModel] = useState(template?.model ?? "");
   // Reasoning/effort override (MUL-3772). "" = follow the local CLI config.
-  // Duplicate mode clones the source agent's level so the picker pre-fills.
-  const [thinkingLevel, setThinkingLevel] = useState(
-    template?.thinking_level ?? "",
+  // Duplicate mode clones the source agent's level — but ONLY when the clone
+  // actually lands on the template's own runtime (same condition as the
+  // runtime pre-fill below). The level is a per-provider token; if the
+  // template runtime is locked/missing the dialog falls back to a different,
+  // possibly different-provider runtime, where that token would be
+  // provider-invalid. Starting blank there avoids carrying a value the
+  // fallback runtime would reject — which the provider-change effect can't
+  // catch (it skips the initial establishment) and the catalog-based clear
+  // can't catch when the fallback runtime is offline / its catalog hasn't
+  // resolved before submit.
+  const [thinkingLevel, setThinkingLevel] = useState(() =>
+    template?.thinking_level && landsOnTemplateRuntime(template, runtimes, currentUserId)
+      ? template.thinking_level
+      : "",
   );
   const [instructions, setInstructions] = useState(template?.instructions ?? "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(template?.avatar_url ?? null);
@@ -102,18 +131,14 @@ export function CreateAgentDialog({
 
   // Duplicate-mode pre-fill: clone lands on the source agent's runtime so
   // the user doesn't have to re-pick. Skipped when that runtime is now
-  // locked for the caller (Create would 403). Empty fallback hands the
-  // job to RuntimePicker — it owns filter state, so it's the only place
+  // locked/missing for the caller (Create would 403). Empty fallback hands
+  // the job to RuntimePicker — it owns filter state, so it's the only place
   // that knows which runtimes are visible right now.
-  const [selectedRuntimeId, setSelectedRuntimeId] = useState(() => {
-    const templateRuntime = template?.runtime_id
-      ? runtimes.find((r) => r.id === template.runtime_id)
-      : undefined;
-    if (templateRuntime && isRuntimeUsableForUser(templateRuntime, currentUserId)) {
-      return templateRuntime.id;
-    }
-    return "";
-  });
+  const [selectedRuntimeId, setSelectedRuntimeId] = useState(() =>
+    landsOnTemplateRuntime(template, runtimes, currentUserId)
+      ? (template?.runtime_id ?? "")
+      : "",
+  );
 
   const selectedRuntime = runtimes.find((d) => d.id === selectedRuntimeId) ?? null;
   // Defense-in-depth: even if a locked runtime somehow ends up selected

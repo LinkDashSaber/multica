@@ -544,4 +544,72 @@ describe("CreateAgentDialog reasoning picker (MUL-3772 REQ-2)", () => {
     expect(onCreate).toHaveBeenCalledTimes(1);
     expect(onCreate.mock.calls[0]?.[0].thinking_level).toBeUndefined();
   });
+
+  it("drops the template level when duplicate falls back off a locked template runtime to an offline different-provider runtime", async () => {
+    // Template is a Claude agent with a Claude-only level, but its runtime is
+    // now locked. The dialog falls back to the user's offline Codex runtime,
+    // which has no model catalog — so neither the provider-change effect (it
+    // skips the initial establishment) nor the catalog-based clear can run.
+    // The template level must already be blank at init so it can't be sent.
+    const lockedClaude = makeRuntime({
+      id: "rt-claude-locked",
+      daemon_id: "d-claude",
+      provider: "claude",
+      name: "Claude (Theirs)",
+      device_info: "Theirs",
+      owner_id: OTHER,
+      visibility: "private",
+    });
+    const offlineCodex = makeRuntime({
+      id: "rt-codex",
+      daemon_id: "d-codex",
+      provider: "codex",
+      name: "Codex (Mine)",
+      device_info: "Mine",
+      owner_id: ME,
+      status: "offline",
+      launch_header: "codex app-server",
+    });
+    // Intentionally no catalog entry for rt-codex: offline → never queried.
+    const template = makeTemplate({
+      runtime_id: "rt-claude-locked",
+      thinking_level: "max",
+      model: "",
+    });
+    const { onCreate } = renderDialog([lockedClaude, offlineCodex], template);
+
+    // Fallback seeds the usable Codex runtime.
+    await tick();
+    fireEvent.click(screen.getByText("Create"));
+    await tick();
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate.mock.calls[0]?.[0].runtime_id).toBe("rt-codex");
+    expect(onCreate.mock.calls[0]?.[0].thinking_level).toBeUndefined();
+  });
+
+  it("keeps the template level when duplicate lands on the template runtime (offline, same provider)", async () => {
+    // The complement of the regression above: when the clone DOES land on the
+    // template's own runtime, the per-provider level is valid and must survive
+    // even offline (where no catalog is available to re-confirm it).
+    const claudeOffline = makeRuntime({
+      id: "rt-claude",
+      daemon_id: "d1",
+      provider: "claude",
+      owner_id: ME,
+      status: "offline",
+    });
+    const template = makeTemplate({
+      runtime_id: "rt-claude",
+      thinking_level: "max",
+      model: "",
+    });
+    const { onCreate } = renderDialog([claudeOffline], template);
+
+    await tick();
+    fireEvent.click(screen.getByText("Create"));
+    await tick();
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate.mock.calls[0]?.[0].runtime_id).toBe("rt-claude");
+    expect(onCreate.mock.calls[0]?.[0].thinking_level).toBe("max");
+  });
 });
