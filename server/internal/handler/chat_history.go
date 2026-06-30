@@ -29,6 +29,7 @@ type ChatChannelHistoryReader interface {
 // sees a per-platform API.
 type ChatChannelHistoryResponse struct {
 	ChannelType string                   `json:"channel_type"`
+	Scope       channel.HistoryScope     `json:"scope,omitempty"`
 	Messages    []channel.HistoryMessage `json:"messages"`
 	NextCursor  string                   `json:"next_cursor,omitempty"`
 	// Note carries a human-readable explanation when there is no history to
@@ -87,7 +88,20 @@ func (h *Handler) GetChatChannelHistory(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	scope := parseHistoryScope(r.URL.Query().Get("scope"))
+	if scope == channel.HistoryScopeAuto {
+		// First turn — the bot has not replied yet, so no thread exists — reads
+		// the surrounding channel (where the prior context lives). A follow-up
+		// reads the agent's own thread. The agent can override with
+		// ?scope=channel|thread.
+		if h.chatSessionHasBotReply(r.Context(), task.ChatSessionID) {
+			scope = channel.HistoryScopeThread
+		} else {
+			scope = channel.HistoryScopeChannel
+		}
+	}
 	opts := channel.HistoryOptions{
+		Scope:  scope,
 		Limit:  parseHistoryLimit(r.URL.Query().Get("limit")),
 		Before: r.URL.Query().Get("before"),
 	}
@@ -118,9 +132,41 @@ func (h *Handler) GetChatChannelHistory(w http.ResponseWriter, r *http.Request) 
 	}
 	writeJSON(w, http.StatusOK, ChatChannelHistoryResponse{
 		ChannelType: page.ChannelType,
+		Scope:       page.Scope,
 		Messages:    messages,
 		NextCursor:  page.NextCursor,
 	})
+}
+
+// parseHistoryScope maps the ?scope query value to a HistoryScope, defaulting to
+// auto for empty / unknown values.
+func parseHistoryScope(raw string) channel.HistoryScope {
+	switch channel.HistoryScope(raw) {
+	case channel.HistoryScopeThread:
+		return channel.HistoryScopeThread
+	case channel.HistoryScopeChannel:
+		return channel.HistoryScopeChannel
+	default:
+		return channel.HistoryScopeAuto
+	}
+}
+
+// chatSessionHasBotReply reports whether the bot has already replied in this
+// session — i.e. this is a follow-up, not the first turn. On Slack the bot's
+// first reply opens the thread, so an existing assistant message is the signal
+// that a thread worth reading exists. Best-effort: a query error defaults to
+// false (treat as first turn → channel), the safe, context-rich choice.
+func (h *Handler) chatSessionHasBotReply(ctx context.Context, sessionID pgtype.UUID) bool {
+	msgs, err := h.Queries.ListChatMessages(ctx, sessionID)
+	if err != nil {
+		return false
+	}
+	for _, m := range msgs {
+		if m.Role == "assistant" {
+			return true
+		}
+	}
+	return false
 }
 
 // parseHistoryLimit reads the ?limit query param, ignoring junk (the reader

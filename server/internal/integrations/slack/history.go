@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -106,7 +107,16 @@ func (h *History) Fetch(ctx context.Context, chatSessionID pgtype.UUID, opts cha
 	if err != nil {
 		return channel.HistoryPage{}, fmt.Errorf("decode slack credentials: %w", err)
 	}
-	channelID, threadTS := historyTarget(binding)
+	channelID, threadRoot := historyTarget(binding)
+	// Resolve the concrete scope to read. The handler resolves "auto" to
+	// thread/channel (it knows first-turn vs follow-up); here we additionally
+	// degrade "thread" to "channel" when there is no thread to read — a DM, or a
+	// group whose root could not be recovered.
+	scope := channel.HistoryScopeChannel
+	if opts.Scope == channel.HistoryScopeThread &&
+		binding.ChatType == string(channel.ChatTypeGroup) && threadRoot != "" {
+		scope = channel.HistoryScopeThread
+	}
 
 	limit := opts.Limit
 	if limit <= 0 {
@@ -116,40 +126,49 @@ func (h *History) Fetch(ctx context.Context, chatSessionID pgtype.UUID, opts cha
 		limit = maxHistoryLimit
 	}
 
+	fetchThreadTS := ""
+	if scope == channel.HistoryScopeThread {
+		fetchThreadTS = threadRoot
+	}
 	client := h.newClient(creds.BotToken)
-	raw, err := fetchRaw(ctx, client, channelID, threadTS, opts.Before, limit)
+	raw, err := fetchRaw(ctx, client, channelID, fetchThreadTS, opts.Before, limit)
 	if err != nil {
 		return channel.HistoryPage{}, fmt.Errorf("read slack history: %w", err)
 	}
 
 	page := normalizeHistory(ctx, client, h.logger, raw, creds.BotUserID, limit)
 	page.ChannelType = string(TypeSlack)
+	page.Scope = scope
 	return page, nil
 }
 
-// historyTarget recovers the real channel id and the thread root (when the
-// session is a genuine thread) from the binding. The channel_chat_id may be a
-// composite "channel:threadRoot" isolation key, so the real channel id is read
-// from the binding config (slackBindingConfig); ThreadTS is set there only for
-// real threads.
-func historyTarget(b db.ChannelChatSessionBinding) (channelID, threadTS string) {
+// historyTarget recovers the real channel id and the thread root from the
+// binding. The channel_chat_id may be a composite "channel:threadRoot"
+// isolation key, so the real channel id is read from the binding config
+// (slackBindingConfig). The thread root — present for every engaged group
+// session, since the bot's first reply opens a thread on the @mention — is the
+// recorded reply thread (last_thread_id), falling back to the composite-key
+// suffix. It is empty for a DM (no threads).
+func historyTarget(b db.ChannelChatSessionBinding) (channelID, threadRoot string) {
 	channelID = b.ChannelChatID
 	if len(b.Config) > 0 {
 		var cfg slackBindingConfig
-		if err := json.Unmarshal(b.Config, &cfg); err == nil {
-			if cfg.ChannelID != "" {
-				channelID = cfg.ChannelID
-			}
-			threadTS = cfg.ThreadTS
+		if err := json.Unmarshal(b.Config, &cfg); err == nil && cfg.ChannelID != "" {
+			channelID = cfg.ChannelID
 		}
 	}
-	return channelID, threadTS
+	if b.LastThreadID.Valid && b.LastThreadID.String != "" {
+		threadRoot = b.LastThreadID.String
+	} else if i := strings.IndexByte(b.ChannelChatID, ':'); i >= 0 {
+		threadRoot = b.ChannelChatID[i+1:]
+	}
+	return channelID, threadRoot
 }
 
 // fetchRaw pulls the most recent `limit` messages older than `before` (exclusive
-// when set). A real thread reads conversations.replies anchored on the thread
-// root; a DM or top-level channel session reads conversations.history. Both
-// return newest-first; ordering is normalized downstream.
+// when set). A thread read uses conversations.replies anchored on the thread
+// root; a channel read uses conversations.history. Both return newest-first;
+// ordering is normalized downstream.
 func fetchRaw(ctx context.Context, client historyClient, channelID, threadTS, before string, limit int) ([]slack.Message, error) {
 	if threadTS != "" {
 		msgs, _, _, err := client.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{

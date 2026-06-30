@@ -27,6 +27,13 @@ When you are @mentioned in a Slack thread or channel you only receive the one
 triggering message — not what was said before it. Run this to pull the
 surrounding conversation so you understand the full context.
 
+A conversation has two nested histories: the surrounding CHANNEL and your own
+THREAD within it (your first reply opens a thread on the @mention). By default
+(--scope auto) the server reads the channel on your first reply — where the
+prior context lives — and your thread on follow-ups. Use --scope channel to pull
+the wider channel during a follow-up when the thread alone is not enough, or
+--scope thread to force the thread.
+
 It is the SAME command regardless of which channel the conversation came from;
 the server hides the per-platform differences. It reads only the conversation
 you are currently running for — it cannot read any other session or channel.`,
@@ -35,6 +42,7 @@ you are currently running for — it cannot read any other session or channel.`,
 }
 
 func init() {
+	chatHistoryCmd.Flags().String("scope", "auto", "Which history to read: auto, thread, or channel")
 	chatHistoryCmd.Flags().Int("limit", 0, "Maximum number of messages to return (the server clamps the range)")
 	chatHistoryCmd.Flags().String("before", "", "Opaque cursor (a next_cursor from a prior page) to read older messages")
 	chatHistoryCmd.Flags().String("output", "json", "Output format: table or json")
@@ -50,10 +58,14 @@ func runChatHistory(cmd *cobra.Command, _ []string) error {
 	ctx, cancel := cli.APIContext(context.Background())
 	defer cancel()
 
+	scope, _ := cmd.Flags().GetString("scope")
 	limit, _ := cmd.Flags().GetInt("limit")
 	before, _ := cmd.Flags().GetString("before")
 
 	q := url.Values{}
+	if scope != "" && scope != "auto" {
+		q.Set("scope", scope)
+	}
 	if limit > 0 {
 		q.Set("limit", strconv.Itoa(limit))
 	}
@@ -75,6 +87,9 @@ func runChatHistory(cmd *cobra.Command, _ []string) error {
 		if note := strVal(resp, "note"); note != "" {
 			fmt.Fprintln(os.Stdout, note)
 			return nil
+		}
+		if s := strVal(resp, "scope"); s != "" {
+			fmt.Fprintf(os.Stdout, "scope: %s\n", s)
 		}
 		msgs, _ := resp["messages"].([]any)
 		headers := []string{"TS", "ROLE", "AUTHOR", "TEXT"}
