@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Virtuoso, type Components } from "react-virtuoso";
@@ -245,7 +245,18 @@ export function ChatMessageSkeleton() {
 
 // ─── Message bubbles ─────────────────────────────────────────────────────
 
-function MessageBubble({ message, isPending }: { message: ChatMessage; isPending: boolean }) {
+// memo: every streamed task:message re-renders ChatMessageList, and with it
+// every VISIBLE row via itemContent. Message objects are referentially
+// stable for unchanged messages and isPending is a boolean, so a shallow
+// memo skips reconciling rows the stream didn't touch — the persisted
+// history stays inert while only the live footer updates.
+const MessageBubble = memo(function MessageBubble({
+  message,
+  isPending,
+}: {
+  message: ChatMessage;
+  isPending: boolean;
+}) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -268,7 +279,7 @@ function MessageBubble({ message, isPending }: { message: ChatMessage; isPending
   }
 
   return <AssistantMessage message={message} isPending={isPending} />;
-}
+});
 
 function AssistantMessage({
   message,
