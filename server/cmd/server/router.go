@@ -1039,7 +1039,12 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/evidence", h.ListRavenEvidence)
 				})
 			})
-			r.Patch("/api/raven/runs/{id}", h.UpdateRavenRun)
+			r.Route("/api/raven/runs/{id}", func(r chi.Router) {
+				r.Patch("/", h.UpdateRavenRun)
+				// Stage progress reporting (issue #15): SDK writes, UI reads.
+				r.Post("/stage-events", h.CreateRavenRunStageEvent)
+				r.Get("/stage-events", h.ListRavenRunStageEvents)
+			})
 			r.Post("/api/raven/evidence", h.CreateRavenEvidence)
 			r.Route("/api/raven/gates", func(r chi.Router) {
 				r.Get("/", h.ListRavenGates)

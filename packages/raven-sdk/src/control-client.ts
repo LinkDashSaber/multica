@@ -157,6 +157,11 @@ export class ControlPlaneClient {
     return this.request("PATCH", `/api/raven/runs/${runId}`, patch);
   }
 
+  /** Stage progress reporting (issue #15): entered/exited stream per run. */
+  reportRunStageEvent(runId: string, stage: string, event: "entered" | "exited"): Promise<unknown> {
+    return this.request("POST", `/api/raven/runs/${runId}/stage-events`, { stage, event });
+  }
+
   createEvidence(input: CreateEvidenceInput): Promise<unknown> {
     return this.request("POST", "/api/raven/evidence", {
       requirement_id: input.requirementId,

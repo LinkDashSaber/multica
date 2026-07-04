@@ -7,6 +7,13 @@ export interface ContractStage {
   description?: string;
 }
 
+/** Stages accept the object form or the legacy bare-string form (issue #15). */
+export type ContractStageInput = string | ContractStage;
+
+export function stageName(s: ContractStageInput): string {
+  return typeof s === "string" ? s : s.name;
+}
+
 export interface ContractGate {
   name: string;
   after_stage: string;
@@ -23,7 +30,7 @@ export interface ContractRetry {
 }
 
 export interface Contract {
-  stages: ContractStage[];
+  stages: ContractStageInput[];
   gates: ContractGate[];
   budget: ContractBudget;
   retry?: ContractRetry;
@@ -36,13 +43,14 @@ export function validateContract(c: Contract): void {
   }
   const stageNames = new Set<string>();
   c.stages.forEach((s, i) => {
-    if (!s.name) {
+    const name = stageName(s);
+    if (!name) {
       throw new Error(`contract.stages[${i}].name is required`);
     }
-    if (stageNames.has(s.name)) {
-      throw new Error(`contract.stages has duplicate name "${s.name}"`);
+    if (stageNames.has(name)) {
+      throw new Error(`contract.stages has duplicate name "${name}"`);
     }
-    stageNames.add(s.name);
+    stageNames.add(name);
   });
 
   if (!c.gates || c.gates.length === 0) {

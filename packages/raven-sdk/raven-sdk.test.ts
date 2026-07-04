@@ -95,6 +95,57 @@ describe("defineWorkflow contract validation", () => {
   });
 });
 
+// --- stage() primitive (issue #15) --------------------------------------------
+
+describe("stage() primitive", () => {
+  it("reports entered before the body and exited after it", async () => {
+    const { calls, fetchImpl } = makeMock(() => ({ body: {} }));
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+
+    const result = await ctx.stage("clarify", async () => "spec");
+
+    expect(result).toBe("spec");
+    const stageCalls = calls.filter((c) => path(c.url) === "/api/raven/runs/run-1/stage-events");
+    expect(stageCalls.map((c) => c.body)).toEqual([
+      { stage: "clarify", event: "entered" },
+      { stage: "clarify", event: "exited" },
+    ]);
+  });
+
+  it("does not report exited when the body throws", async () => {
+    const { calls, fetchImpl } = makeMock(() => ({ body: {} }));
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+
+    await expect(
+      ctx.stage("execute", async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+
+    const stageCalls = calls.filter((c) => path(c.url) === "/api/raven/runs/run-1/stage-events");
+    expect(stageCalls.map((c) => c.body)).toEqual([{ stage: "execute", event: "entered" }]);
+  });
+
+  it("refuses stages not declared in the contract, without any HTTP call", async () => {
+    const { calls, fetchImpl } = makeMock(() => ({ body: {} }));
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+
+    await expect(ctx.stage("nope", async () => undefined)).rejects.toThrow(
+      /not declared in the workflow contract/,
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it("accepts bare-string stage declarations", async () => {
+    const { calls, fetchImpl } = makeMock(() => ({ body: {} }));
+    const contract: Contract = { ...baseContract, stages: ["clarify", { name: "execute" }] };
+    const ctx = makeCtx(contract, makeClient(fetchImpl));
+
+    await ctx.stage("clarify", async () => undefined);
+    expect(calls).toHaveLength(2);
+  });
+});
+
 // --- 2. happy path ------------------------------------------------------------
 
 describe("workflow handler happy path", () => {

@@ -761,6 +761,16 @@ type RavenRun struct {
 	UsdSpent          float64            `json:"usd_spent"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	CurrentStage      string             `json:"current_stage"`
+}
+
+type RavenRunStageEvent struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	RunID       pgtype.UUID        `json:"run_id"`
+	Stage       string             `json:"stage"`
+	Event       string             `json:"event"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type RavenWorkflow struct {

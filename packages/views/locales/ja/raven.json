@@ -92,5 +92,12 @@
     "use": "使用",
     "ignore": "無視",
     "fallback_squad": "スクワッドを選ぶ"
+  },
+  "stage_strip": {
+    "title": "デリバリー進捗",
+    "done": "完了",
+    "running": "実行中",
+    "waiting_decision": "承認待ち",
+    "pending": "未着手"
   }
 }

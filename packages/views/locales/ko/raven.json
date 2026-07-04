@@ -92,5 +92,12 @@
     "use": "사용",
     "ignore": "무시",
     "fallback_squad": "스쿼드 선택"
+  },
+  "stage_strip": {
+    "title": "딜리버리 진행 상황",
+    "done": "완료",
+    "running": "실행 중",
+    "waiting_decision": "승인 대기",
+    "pending": "시작 전"
   }
 }

@@ -92,5 +92,12 @@
     "use": "使用",
     "ignore": "忽略",
     "fallback_squad": "转小队"
+  },
+  "stage_strip": {
+    "title": "交付进度",
+    "done": "已完成",
+    "running": "运行中",
+    "waiting_decision": "等待拍板",
+    "pending": "未开始"
   }
 }

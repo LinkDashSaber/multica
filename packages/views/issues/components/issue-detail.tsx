@@ -62,6 +62,7 @@ import { collectThreadReplies, deriveThreadResolution } from "./thread-utils";
 import { IssueAgentHeaderChip } from "./issue-agent-header-chip";
 import { RavenLifecycleBadge } from "./raven-lifecycle-badge";
 import { IssueRequirementTimeline } from "../../raven/requirement-timeline";
+import { IssueRunStageStrip } from "../../raven/run-stage-strip";
 import { ExecutionLogSection } from "./execution-log-section";
 import { PullRequestList } from "./pull-request-list";
 import { useGitHubSettings } from "@multica/core/github";
@@ -2095,6 +2096,9 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
               </div>
             );
           })()}
+
+          {/* Raven delivery-progress strip — self-hides for issues without a run (issue #15). */}
+          <IssueRunStageStrip wsId={wsId} issueId={id} className="mt-10" />
 
           {/* Raven audit timeline — self-hides for bare issues (ADR-0006). */}
           <IssueRequirementTimeline wsId={wsId} issueId={id} className="mt-10" />
