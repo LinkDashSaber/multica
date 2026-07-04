@@ -85,5 +85,12 @@
     "gate_opened": "ゲート {{name}} が開始",
     "gate_approved": "ゲート {{name}} が承認されました",
     "gate_rejected": "ゲート {{name}} が却下されました"
+  },
+  "recommendation": {
+    "suggest": "おすすめのワークフロー：{{name}}",
+    "no_match": "一致するワークフローがありません。スクワッドに割り当てますか？",
+    "use": "使用",
+    "ignore": "無視",
+    "fallback_squad": "スクワッドを選ぶ"
   }
 }

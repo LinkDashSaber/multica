@@ -1020,6 +1020,12 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
+			// Raven workflow recommendation (issue #9): suggestion + outcome log
+			r.Route("/api/raven/recommendations", func(r chi.Router) {
+				r.Post("/", h.CreateRavenRecommendation)
+				r.Patch("/{id}", h.UpdateRavenRecommendationOutcome)
+			})
+
 			// Raven requirement lifecycle (opt-in via workflow assignment)
 			r.Route("/api/raven/requirements", func(r chi.Router) {
 				r.Get("/", h.ListRavenRequirements)

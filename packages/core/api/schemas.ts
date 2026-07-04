@@ -521,6 +521,41 @@ export const EMPTY_RAVEN_TRANSITION_LIST: RavenTransitionListResponse = {
   total: 0,
 };
 
+// ---------------------------------------------------------------------------
+// Raven workflow recommendation (issue #9). `workflow_id: null` means "no
+// confident match" — the UI offers the Squad fallback instead of a workflow.
+// ---------------------------------------------------------------------------
+
+export interface RavenRecommendation {
+  id: string;
+  workflow_id: string | null;
+  workflow_name: string;
+  score: number;
+  reason: string;
+  outcome: string;
+}
+
+export const RavenRecommendationSchema = z.object({
+  id: z.string(),
+  workflow_id: z.string().nullable().default(null),
+  workflow_name: z.string().default(""),
+  score: z.number().default(0),
+  reason: z.string().default(""),
+  outcome: z.string().default("pending"),
+}).loose();
+
+export const RavenRecommendationResponseSchema = z.object({
+  recommendation: RavenRecommendationSchema.nullable().default(null),
+}).loose();
+
+export interface RavenRecommendationResponse {
+  recommendation: RavenRecommendation | null;
+}
+
+export const EMPTY_RAVEN_RECOMMENDATION_RESPONSE: RavenRecommendationResponse = {
+  recommendation: null,
+};
+
 export const CreateFeedbackResponseSchema = z.object({
   id: z.string(),
   created_at: z.string(),

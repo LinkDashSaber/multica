@@ -44,6 +44,7 @@ import { useActorName } from "@multica/core/workspace/hooks";
 import { useCurrentWorkspace, useWorkspacePaths } from "@multica/core/paths";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useIssueDraftStore } from "@multica/core/issues/stores/draft-store";
+import { WorkflowRecommendationBanner } from "../raven/workflow-recommendation-banner";
 import { useCreateModeStore } from "@multica/core/issues/stores/create-mode-store";
 import { useQuickCreateStore } from "@multica/core/issues/stores/quick-create-store";
 import { issueDetailOptions, childIssuesOptions } from "@multica/core/issues/queries";
@@ -238,6 +239,8 @@ export function ManualCreatePanel({
     typeof data?.stage === "number" ? (data.stage as number) : null,
   );
   const [parentPickerOpen, setParentPickerOpen] = useState(false);
+  // Controlled so the workflow-recommendation Squad fallback can pop it open.
+  const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
   // Start date is a low-frequency field — by default it lives in the
   // overflow ⋯ menu. Clicking the menu item flips this open, which both
   // mounts the inline pill (the popover's anchor) AND opens the calendar.
@@ -630,6 +633,17 @@ export function ManualCreatePanel({
               {descDragOver && <FileDropOverlay />}
             </div>
 
+            {/* Workflow recommendation (issue #9) — confirm-to-apply, never
+                auto-dispatch; no-match offers the Squad fallback via the picker. */}
+            <div className="px-5 pb-1 shrink-0 empty:hidden">
+              <WorkflowRecommendationBanner
+                title={title}
+                hasAssignee={!!assigneeId}
+                onUseWorkflow={(workflowId) => updateAssignee("workflow", workflowId)}
+                onFallbackSquad={() => setAssigneePickerOpen(true)}
+              />
+            </div>
+
             {/* Pre-trigger preview — a passive caption above the toolbar; reveals
                 when an agent assignee will pick the issue up. */}
             <CreateRunHint assigneeType={assigneeType} assigneeId={assigneeId} status={status} />
@@ -656,6 +670,8 @@ export function ManualCreatePanel({
               <AssigneePicker
                 assigneeType={assigneeType ?? null}
                 assigneeId={assigneeId ?? null}
+                open={assigneePickerOpen}
+                onOpenChange={setAssigneePickerOpen}
                 onUpdate={(u) => updateAssignee(
                   u.assignee_type ?? undefined,
                   u.assignee_id ?? undefined,

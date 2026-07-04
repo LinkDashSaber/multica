@@ -24,3 +24,23 @@ export function useDecideRavenGate(wsId: string) {
     },
   });
 }
+
+/**
+ * Ask for a workflow recommendation from issue-create form text (issue #9).
+ * Transient by design — the result drives a one-shot banner, so a mutation
+ * (not a cached query) is the right shape.
+ */
+export function useRequestRavenRecommendation() {
+  return useMutation({
+    mutationFn: (data: { issue_id?: string; title?: string; description?: string }) =>
+      api.requestRavenRecommendation(data),
+  });
+}
+
+/** Record accepted / ignored / fallback_squad on a recommendation. */
+export function useRecordRavenRecommendationOutcome() {
+  return useMutation({
+    mutationFn: ({ id, outcome }: { id: string; outcome: "accepted" | "ignored" | "fallback_squad" }) =>
+      api.recordRavenRecommendationOutcome(id, outcome),
+  });
+}

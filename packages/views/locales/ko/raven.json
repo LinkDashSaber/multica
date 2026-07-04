@@ -85,5 +85,12 @@
     "gate_opened": "게이트 {{name}} 열림",
     "gate_approved": "게이트 {{name}} 승인됨",
     "gate_rejected": "게이트 {{name}} 반려됨"
+  },
+  "recommendation": {
+    "suggest": "추천 워크플로: {{name}}",
+    "no_match": "일치하는 워크플로가 없습니다. 스쿼드에 할당할까요?",
+    "use": "사용",
+    "ignore": "무시",
+    "fallback_squad": "스쿼드 선택"
   }
 }

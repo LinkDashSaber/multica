@@ -85,5 +85,12 @@
     "gate_opened": "门禁 {{name}} 开启",
     "gate_approved": "门禁 {{name}} 已通过",
     "gate_rejected": "门禁 {{name}} 已驳回"
+  },
+  "recommendation": {
+    "suggest": "推荐交付策略：{{name}}",
+    "no_match": "没有匹配的交付策略，转小队处理？",
+    "use": "使用",
+    "ignore": "忽略",
+    "fallback_squad": "转小队"
   }
 }

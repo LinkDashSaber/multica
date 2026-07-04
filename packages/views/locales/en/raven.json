@@ -85,5 +85,12 @@
     "gate_opened": "Gate {{name}} opened",
     "gate_approved": "Gate {{name}} approved",
     "gate_rejected": "Gate {{name}} rejected"
+  },
+  "recommendation": {
+    "suggest": "Suggested workflow: {{name}}",
+    "no_match": "No matching workflow — assign a squad instead?",
+    "use": "Use",
+    "ignore": "Ignore",
+    "fallback_squad": "Pick a squad"
   }
 }

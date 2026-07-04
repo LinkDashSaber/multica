@@ -207,6 +207,9 @@ import {
   RavenTransitionListSchema,
   type RavenTransitionListResponse,
   EMPTY_RAVEN_TRANSITION_LIST,
+  RavenRecommendationResponseSchema,
+  type RavenRecommendationResponse,
+  EMPTY_RAVEN_RECOMMENDATION_RESPONSE,
   GroupedIssuesResponseSchema,
   ListAutopilotsResponseSchema,
   EMPTY_LIST_AUTOPILOTS_RESPONSE,
@@ -1604,6 +1607,38 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(`/api/raven/requirements/${requirementId}/transitions`);
     return parseWithFallback<RavenTransitionListResponse>(raw, RavenTransitionListSchema, EMPTY_RAVEN_TRANSITION_LIST, {
       endpoint: "GET /api/raven/requirements/{id}/transitions",
+    });
+  }
+
+  // Raven workflow recommendation (issue #9). Pass `issue_id` for an existing
+  // issue, or `title`/`description` from the create form before the issue
+  // exists. A null `recommendation.workflow_id` means "no confident match".
+  async requestRavenRecommendation(data: {
+    issue_id?: string;
+    title?: string;
+    description?: string;
+  }): Promise<RavenRecommendationResponse> {
+    const raw = await this.fetch<unknown>("/api/raven/recommendations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback<RavenRecommendationResponse>(raw, RavenRecommendationResponseSchema, EMPTY_RAVEN_RECOMMENDATION_RESPONSE, {
+      endpoint: "POST /api/raven/recommendations",
+    });
+  }
+
+  // Record the user's decision on a recommendation (accepted / ignored /
+  // fallback_squad) — the data floor for recommendation quality evaluation.
+  async recordRavenRecommendationOutcome(
+    id: string,
+    outcome: "accepted" | "ignored" | "fallback_squad",
+  ): Promise<RavenRecommendationResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/recommendations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ outcome }),
+    });
+    return parseWithFallback<RavenRecommendationResponse>(raw, RavenRecommendationResponseSchema, EMPTY_RAVEN_RECOMMENDATION_RESPONSE, {
+      endpoint: "PATCH /api/raven/recommendations/{id}",
     });
   }
 
