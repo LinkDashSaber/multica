@@ -26,7 +26,11 @@
     "original_input": "元の入力",
     "edit_advanced": "詳細フォームで編集",
     "archive": "アーカイブ",
-    "review_gate": "ゲートをレビュー"
+    "review_gate": "ゲートをレビュー",
+    "uptrack_body": "このデリバリーをワークフローとして保存できます。レビュー用のドラフト PR を生成しますか",
+    "uptrack_accept": "ドラフト PR を生成",
+    "uptrack_dismiss": "閉じる",
+    "uptrack_started": "ドラフト issue を作成しました。エージェントが PR を作成します"
   },
   "types": {
     "issue_assigned": "割り当て済み",
@@ -47,7 +51,8 @@
     "reaction_added": "リアクションあり",
     "quick_create_done": "エージェントで作成",
     "quick_create_failed": "エージェントでの作成に失敗",
-    "raven_gate_pending": "ゲートレビュー待ち"
+    "raven_gate_pending": "ゲートレビュー待ち",
+    "raven_uptrack_proposal": "ワークフロー化の提案"
   },
   "labels": {
     "set_status_to": "ステータスを変更:",

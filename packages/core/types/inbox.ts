@@ -21,7 +21,8 @@ export type InboxItemType =
   | "reaction_added"
   | "quick_create_done"
   | "quick_create_failed"
-  | "raven_gate_pending";
+  | "raven_gate_pending"
+  | "raven_uptrack_proposal";
 
 /**
  * One workspace's unread inbox count in the cross-workspace summary

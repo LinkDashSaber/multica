@@ -65,6 +65,7 @@ export const featureDelivery = defineWorkflow({
       { name: "execute" },
       { name: "self-check" },
       { name: "pr" },
+      { name: "learn" },
     ],
     gates: [
       { name: "spec-confirm", after_stage: "clarify" },
@@ -148,6 +149,20 @@ export const featureDelivery = defineWorkflow({
       });
       review = await ctx.gate("human-review", { rework: rework.output });
     }
+    // —— learn（沉淀钩子 ②，issue #10）：复盘本次 run，对 workflow 本身提改进。
+    // 有实质改进 → 以 PR 形式产出（关联 workflow 版本）；没有 → 只留证据。
+    const learn = await ctx.agent({
+      agentId,
+      title: "沉淀：workflow 自我改进",
+      prompt: [
+        `复盘刚完成的这次 feature-delivery 运行（父需求 issue ${ctx.payload.issue_id}，读它的时间线与评论）。`,
+        "找出本 workflow 定义（仓库 packages/raven-workflows/src/trigger/feature-delivery.ts）中导致摩擦的问题：提示词歧义、阶段缺失/冗余、门禁位置不当等。",
+        "若有实质改进：修改该文件，建分支提交并创建 PR，标题注明「workflow 改进：feature-delivery」，正文说明依据的运行事实并引用父 issue；回复 PR 链接。",
+        "若无实质改进：不要为改而改，直接回复「无改进意见」加一句原因。",
+      ].join("\n"),
+    });
+    await ctx.evidence("learn", "沉淀阶段完成", { output: learn.output });
+
     // 合并后的 Merged 推进由 GitHub webhook 闭环完成。
     return { ok: true };
   },

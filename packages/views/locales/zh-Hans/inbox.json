@@ -26,7 +26,11 @@
     "original_input": "原始输入",
     "edit_advanced": "在完整表单中编辑",
     "archive": "归档",
-    "review_gate": "审查门禁"
+    "review_gate": "审查门禁",
+    "uptrack_body": "这次交付可以沉淀为交付策略，生成草稿 PR 供审阅",
+    "uptrack_accept": "生成草稿 PR",
+    "uptrack_dismiss": "关闭",
+    "uptrack_started": "草稿任务已创建，智能体将提交 PR"
   },
   "types": {
     "issue_assigned": "已分配",
@@ -47,7 +51,8 @@
     "reaction_added": "添加了表情反应",
     "quick_create_done": "通过智能体创建",
     "quick_create_failed": "通过智能体创建失败",
-    "raven_gate_pending": "门禁等待裁决"
+    "raven_gate_pending": "门禁等待裁决",
+    "raven_uptrack_proposal": "沉淀提议"
   },
   "labels": {
     "set_status_to": "状态设为",

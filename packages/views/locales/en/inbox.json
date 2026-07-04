@@ -26,7 +26,11 @@
     "original_input": "Original input",
     "edit_advanced": "Edit as advanced form",
     "archive": "Archive",
-    "review_gate": "Review gate"
+    "review_gate": "Review gate",
+    "uptrack_body": "This delivery can be captured as a workflow — generate a draft PR for review",
+    "uptrack_accept": "Generate draft PR",
+    "uptrack_dismiss": "Dismiss",
+    "uptrack_started": "Draft issue created — the agent will open a PR"
   },
   "types": {
     "issue_assigned": "Assigned",
@@ -47,7 +51,8 @@
     "reaction_added": "Reacted",
     "quick_create_done": "Created with agent",
     "quick_create_failed": "Create with agent failed",
-    "raven_gate_pending": "Gate review pending"
+    "raven_gate_pending": "Gate review pending",
+    "raven_uptrack_proposal": "Uptrack proposal"
   },
   "labels": {
     "set_status_to": "Set status to",

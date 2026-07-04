@@ -157,6 +157,23 @@ func (q *Queries) ArchiveInboxItem(ctx context.Context, id pgtype.UUID) (InboxIt
 	return i, err
 }
 
+const countInboxItemsByTypeAndIssue = `-- name: CountInboxItemsByTypeAndIssue :one
+SELECT count(*) FROM inbox_item
+WHERE type = $1 AND issue_id = $2
+`
+
+type CountInboxItemsByTypeAndIssueParams struct {
+	Type    string      `json:"type"`
+	IssueID pgtype.UUID `json:"issue_id"`
+}
+
+func (q *Queries) CountInboxItemsByTypeAndIssue(ctx context.Context, arg CountInboxItemsByTypeAndIssueParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countInboxItemsByTypeAndIssue, arg.Type, arg.IssueID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUnreadInbox = `-- name: CountUnreadInbox :one
 SELECT count(*) FROM inbox_item
 WHERE workspace_id = $1 AND recipient_type = $2 AND recipient_id = $3 AND read = false AND archived = false

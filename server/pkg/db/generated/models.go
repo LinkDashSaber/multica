@@ -775,6 +775,18 @@ type RavenWorkflow struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+type RavenWorkflowRecommendation struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	WorkflowID  pgtype.UUID        `json:"workflow_id"`
+	Score       float32            `json:"score"`
+	Reason      string             `json:"reason"`
+	Outcome     string             `json:"outcome"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	DecidedAt   pgtype.Timestamptz `json:"decided_at"`
+}
+
 type RuntimeProfile struct {
 	ID             pgtype.UUID        `json:"id"`
 	WorkspaceID    pgtype.UUID        `json:"workspace_id"`

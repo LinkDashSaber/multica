@@ -20,6 +20,8 @@ import {
   useArchiveAllReadInbox,
   useArchiveCompletedInbox,
 } from "@multica/core/inbox/mutations";
+import { useCreateIssue } from "@multica/core/issues/mutations";
+import type { IssueAssigneeType } from "@multica/core/types";
 
 import { IssueDetail } from "../../issues/components";
 import { ErrorBoundary } from "@multica/ui/components/common/error-boundary";
@@ -288,6 +290,33 @@ export function InboxPage() {
 
   const selectedGateId = selected?.details?.gate_id ?? "";
 
+  // 沉淀提议 (raven_uptrack_proposal): accepting spawns the draft-PR agent
+  // issue from the server-composed material; the agent then opens the
+  // workflow-draft PR. Dismissing is just archiving the item.
+  const createIssue = useCreateIssue();
+  const acceptUptrack = (item: InboxItem) => {
+    const d = item.details ?? {};
+    if (!d.draft_issue_title || !d.suggested_assignee_id) return;
+    createIssue.mutate(
+      {
+        title: d.draft_issue_title,
+        description: d.draft_issue_prompt ?? "",
+        status: "todo",
+        assignee_type: (d.suggested_assignee_type ?? "agent") as IssueAssigneeType,
+        assignee_id: d.suggested_assignee_id,
+      },
+      {
+        onSuccess: (issue) => {
+          handleArchive(item.id);
+          toast.success(t(($) => $.detail.uptrack_started));
+          push(wsPaths.issueDetail(issue.id));
+        },
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : String(err)),
+      },
+    );
+  };
+
   const detailContent = selected?.issue_id ? (
     // Key by issue_id (not inbox-item id): a new comment/reaction generates a
     // new inbox notification for the same issue, and the dedup helper picks the
@@ -307,6 +336,30 @@ export function InboxPage() {
           >
             {t(($) => $.detail.review_gate)}
           </Button>
+        </div>
+      )}
+      {/* 沉淀提议: accept spawns the workflow-draft PR issue; dismiss archives. */}
+      {selected.type === "raven_uptrack_proposal" && (
+        <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            {t(($) => $.detail.uptrack_body)}
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleArchive(selected.id)}
+            >
+              {t(($) => $.detail.uptrack_dismiss)}
+            </Button>
+            <Button
+              size="sm"
+              disabled={createIssue.isPending}
+              onClick={() => acceptUptrack(selected)}
+            >
+              {t(($) => $.detail.uptrack_accept)}
+            </Button>
+          </div>
         </div>
       )}
       <IssueDetail

@@ -26,7 +26,11 @@
     "original_input": "원본 입력",
     "edit_advanced": "고급 양식으로 수정",
     "archive": "보관",
-    "review_gate": "게이트 리뷰"
+    "review_gate": "게이트 리뷰",
+    "uptrack_body": "이 딜리버리를 워크플로로 저장할 수 있습니다. 검토용 초안 PR을 생성하시겠어요",
+    "uptrack_accept": "초안 PR 생성",
+    "uptrack_dismiss": "닫기",
+    "uptrack_started": "초안 이슈가 생성되었습니다. 에이전트가 PR을 엽니다"
   },
   "types": {
     "issue_assigned": "할당됨",
@@ -47,7 +51,8 @@
     "reaction_added": "반응 추가됨",
     "quick_create_done": "에이전트로 생성됨",
     "quick_create_failed": "에이전트 생성 실패",
-    "raven_gate_pending": "게이트 리뷰 대기"
+    "raven_gate_pending": "게이트 리뷰 대기",
+    "raven_uptrack_proposal": "워크플로 전환 제안"
   },
   "labels": {
     "set_status_to": "상태 변경:",
