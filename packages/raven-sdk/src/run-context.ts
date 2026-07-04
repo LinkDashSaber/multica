@@ -1,4 +1,4 @@
-import type { Contract, ContractBudget } from "./contract";
+import { stageName, type Contract, type ContractBudget } from "./contract";
 import type { CommentRecord, ControlPlaneClient, IssueUsage } from "./control-client";
 
 export interface RunPayload {
@@ -97,6 +97,22 @@ export class RunContext {
       summary,
       payload,
     });
+  }
+
+  /**
+   * stage() — explicit stage scope (issue #15). Reports "entered" to the
+   * control plane, runs the body, and reports "exited" on success. A body
+   * failure propagates without an exited event, so the stream shows exactly
+   * where the run died. The name must be declared in the contract.
+   */
+  async stage<T>(name: string, fn: () => Promise<T>): Promise<T> {
+    if (!this.contract.stages.some((s) => stageName(s) === name)) {
+      throw new Error(`stage "${name}" is not declared in the workflow contract`);
+    }
+    await this.client.reportRunStageEvent(this.payload.run_id, name, "entered");
+    const result = await fn();
+    await this.client.reportRunStageEvent(this.payload.run_id, name, "exited");
+    return result;
   }
 
   /**
