@@ -54,7 +54,7 @@ func TestRavenPullRequestMergedClosesLoop(t *testing.T) {
 	// Corridor walked through needs_review — both hops are in the audit trail.
 	var hops int
 	if err := testPool.QueryRow(t.Context(),
-		`SELECT count(*) FROM raven_transition WHERE requirement_id = $1 AND to_state IN ('needs_review', 'merged') AND actor_type = 'system'`,
+		`SELECT count(*) FROM raven_requirement_transition WHERE requirement_id = $1 AND to_state IN ('needs_review', 'merged') AND actor_type = 'system'`,
 		requirement.ID).Scan(&hops); err != nil {
 		t.Fatalf("count transitions: %v", err)
 	}

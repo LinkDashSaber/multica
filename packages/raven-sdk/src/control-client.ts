@@ -49,6 +49,15 @@ export interface IssueUsage {
   usd: number;
 }
 
+export interface CommentRecord {
+  id: string;
+  author_type: string;
+  author_id: string;
+  content: string;
+  type: string;
+  created_at: string;
+}
+
 function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
@@ -66,6 +75,10 @@ export function parseUsage(data: unknown): IssueUsage {
       tokens: num(o["total_tokens"] ?? o["tokens"] ?? o["totalTokens"]),
       usd: num(o["total_cost_usd"] ?? o["total_usd"] ?? o["usd"] ?? o["cost_usd"] ?? o["totalCostUsd"]),
     };
+    // multica /api/issues/{id}/usage splits by direction; budget counts both.
+    if (direct.tokens === 0) {
+      direct.tokens = num(o["total_input_tokens"]) + num(o["total_output_tokens"]);
+    }
     if (direct.tokens === 0 && direct.usd === 0 && o["total"] && typeof o["total"] === "object") {
       return parseUsage(o["total"]);
     }
@@ -163,6 +176,9 @@ export class ControlPlaneClient {
       priority: input.priority ?? "medium",
       assignee_type: input.assigneeType,
       assignee_id: input.assigneeId,
+      // Retries and gate-rejection rework legitimately re-create sub-issues
+      // with the same stage title; the duplicate guard must not block them.
+      allow_duplicate: true,
     }) as Promise<{ id: string }>;
   }
 
@@ -171,10 +187,16 @@ export class ControlPlaneClient {
   }
 
   async listTaskRuns(issueId: string): Promise<{ id: string; status: string }[]> {
-    const data = (await this.request("GET", `/api/issues/${issueId}/task-runs`)) as {
-      tasks?: { id: string; status: string }[];
-    } | null;
-    return data?.tasks ?? [];
+    const data = await this.request("GET", `/api/issues/${issueId}/task-runs`);
+    // The endpoint returns a bare array; tolerate wrapped shapes too.
+    if (Array.isArray(data)) return data as { id: string; status: string }[];
+    if (data && typeof data === "object") {
+      const o = data as Record<string, unknown>;
+      for (const k of ["tasks", "items", "runs"]) {
+        if (Array.isArray(o[k])) return o[k] as { id: string; status: string }[];
+      }
+    }
+    return [];
   }
 
   async getIssueUsage(issueId: string): Promise<IssueUsage> {
@@ -201,6 +223,24 @@ export class ControlPlaneClient {
       status: string;
       decision_reason: string;
     }>;
+  }
+
+  createComment(issueId: string, content: string): Promise<{ id: string }> {
+    return this.request("POST", `/api/issues/${issueId}/comments`, {
+      content,
+    }) as Promise<{ id: string }>;
+  }
+
+  async listComments(issueId: string): Promise<CommentRecord[]> {
+    const data = await this.request("GET", `/api/issues/${issueId}/comments`);
+    if (Array.isArray(data)) return data as CommentRecord[];
+    if (data && typeof data === "object") {
+      const o = data as Record<string, unknown>;
+      for (const k of ["comments", "items", "entries"]) {
+        if (Array.isArray(o[k])) return o[k] as CommentRecord[];
+      }
+    }
+    return [];
   }
 
   async listTimeline(issueId: string): Promise<Record<string, unknown>[]> {

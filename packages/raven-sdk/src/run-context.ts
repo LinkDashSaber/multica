@@ -1,5 +1,5 @@
 import type { Contract, ContractBudget } from "./contract";
-import type { ControlPlaneClient, IssueUsage } from "./control-client";
+import type { CommentRecord, ControlPlaneClient, IssueUsage } from "./control-client";
 
 export interface RunPayload {
   workspace_id: string;
@@ -125,6 +125,30 @@ export class RunContext {
       if (gate.status === "rejected") {
         return { gateId: created.id, approved: false, reason: gate.decision_reason ?? "" };
       }
+      await new Promise((r) => setTimeout(r, this.intervalMs));
+    }
+  }
+
+  /** Post a comment on the requirement's parent issue (clarify Q&A lives there). */
+  async comment(content: string): Promise<{ id: string }> {
+    return this.client.createComment(this.payload.issue_id, content);
+  }
+
+  /**
+   * Wait until a human (author_type === "member") comments on the parent
+   * issue after `afterCommentId`. Gates and clarification both legitimately
+   * wait on humans — no timeout beyond the contract's, same trade-off as
+   * gate(). Returns the first matching human comment.
+   */
+  async waitForHumanComment(afterCommentId: string): Promise<CommentRecord> {
+    for (;;) {
+      const comments = await this.client.listComments(this.payload.issue_id);
+      const anchor = comments.findIndex((c) => c.id === afterCommentId);
+      const later = anchor >= 0 ? comments.slice(anchor + 1) : comments;
+      const human = later.find(
+        (c) => c.author_type === "member" && c.type === "comment" && c.content.trim() !== "",
+      );
+      if (human) return human;
       await new Promise((r) => setTimeout(r, this.intervalMs));
     }
   }
