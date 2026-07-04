@@ -241,3 +241,57 @@ describe("agent retry semantics", () => {
     expect(calls.filter((c) => path(c.url) === "/api/issues").length).toBe(1);
   });
 });
+
+// --- 5. gate() primitive ------------------------------------------------------
+
+describe("gate() primitive", () => {
+  it("opens a gate, polls until approved, returns the verdict", async () => {
+    let polls = 0;
+    const { calls, fetchImpl } = makeMock((call) => {
+      if (call.method === "POST" && path(call.url) === "/api/raven/gates") {
+        return { body: { id: "gate-1", status: "pending" } };
+      }
+      if (call.method === "GET" && path(call.url) === "/api/raven/gates/gate-1") {
+        polls++;
+        return polls < 3
+          ? { body: { id: "gate-1", status: "pending", decision_reason: "" } }
+          : { body: { id: "gate-1", status: "approved", decision_reason: "" } };
+      }
+      return undefined;
+    });
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+    const result = await ctx.gate("done-check", { summary: "review me" });
+    expect(result).toEqual({ gateId: "gate-1", approved: true, reason: "" });
+    const create = calls.find((c) => c.method === "POST" && path(c.url) === "/api/raven/gates");
+    expect(create?.body).toMatchObject({
+      requirement_id: "req-1",
+      run_id: "run-1",
+      gate_name: "done-check",
+      review_package: { summary: "review me" },
+    });
+    expect(polls).toBe(3);
+  });
+
+  it("returns the rejection reason so the script can rework in-run", async () => {
+    const { fetchImpl } = makeMock((call) => {
+      if (call.method === "POST" && path(call.url) === "/api/raven/gates") {
+        return { body: { id: "gate-2", status: "pending" } };
+      }
+      if (call.method === "GET" && path(call.url) === "/api/raven/gates/gate-2") {
+        return { body: { id: "gate-2", status: "rejected", decision_reason: "missing tests" } };
+      }
+      return undefined;
+    });
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+    const result = await ctx.gate("done-check");
+    expect(result.approved).toBe(false);
+    expect(result.reason).toBe("missing tests");
+  });
+
+  it("refuses gates not declared in the contract, without any HTTP call", async () => {
+    const { calls, fetchImpl } = makeMock(() => undefined);
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+    await expect(ctx.gate("rogue-gate")).rejects.toThrow(/not declared/);
+    expect(calls.length).toBe(0);
+  });
+});

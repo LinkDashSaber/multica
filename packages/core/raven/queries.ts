@@ -1,14 +1,29 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api } from "../api";
-import type { RavenRequirement, RavenWorkflow } from "../api/schemas";
+import type {
+  RavenEvidence,
+  RavenGateReview,
+  RavenRequirement,
+  RavenWorkflow,
+} from "../api/schemas";
 
-export type { RavenRequirement, RavenWorkflow };
+export type { RavenEvidence, RavenGateReview, RavenRequirement, RavenWorkflow };
 
 export const ravenKeys = {
   all: (wsId: string) => ["raven", wsId] as const,
   issueRequirement: (wsId: string, issueId: string) =>
     [...ravenKeys.all(wsId), "issue-requirement", issueId] as const,
   workflows: (wsId: string) => [...ravenKeys.all(wsId), "workflows"] as const,
+  workflow: (wsId: string, id: string) =>
+    [...ravenKeys.all(wsId), "workflow", id] as const,
+  requirement: (wsId: string, id: string) =>
+    [...ravenKeys.all(wsId), "requirement", id] as const,
+  requirementEvidence: (wsId: string, requirementId: string) =>
+    [...ravenKeys.all(wsId), "requirement-evidence", requirementId] as const,
+  gate: (wsId: string, gateId: string) =>
+    [...ravenKeys.all(wsId), "gate", gateId] as const,
+  pendingGates: (wsId: string) =>
+    [...ravenKeys.all(wsId), "pending-gates"] as const,
 };
 
 /** Workflows registered in this workspace (enabled and disabled). */
@@ -16,6 +31,15 @@ export function ravenWorkflowListOptions(wsId: string) {
   return queryOptions<RavenWorkflow[]>({
     queryKey: ravenKeys.workflows(wsId),
     queryFn: async () => (await api.listRavenWorkflows()).workflows,
+    staleTime: 60_000,
+  });
+}
+
+/** A single workflow, contract included — drives the review page's stage strip. */
+export function ravenWorkflowOptions(wsId: string, id: string) {
+  return queryOptions<RavenWorkflow>({
+    queryKey: ravenKeys.workflow(wsId, id),
+    queryFn: () => api.getRavenWorkflow(id),
     staleTime: 60_000,
   });
 }
@@ -28,6 +52,39 @@ export function issueRequirementOptions(wsId: string, issueId: string) {
   return queryOptions<RavenRequirement | null>({
     queryKey: ravenKeys.issueRequirement(wsId, issueId),
     queryFn: () => api.getRavenRequirementForIssue(issueId),
+    staleTime: 15_000,
+  });
+}
+
+export function ravenRequirementOptions(wsId: string, requirementId: string) {
+  return queryOptions<RavenRequirement>({
+    queryKey: ravenKeys.requirement(wsId, requirementId),
+    queryFn: () => api.getRavenRequirement(requirementId),
+    staleTime: 15_000,
+  });
+}
+
+export function requirementEvidenceOptions(wsId: string, requirementId: string) {
+  return queryOptions<RavenEvidence[]>({
+    queryKey: ravenKeys.requirementEvidence(wsId, requirementId),
+    queryFn: async () => (await api.listRavenEvidence(requirementId)).evidence,
+    staleTime: 15_000,
+  });
+}
+
+export function gateOptions(wsId: string, gateId: string) {
+  return queryOptions<RavenGateReview>({
+    queryKey: ravenKeys.gate(wsId, gateId),
+    queryFn: () => api.getRavenGate(gateId),
+    staleTime: 15_000,
+  });
+}
+
+/** The workspace's pending gate review queue. */
+export function pendingGatesOptions(wsId: string) {
+  return queryOptions<RavenGateReview[]>({
+    queryKey: ravenKeys.pendingGates(wsId),
+    queryFn: async () => (await api.listRavenGates()).gates,
     staleTime: 15_000,
   });
 }

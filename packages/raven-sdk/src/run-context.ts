@@ -24,6 +24,21 @@ export class BudgetExceededError extends Error {
   }
 }
 
+export interface GateResult {
+  gateId: string;
+  approved: boolean;
+  reason: string;
+}
+
+export class GateRejectedError extends Error {
+  readonly gate: GateResult;
+  constructor(gate: GateResult) {
+    super(`gate "${gate.gateId}" rejected: ${gate.reason}`);
+    this.name = "GateRejectedError";
+    this.gate = gate;
+  }
+}
+
 export interface AgentCallInput {
   agentId: string;
   title: string;
@@ -82,6 +97,36 @@ export class RunContext {
       summary,
       payload,
     });
+  }
+
+  /**
+   * gate() — suspend the run at a contract-declared gate until a human
+   * decides. The gate name must be declared in the contract (checked here
+   * AND server-side). Returns the verdict; the script decides how to react
+   * (typically: rejected → transition back to running and rework in the
+   * same run). Gates have no timeout — a run legitimately waits on humans
+   * (self-hosted trigger.dev holds the worker; known ADR-0002 trade-off).
+   */
+  async gate(gateName: string, reviewPackage?: unknown): Promise<GateResult> {
+    if (!this.contract.gates.some((g) => g.name === gateName)) {
+      throw new Error(`gate "${gateName}" is not declared in the workflow contract`);
+    }
+    const created = await this.client.createGate({
+      requirementId: this.payload.requirement_id,
+      runId: this.payload.run_id,
+      gateName,
+      reviewPackage,
+    });
+    for (;;) {
+      const gate = await this.client.getGate(created.id);
+      if (gate.status === "approved") {
+        return { gateId: created.id, approved: true, reason: gate.decision_reason ?? "" };
+      }
+      if (gate.status === "rejected") {
+        return { gateId: created.id, approved: false, reason: gate.decision_reason ?? "" };
+      }
+      await new Promise((r) => setTimeout(r, this.intervalMs));
+    }
   }
 
   async agent(input: AgentCallInput): Promise<AgentCallResult> {

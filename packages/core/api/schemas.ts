@@ -219,6 +219,7 @@ export interface RavenRequirement {
   id: string;
   workspace_id: string;
   issue_id: string;
+  workflow_id: string | null;
   /** One of the nine lifecycle states; treat unknown values as display-only. */
   state: string;
   next_states: string[];
@@ -230,6 +231,7 @@ export const RavenRequirementSchema = z.object({
   id: z.string(),
   workspace_id: z.string().default(""),
   issue_id: z.string(),
+  workflow_id: z.string().nullable().default(null),
   state: z.string().default("idea"),
   next_states: z.array(z.string()).default([]),
   created_at: z.string().default(""),
@@ -279,10 +281,125 @@ export const EMPTY_RAVEN_REQUIREMENT: RavenRequirement = {
   id: "",
   workspace_id: "",
   issue_id: "",
+  workflow_id: null,
   state: "idea",
   next_states: [],
   created_at: "",
   updated_at: "",
+};
+
+export const EMPTY_RAVEN_WORKFLOW: RavenWorkflow = {
+  id: "",
+  workspace_id: "",
+  name: "",
+  description: "",
+  contract: undefined,
+  version: 1,
+  enabled: true,
+  created_at: "",
+  updated_at: "",
+};
+
+// ---------------------------------------------------------------------------
+// Raven gate reviews (审查包). Same leniency rules as the other Raven schemas:
+// `status` stays a plain string so a future server-side verdict kind renders
+// as a generic badge instead of failing the parse, and `review_package` is
+// untyped JSON straight from the workflow run.
+// ---------------------------------------------------------------------------
+
+export interface RavenGateReview {
+  id: string;
+  workspace_id: string;
+  requirement_id: string;
+  run_id: string | null;
+  gate_name: string;
+  /** "pending" | "approved" | "rejected"; treat unknown values as display-only. */
+  status: string;
+  review_package: unknown;
+  decided_by: string | null;
+  decision_reason: string;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export const RavenGateReviewSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string().default(""),
+  requirement_id: z.string().default(""),
+  run_id: z.string().nullable().default(null),
+  gate_name: z.string().default(""),
+  status: z.string().default("pending"),
+  review_package: z.unknown().optional(),
+  decided_by: z.string().nullable().default(null),
+  decision_reason: z.string().default(""),
+  created_at: z.string().default(""),
+  decided_at: z.string().nullable().default(null),
+}).loose();
+
+export const RavenGateReviewListSchema = z.object({
+  gates: z.array(RavenGateReviewSchema).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenGateReviewListResponse {
+  gates: RavenGateReview[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_GATE_REVIEW: RavenGateReview = {
+  id: "",
+  workspace_id: "",
+  requirement_id: "",
+  run_id: null,
+  gate_name: "",
+  status: "pending",
+  review_package: undefined,
+  decided_by: null,
+  decision_reason: "",
+  created_at: "",
+  decided_at: null,
+};
+
+export const EMPTY_RAVEN_GATE_REVIEW_LIST: RavenGateReviewListResponse = {
+  gates: [],
+  total: 0,
+};
+
+export interface RavenEvidence {
+  id: string;
+  requirement_id: string;
+  run_id: string | null;
+  kind: string;
+  source: string;
+  summary: string;
+  payload: unknown;
+  created_at: string;
+}
+
+export const RavenEvidenceListSchema = z.object({
+  evidence: z.array(
+    z.object({
+      id: z.string(),
+      requirement_id: z.string().default(""),
+      run_id: z.string().nullable().default(null),
+      kind: z.string().default(""),
+      source: z.string().default(""),
+      summary: z.string().default(""),
+      payload: z.unknown().optional(),
+      created_at: z.string().default(""),
+    }).loose(),
+  ).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenEvidenceListResponse {
+  evidence: RavenEvidence[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_EVIDENCE_LIST: RavenEvidenceListResponse = {
+  evidence: [],
+  total: 0,
 };
 
 export const CreateFeedbackResponseSchema = z.object({

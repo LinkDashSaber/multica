@@ -714,6 +714,20 @@ type RavenEvidence struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type RavenGateReview struct {
+	ID             pgtype.UUID        `json:"id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	RequirementID  pgtype.UUID        `json:"requirement_id"`
+	RunID          pgtype.UUID        `json:"run_id"`
+	GateName       string             `json:"gate_name"`
+	Status         string             `json:"status"`
+	ReviewPackage  []byte             `json:"review_package"`
+	DecidedBy      pgtype.UUID        `json:"decided_by"`
+	DecisionReason string             `json:"decision_reason"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	DecidedAt      pgtype.Timestamptz `json:"decided_at"`
+}
+
 type RavenRequirement struct {
 	ID          pgtype.UUID        `json:"id"`
 	WorkspaceID pgtype.UUID        `json:"workspace_id"`

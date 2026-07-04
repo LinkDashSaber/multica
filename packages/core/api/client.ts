@@ -186,6 +186,18 @@ import {
   RavenWorkflowListSchema,
   type RavenWorkflowListResponse,
   EMPTY_RAVEN_WORKFLOW_LIST,
+  RavenWorkflowSchema,
+  type RavenWorkflow,
+  EMPTY_RAVEN_WORKFLOW,
+  RavenGateReviewSchema,
+  RavenGateReviewListSchema,
+  type RavenGateReview,
+  type RavenGateReviewListResponse,
+  EMPTY_RAVEN_GATE_REVIEW,
+  EMPTY_RAVEN_GATE_REVIEW_LIST,
+  RavenEvidenceListSchema,
+  type RavenEvidenceListResponse,
+  EMPTY_RAVEN_EVIDENCE_LIST,
   GroupedIssuesResponseSchema,
   ListAutopilotsResponseSchema,
   EMPTY_LIST_AUTOPILOTS_RESPONSE,
@@ -1552,6 +1564,56 @@ export class ApiClient {
     const raw = await this.fetch<unknown>("/api/raven/workflows");
     return parseWithFallback<RavenWorkflowListResponse>(raw, RavenWorkflowListSchema, EMPTY_RAVEN_WORKFLOW_LIST, {
       endpoint: "GET /api/raven/workflows",
+    });
+  }
+
+  async getRavenWorkflow(id: string): Promise<RavenWorkflow> {
+    const raw = await this.fetch<unknown>(`/api/raven/workflows/${id}`);
+    return parseWithFallback<RavenWorkflow>(raw, RavenWorkflowSchema, EMPTY_RAVEN_WORKFLOW, {
+      endpoint: "GET /api/raven/workflows/{id}",
+    });
+  }
+
+  // Raven gate reviews (审查包)
+  // Without `requirementId` this is the workspace's pending review queue;
+  // with it, every review ever opened for that requirement.
+  async listRavenGates(requirementId?: string): Promise<RavenGateReviewListResponse> {
+    const qs = requirementId ? `?requirement_id=${encodeURIComponent(requirementId)}` : "";
+    const raw = await this.fetch<unknown>(`/api/raven/gates${qs}`);
+    return parseWithFallback<RavenGateReviewListResponse>(raw, RavenGateReviewListSchema, EMPTY_RAVEN_GATE_REVIEW_LIST, {
+      endpoint: "GET /api/raven/gates",
+    });
+  }
+
+  async getRavenGate(id: string): Promise<RavenGateReview> {
+    const raw = await this.fetch<unknown>(`/api/raven/gates/${id}`);
+    return parseWithFallback<RavenGateReview>(raw, RavenGateReviewSchema, EMPTY_RAVEN_GATE_REVIEW, {
+      endpoint: "GET /api/raven/gates/{id}",
+    });
+  }
+
+  // 400 when rejecting without a reason; 409 when the gate is already decided.
+  async decideRavenGate(id: string, data: { approve: boolean; reason: string }): Promise<RavenGateReview> {
+    const raw = await this.fetch<unknown>(`/api/raven/gates/${id}/decision`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback<RavenGateReview>(raw, RavenGateReviewSchema, EMPTY_RAVEN_GATE_REVIEW, {
+      endpoint: "POST /api/raven/gates/{id}/decision",
+    });
+  }
+
+  async getRavenRequirement(id: string): Promise<RavenRequirement> {
+    const raw = await this.fetch<unknown>(`/api/raven/requirements/${id}`);
+    return parseWithFallback<RavenRequirement>(raw, RavenRequirementSchema, EMPTY_RAVEN_REQUIREMENT, {
+      endpoint: "GET /api/raven/requirements/{id}",
+    });
+  }
+
+  async listRavenEvidence(requirementId: string): Promise<RavenEvidenceListResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/requirements/${requirementId}/evidence`);
+    return parseWithFallback<RavenEvidenceListResponse>(raw, RavenEvidenceListSchema, EMPTY_RAVEN_EVIDENCE_LIST, {
+      endpoint: "GET /api/raven/requirements/{id}/evidence",
     });
   }
 

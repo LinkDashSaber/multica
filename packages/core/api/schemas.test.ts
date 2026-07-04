@@ -8,8 +8,14 @@ import {
   DuplicateIssueErrorBodySchema,
   EMPTY_CREATE_FEEDBACK_RESPONSE,
   EMPTY_INBOX_UNREAD_SUMMARY,
+  EMPTY_RAVEN_EVIDENCE_LIST,
+  EMPTY_RAVEN_GATE_REVIEW,
+  EMPTY_RAVEN_GATE_REVIEW_LIST,
   EMPTY_USER,
   InboxUnreadSummarySchema,
+  RavenEvidenceListSchema,
+  RavenGateReviewListSchema,
+  RavenGateReviewSchema,
   IssueTriggerPreviewSchema,
   ListIssuesResponseSchema,
   RuntimeHourlyActivityListSchema,
@@ -507,5 +513,110 @@ describe("InboxUnreadSummarySchema", () => {
         ENDPOINT,
       ),
     ).toBe(EMPTY_INBOX_UNREAD_SUMMARY);
+  });
+});
+
+describe("RavenGateReviewSchema / RavenGateReviewListSchema", () => {
+  const ENDPOINT = { endpoint: "GET /api/raven/gates/{id}" };
+
+  const baseGate = {
+    id: "22222222-2222-2222-2222-222222222222",
+    workspace_id: "ws-1",
+    requirement_id: "33333333-3333-3333-3333-333333333333",
+    run_id: null,
+    gate_name: "review",
+    status: "pending",
+    review_package: { summary: "looks good", diff_stats: { files: 3 } },
+    decided_by: null,
+    decision_reason: "",
+    created_at: "2026-01-01T00:00:00Z",
+    decided_at: null,
+  };
+
+  it("parses a pending gate and passes unknown fields through", () => {
+    const parsed = parseWithFallback(
+      { ...baseGate, future_field: "kept" },
+      RavenGateReviewSchema,
+      EMPTY_RAVEN_GATE_REVIEW,
+      ENDPOINT,
+    );
+    expect(parsed.id).toBe(baseGate.id);
+    expect(parsed.status).toBe("pending");
+    expect(parsed.review_package).toEqual(baseGate.review_package);
+    expect((parsed as unknown as Record<string, unknown>).future_field).toBe("kept");
+  });
+
+  it("defaults omitted optional fields instead of failing the parse", () => {
+    const parsed = parseWithFallback(
+      { id: "g-1" },
+      RavenGateReviewSchema,
+      EMPTY_RAVEN_GATE_REVIEW,
+      ENDPOINT,
+    );
+    expect(parsed.status).toBe("pending");
+    expect(parsed.decided_by).toBeNull();
+    expect(parsed.decision_reason).toBe("");
+  });
+
+  it("returns the fallback for a malformed body", () => {
+    expect(
+      parseWithFallback(null, RavenGateReviewSchema, EMPTY_RAVEN_GATE_REVIEW, ENDPOINT),
+    ).toBe(EMPTY_RAVEN_GATE_REVIEW);
+  });
+
+  it("parses the list wrapper and defaults gates to []", () => {
+    const parsed = parseWithFallback(
+      { gates: [baseGate], total: 1 },
+      RavenGateReviewListSchema,
+      EMPTY_RAVEN_GATE_REVIEW_LIST,
+      { endpoint: "GET /api/raven/gates" },
+    );
+    expect(parsed.gates).toHaveLength(1);
+    expect(parsed.total).toBe(1);
+
+    const empty = parseWithFallback(
+      {},
+      RavenGateReviewListSchema,
+      EMPTY_RAVEN_GATE_REVIEW_LIST,
+      { endpoint: "GET /api/raven/gates" },
+    );
+    expect(empty.gates).toEqual([]);
+  });
+});
+
+describe("RavenEvidenceListSchema", () => {
+  const ENDPOINT = { endpoint: "GET /api/raven/requirements/{id}/evidence" };
+
+  it("parses evidence entries and defaults the array", () => {
+    const parsed = parseWithFallback(
+      {
+        evidence: [
+          {
+            id: "e-1",
+            requirement_id: "r-1",
+            run_id: null,
+            kind: "test_report",
+            source: "ci",
+            summary: "12 passed",
+            payload: { passed: 12 },
+            created_at: "2026-01-01T00:00:00Z",
+          },
+        ],
+        total: 1,
+      },
+      RavenEvidenceListSchema,
+      EMPTY_RAVEN_EVIDENCE_LIST,
+      ENDPOINT,
+    );
+    expect(parsed.evidence[0]?.kind).toBe("test_report");
+
+    const empty = parseWithFallback({}, RavenEvidenceListSchema, EMPTY_RAVEN_EVIDENCE_LIST, ENDPOINT);
+    expect(empty.evidence).toEqual([]);
+  });
+
+  it("returns the fallback for a non-object body", () => {
+    expect(
+      parseWithFallback([], RavenEvidenceListSchema, EMPTY_RAVEN_EVIDENCE_LIST, ENDPOINT),
+    ).toBe(EMPTY_RAVEN_EVIDENCE_LIST);
   });
 });

@@ -181,6 +181,28 @@ export class ControlPlaneClient {
     return parseUsage(await this.request("GET", `/api/issues/${issueId}/usage`));
   }
 
+  createGate(input: {
+    requirementId: string;
+    runId?: string;
+    gateName: string;
+    reviewPackage?: unknown;
+  }): Promise<{ id: string; status: string }> {
+    return this.request("POST", "/api/raven/gates", {
+      requirement_id: input.requirementId,
+      run_id: input.runId,
+      gate_name: input.gateName,
+      review_package: input.reviewPackage,
+    }) as Promise<{ id: string; status: string }>;
+  }
+
+  getGate(id: string): Promise<{ id: string; status: string; decision_reason: string }> {
+    return this.request("GET", `/api/raven/gates/${id}`) as Promise<{
+      id: string;
+      status: string;
+      decision_reason: string;
+    }>;
+  }
+
   async listTimeline(issueId: string): Promise<Record<string, unknown>[]> {
     const data = await this.request("GET", `/api/issues/${issueId}/timeline`);
     if (Array.isArray(data)) return data as Record<string, unknown>[];
