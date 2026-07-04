@@ -19,7 +19,7 @@ export function useActorLookup() {
   const { data: squads = [] } = useQuery(squadListOptions(wsId));
 
   const getName = (
-    type: "member" | "agent" | "squad" | null | undefined,
+    type: "member" | "agent" | "squad" | "workflow" | null | undefined,
     id: string | null | undefined,
   ): string => {
     if (!type || !id) return "System";
@@ -31,11 +31,14 @@ export function useActorLookup() {
       const a = agents.find((a) => a.id === id);
       return a?.name ?? "Unknown Agent";
     }
+    // Raven workflows have no mobile list query yet; a generic label keeps
+    // workflow-assigned issues from web rendering blank (parity fallback).
+    if (type === "workflow") return "Workflow";
     return squads.find((s) => s.id === id)?.name ?? "Squad";
   };
 
   const getAvatarUrl = (
-    type: "member" | "agent" | "squad" | null | undefined,
+    type: "member" | "agent" | "squad" | "workflow" | null | undefined,
     id: string | null | undefined,
   ): string | null => {
     if (!type || !id) return null;
@@ -45,6 +48,7 @@ export function useActorLookup() {
     if (type === "agent") {
       return agents.find((a) => a.id === id)?.avatar_url ?? null;
     }
+    if (type === "workflow") return null;
     return squads.find((s) => s.id === id)?.avatar_url ?? null;
   };
 

@@ -1,0 +1,37 @@
+{
+  "gate": {
+    "title": "门禁审查",
+    "not_found": "门禁不存在",
+    "status": {
+      "pending": "待裁决",
+      "approved": "已通过",
+      "rejected": "已驳回"
+    },
+    "package": {
+      "title": "审查包",
+      "raw": "原始数据",
+      "empty": "没有附带审查包"
+    },
+    "requirement": {
+      "title": "需求",
+      "view_issue": "查看 issue"
+    },
+    "evidence": {
+      "title": "证据",
+      "empty": "还没有记录证据"
+    },
+    "decision": {
+      "title": "裁决",
+      "approve": "通过",
+      "reject": "驳回",
+      "confirm_reject": "确认驳回",
+      "cancel": "取消",
+      "reason_label": "理由",
+      "reason_placeholder": "说明驳回这个门禁的理由…",
+      "reason_required": "驳回必须填写理由",
+      "reason_title": "理由",
+      "decided_by": "由 {{name}} 裁决",
+      "failed": "提交裁决失败"
+    }
+  }
+}

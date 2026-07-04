@@ -25,7 +25,8 @@
     "empty": "インボックスは空です",
     "original_input": "元の入力",
     "edit_advanced": "詳細フォームで編集",
-    "archive": "アーカイブ"
+    "archive": "アーカイブ",
+    "review_gate": "ゲートをレビュー"
   },
   "types": {
     "issue_assigned": "割り当て済み",
@@ -45,7 +46,8 @@
     "agent_completed": "エージェントが完了",
     "reaction_added": "リアクションあり",
     "quick_create_done": "エージェントで作成",
-    "quick_create_failed": "エージェントでの作成に失敗"
+    "quick_create_failed": "エージェントでの作成に失敗",
+    "raven_gate_pending": "ゲートレビュー待ち"
   },
   "labels": {
     "set_status_to": "ステータスを変更:",

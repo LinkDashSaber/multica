@@ -1,0 +1,37 @@
+{
+  "gate": {
+    "title": "게이트 리뷰",
+    "not_found": "게이트를 찾을 수 없습니다",
+    "status": {
+      "pending": "결정 대기",
+      "approved": "승인됨",
+      "rejected": "반려됨"
+    },
+    "package": {
+      "title": "리뷰 패키지",
+      "raw": "원본 데이터",
+      "empty": "첨부된 리뷰 패키지가 없습니다"
+    },
+    "requirement": {
+      "title": "요구사항",
+      "view_issue": "Issue 보기"
+    },
+    "evidence": {
+      "title": "증거",
+      "empty": "기록된 증거가 없습니다"
+    },
+    "decision": {
+      "title": "결정",
+      "approve": "승인",
+      "reject": "반려",
+      "confirm_reject": "반려 확정",
+      "cancel": "취소",
+      "reason_label": "사유",
+      "reason_placeholder": "이 게이트를 반려하는 사유를 입력하세요…",
+      "reason_required": "반려하려면 사유가 필요합니다",
+      "reason_title": "사유",
+      "decided_by": "{{name}}이(가) 결정",
+      "failed": "결정 제출에 실패했습니다"
+    }
+  }
+}

@@ -20,7 +20,8 @@ export type InboxItemType =
   | "agent_completed"
   | "reaction_added"
   | "quick_create_done"
-  | "quick_create_failed";
+  | "quick_create_failed"
+  | "raven_gate_pending";
 
 /**
  * One workspace's unread inbox count in the cross-workspace summary

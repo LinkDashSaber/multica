@@ -1,0 +1,37 @@
+{
+  "gate": {
+    "title": "ゲートレビュー",
+    "not_found": "ゲートが見つかりません",
+    "status": {
+      "pending": "判定待ち",
+      "approved": "承認済み",
+      "rejected": "却下済み"
+    },
+    "package": {
+      "title": "レビューパッケージ",
+      "raw": "元データ",
+      "empty": "レビューパッケージがありません"
+    },
+    "requirement": {
+      "title": "要求",
+      "view_issue": "Issue を表示"
+    },
+    "evidence": {
+      "title": "エビデンス",
+      "empty": "エビデンスはまだ記録されていません"
+    },
+    "decision": {
+      "title": "判定",
+      "approve": "承認",
+      "reject": "却下",
+      "confirm_reject": "却下を確定",
+      "cancel": "キャンセル",
+      "reason_label": "理由",
+      "reason_placeholder": "このゲートを却下する理由を記入…",
+      "reason_required": "却下には理由が必要です",
+      "reason_title": "理由",
+      "decided_by": "{{name}} が判定",
+      "failed": "判定の送信に失敗しました"
+    }
+  }
+}

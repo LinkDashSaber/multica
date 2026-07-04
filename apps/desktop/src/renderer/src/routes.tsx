@@ -14,6 +14,7 @@ import { AgentDetailPage } from "./pages/agent-detail-page";
 import { MemberDetailPage } from "./pages/member-detail-page";
 import { RuntimeDetailPage } from "./pages/runtime-detail-page";
 import { AttachmentPreviewRoute } from "./pages/attachment-preview-page";
+import { RavenGatePage } from "./pages/raven-gate-page";
 import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { DashboardPage } from "@multica/views/dashboard";
@@ -186,6 +187,11 @@ export const appRoutes: RouteObject[] = [
             handle: { title: "Squad" },
           },
           { path: "inbox", element: <InboxPage />, handle: { title: "Inbox" } },
+          {
+            path: "raven/gates/:id",
+            element: <RavenGatePage />,
+            handle: { title: "Gate" },
+          },
           {
             path: "attachments/:id/preview",
             element: <AttachmentPreviewRoute />,

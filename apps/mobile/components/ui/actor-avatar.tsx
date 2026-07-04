@@ -34,7 +34,7 @@ import { THEME } from "@/lib/theme";
 // a squad has an avatar_url we render it; otherwise fall back to a generic
 // group glyph so squad-assigned issues from web never render blank.
 interface Props {
-  type: "member" | "agent" | "system" | "squad" | null | undefined;
+  type: "member" | "agent" | "system" | "squad" | "workflow" | null | undefined;
   id: string | null | undefined;
   size?: number;
   /**
@@ -120,6 +120,19 @@ function BareAvatar({
         className="items-center justify-center bg-muted"
       >
         <Ionicons name="people" size={Math.round(size * 0.55)} color={iconColor} />
+      </View>
+    );
+  }
+
+  // Workflow assignees (Raven, packages/core/types/issue.ts) have no avatar;
+  // mirror web's WorkflowIcon glyph with a generic flow icon.
+  if (type === "workflow") {
+    return (
+      <View
+        style={{ width: size, height: size, borderRadius: radius }}
+        className="items-center justify-center bg-muted"
+      >
+        <Ionicons name="git-branch" size={Math.round(size * 0.55)} color={iconColor} />
       </View>
     );
   }

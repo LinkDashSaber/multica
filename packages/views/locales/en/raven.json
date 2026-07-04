@@ -1,0 +1,37 @@
+{
+  "gate": {
+    "title": "Gate review",
+    "not_found": "Gate not found",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "package": {
+      "title": "Review package",
+      "raw": "Raw package data",
+      "empty": "No review package attached"
+    },
+    "requirement": {
+      "title": "Requirement",
+      "view_issue": "View issue"
+    },
+    "evidence": {
+      "title": "Evidence",
+      "empty": "No evidence recorded"
+    },
+    "decision": {
+      "title": "Decision",
+      "approve": "Approve",
+      "reject": "Reject",
+      "confirm_reject": "Confirm rejection",
+      "cancel": "Cancel",
+      "reason_label": "Reason",
+      "reason_placeholder": "Explain why this gate is rejected…",
+      "reason_required": "A reason is required to reject",
+      "reason_title": "Reason",
+      "decided_by": "Decided by {{name}}",
+      "failed": "Failed to submit decision"
+    }
+  }
+}

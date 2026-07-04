@@ -25,7 +25,8 @@
     "empty": "Your inbox is empty",
     "original_input": "Original input",
     "edit_advanced": "Edit as advanced form",
-    "archive": "Archive"
+    "archive": "Archive",
+    "review_gate": "Review gate"
   },
   "types": {
     "issue_assigned": "Assigned",
@@ -45,7 +46,8 @@
     "agent_completed": "Agent completed",
     "reaction_added": "Reacted",
     "quick_create_done": "Created with agent",
-    "quick_create_failed": "Create with agent failed"
+    "quick_create_failed": "Create with agent failed",
+    "raven_gate_pending": "Gate review pending"
   },
   "labels": {
     "set_status_to": "Set status to",

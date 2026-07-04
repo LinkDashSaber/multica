@@ -58,7 +58,7 @@ import { useT } from "../../i18n";
 
 export function InboxPage() {
   const { t } = useT("inbox");
-  const { searchParams, replace } = useNavigation();
+  const { searchParams, replace, push } = useNavigation();
   const urlIssue = searchParams.get("issue") ?? "";
   const wsPaths = useWorkspacePaths();
 
@@ -286,12 +286,29 @@ export function InboxPage() {
     </div>
   );
 
+  const selectedGateId = selected?.details?.gate_id ?? "";
+
   const detailContent = selected?.issue_id ? (
     // Key by issue_id (not inbox-item id): a new comment/reaction generates a
     // new inbox notification for the same issue, and the dedup helper picks the
     // newest one — keying on its id would remount IssueDetail on every event,
     // wiping the comment composer draft and resetting scroll position.
     <ErrorBoundary resetKeys={[selected.issue_id]}>
+      {/* Gate notifications carry an issue, so they land in the IssueDetail
+          branch — surface the review call-to-action above it. */}
+      {selected.type === "raven_gate_pending" && selectedGateId && (
+        <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            {typeLabels[selected.type]}
+          </p>
+          <Button
+            size="sm"
+            onClick={() => push(wsPaths.ravenGateDetail(selectedGateId))}
+          >
+            {t(($) => $.detail.review_gate)}
+          </Button>
+        </div>
+      )}
       <IssueDetail
         key={selected.issue_id}
         issueId={selected.issue_id}
@@ -330,6 +347,14 @@ export function InboxPage() {
         </div>
       )}
       <div className="mt-4 flex gap-2">
+        {selected.type === "raven_gate_pending" && selectedGateId && (
+          <Button
+            size="sm"
+            onClick={() => push(wsPaths.ravenGateDetail(selectedGateId))}
+          >
+            {t(($) => $.detail.review_gate)}
+          </Button>
+        )}
         {selected.type === "quick_create_failed" && (
           <Button
             size="sm"

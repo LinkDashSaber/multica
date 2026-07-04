@@ -6,7 +6,7 @@ import { issueRequirementOptions } from "@multica/core/raven";
 
 // Lifecycle state names are canonical glossary terms (CONTEXT.md) and are
 // displayed as-is in every locale, like "Merged" on a PR.
-const STATE_LABELS: Record<string, string> = {
+export const STATE_LABELS: Record<string, string> = {
   idea: "Idea",
   spec: "Spec",
   ready: "Ready",
@@ -18,7 +18,7 @@ const STATE_LABELS: Record<string, string> = {
   learned: "Learned",
 };
 
-const STATE_CLASSES: Record<string, string> = {
+export const STATE_CLASSES: Record<string, string> = {
   running: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
   needs_review: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   needs_human: "bg-red-500/15 text-red-600 dark:text-red-400",
