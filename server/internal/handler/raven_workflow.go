@@ -183,45 +183,10 @@ func (h *Handler) UpdateRavenWorkflow(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ravenWorkflowToResponse(wf))
 }
 
-// ensureRavenRequirementForWorkflowAssign is the opt-in hook (ADR-0006):
-// called after an issue is created with — or reassigned to — a workflow
-// assignee. Creates the lifecycle record in Idea state bound to that
-// workflow, projects the board column, and records the creation transition.
-// Idempotent: an issue that already has a requirement keeps it (the workflow
-// binding is not rewritten mid-flight). Best-effort: failures are logged,
-// never fail the issue write.
+// ensureRavenRequirementForWorkflowAssign is the opt-in hook (ADR-0006) —
+// thin wrapper deriving the actor from the request; logic lives in
+// raven.Service so the GitHub webhook and autopilot paths share it.
 func (h *Handler) ensureRavenRequirementForWorkflowAssign(r *http.Request, issue db.Issue) {
-	if issue.AssigneeType.String != "workflow" || !issue.AssigneeID.Valid {
-		return
-	}
-	ctx := r.Context()
-	if _, err := h.Queries.GetRavenRequirementByIssue(ctx, db.GetRavenRequirementByIssueParams{
-		IssueID: issue.ID, WorkspaceID: issue.WorkspaceID,
-	}); err == nil {
-		return // already on the track
-	}
-
-	requirement, err := h.Queries.CreateRavenRequirement(ctx, db.CreateRavenRequirementParams{
-		WorkspaceID: issue.WorkspaceID,
-		IssueID:     issue.ID,
-		State:       string(raven.StateIdea),
-		WorkflowID:  issue.AssigneeID,
-	})
-	if err != nil {
-		slog.Warn("raven: opt-in requirement create failed", append(logger.RequestAttrs(r), "error", err, "issue_id", uuidToString(issue.ID))...)
-		return
-	}
 	actorType, actorID := ravenActor(r)
-	if _, err := h.Queries.InsertRavenTransition(ctx, db.InsertRavenTransitionParams{
-		RequirementID: requirement.ID,
-		FromState:     "",
-		ToState:       string(raven.StateIdea),
-		ActorType:     actorType,
-		ActorID:       actorID,
-		Reason:        "assigned to workflow",
-	}); err != nil {
-		slog.Warn("raven: opt-in creation transition failed", append(logger.RequestAttrs(r), "error", err)...)
-	}
-	h.projectRavenStateToIssue(r, requirement)
-	h.dispatchRavenRun(r, requirement)
+	h.ravenService().EnsureRequirementForWorkflowAssign(r.Context(), issue, raven.Actor{Type: actorType, ID: actorID})
 }

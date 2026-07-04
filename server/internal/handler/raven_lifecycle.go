@@ -290,49 +290,31 @@ func (h *Handler) TransitionRavenRequirement(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	from := raven.State(requirement.State)
-	if !raven.CanTransition(from, to) {
-		writeError(w, http.StatusConflict, fmt.Sprintf(
-			"illegal transition %s → %s; legal next states: %v", from, to, raven.NextStates(from)))
-		return
-	}
-
-	updated, err := h.Queries.UpdateRavenRequirementState(r.Context(), db.UpdateRavenRequirementStateParams{
-		ID: requirement.ID, State: string(to), WorkspaceID: wsUUID,
-	})
+	updated, err := h.applyRavenTransition(r, requirement, to, req.Reason)
 	if err != nil {
+		if errors.Is(err, errIllegalRavenTransition) {
+			from := raven.State(requirement.State)
+			writeError(w, http.StatusConflict, fmt.Sprintf(
+				"illegal transition %s → %s; legal next states: %v", from, to, raven.NextStates(from)))
+			return
+		}
 		slog.Warn("TransitionRavenRequirement: update failed", append(logger.RequestAttrs(r), "error", err)...)
 		writeError(w, http.StatusInternalServerError, "failed to update state")
 		return
 	}
 
-	actorType, actorID := ravenActor(r)
-	if _, err := h.Queries.InsertRavenTransition(r.Context(), db.InsertRavenTransitionParams{
-		RequirementID: requirement.ID,
-		FromState:     string(from),
-		ToState:       string(to),
-		ActorType:     actorType,
-		ActorID:       actorID,
-		Reason:        req.Reason,
-	}); err != nil {
-		slog.Warn("TransitionRavenRequirement: record transition failed", append(logger.RequestAttrs(r), "error", err)...)
-	}
-
-	h.projectRavenStateToIssue(r, updated)
-
 	writeJSON(w, http.StatusOK, ravenRequirementToResponse(updated))
 }
 
-// projectRavenStateToIssue writes the lifecycle state onto the multica issue
-// board column. One-way projection: failures are logged, never surfaced —
-// the lifecycle record is the source of truth.
+var errIllegalRavenTransition = raven.ErrIllegalTransition
+
+// applyRavenTransition delegates to raven.Service with the request actor.
+func (h *Handler) applyRavenTransition(r *http.Request, requirement db.RavenRequirement, to raven.State, reason string) (db.RavenRequirement, error) {
+	actorType, actorID := ravenActor(r)
+	return h.ravenService().ApplyTransition(r.Context(), requirement, to, raven.Actor{Type: actorType, ID: actorID}, reason)
+}
+
+// projectRavenStateToIssue delegates to raven.Service.
 func (h *Handler) projectRavenStateToIssue(r *http.Request, requirement db.RavenRequirement) {
-	status := raven.IssueStatusFor(raven.State(requirement.State))
-	if _, err := h.Queries.UpdateIssueStatus(r.Context(), db.UpdateIssueStatusParams{
-		ID:          requirement.IssueID,
-		Status:      status,
-		WorkspaceID: requirement.WorkspaceID,
-	}); err != nil {
-		slog.Warn("raven: issue status projection failed", append(logger.RequestAttrs(r), "error", err)...)
-	}
+	h.ravenService().ProjectStateToIssue(r.Context(), requirement)
 }

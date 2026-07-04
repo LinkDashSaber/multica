@@ -943,6 +943,9 @@ func (h *Handler) handlePullRequestEvent(ctx context.Context, body []byte) {
 		// also prevents an "all closed-without-merge" sequence from
 		// silently auto-closing the issue — if nothing carrying closing
 		// intent was ever delivered, the user should decide manually.
+		// Raven: PR events are evidence; merges close the lifecycle loop.
+		h.ravenOnPullRequestEvent(ctx, reevalIssues, pr, p.Action, state)
+
 		if state == "merged" || state == "closed" {
 			for _, issue := range reevalIssues {
 				if issue.Status == "done" || issue.Status == "cancelled" {
@@ -1102,6 +1105,9 @@ func (h *Handler) handleCheckSuiteEvent(ctx context.Context, body []byte) {
 				affectedIssues[uuidToString(id)] = struct{}{}
 			}
 		}
+
+		// Raven: completed CI suites become structured evidence.
+		h.ravenOnCheckSuiteEvent(ctx, pr, p.CheckSuite.Status, p.CheckSuite.Conclusion)
 	}
 
 	// Broadcast on the existing event so the issue page just re-queries

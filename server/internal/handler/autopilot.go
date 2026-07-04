@@ -33,9 +33,11 @@ type AutopilotResponse struct {
 	Title       string  `json:"title"`
 	Description *string `json:"description"`
 	ProjectID   *string `json:"project_id"`
-	// AssigneeType is "agent" or "squad". Path A from MUL-2429: when set
-	// to "squad", AssigneeID points at squad(id) rather than agent(id) and
-	// dispatch resolves to squad.leader_id at run time.
+	// AssigneeType is "agent", "squad", or "workflow". Path A from MUL-2429:
+	// when set to "squad", AssigneeID points at squad(id) rather than
+	// agent(id) and dispatch resolves to squad.leader_id at run time. When
+	// "workflow", AssigneeID points at raven_workflow(id) and dispatch
+	// creates a workflow-assigned issue (Raven opt-in, ADR-0006).
 	AssigneeType       string  `json:"assignee_type"`
 	AssigneeID         string  `json:"assignee_id"`
 	Status             string  `json:"status"`
@@ -633,7 +635,13 @@ func (h *Handler) CreateAutopilot(w http.ResponseWriter, r *http.Request) {
 		assigneeType = *req.AssigneeType
 	}
 	if !isValidAutopilotAssigneeType(assigneeType) {
-		writeError(w, http.StatusBadRequest, "assignee_type must be agent or squad")
+		writeError(w, http.StatusBadRequest, "assignee_type must be agent, squad, or workflow")
+		return
+	}
+	// A workflow only ever acts on an issue-backed requirement (ADR-0006), so
+	// there is nothing for it to do in run_only mode.
+	if assigneeType == "workflow" && req.ExecutionMode == "run_only" {
+		writeError(w, http.StatusBadRequest, "workflow assignees require execution_mode create_issue")
 		return
 	}
 	if !h.validateAutopilotAssignee(w, r, assigneeType, assigneeUUID, wsUUID) {
@@ -825,7 +833,7 @@ func (h *Handler) UpdateAutopilot(w http.ResponseWriter, r *http.Request) {
 			nextType = *req.AssigneeType
 		}
 		if !isValidAutopilotAssigneeType(nextType) {
-			writeError(w, http.StatusBadRequest, "assignee_type must be agent or squad")
+			writeError(w, http.StatusBadRequest, "assignee_type must be agent, squad, or workflow")
 			return
 		}
 		nextID := prev.AssigneeID
@@ -855,6 +863,22 @@ func (h *Handler) UpdateAutopilot(w http.ResponseWriter, r *http.Request) {
 		}
 		if idSent {
 			params.AssigneeID = nextID
+		}
+	}
+	// Workflow assignees only make sense in create_issue mode; check the
+	// post-update combination regardless of which field this PATCH touched.
+	{
+		nextType := prev.AssigneeType
+		if params.AssigneeType.Valid {
+			nextType = params.AssigneeType.String
+		}
+		nextMode := prev.ExecutionMode
+		if params.ExecutionMode.Valid {
+			nextMode = params.ExecutionMode.String
+		}
+		if nextType == "workflow" && nextMode == "run_only" {
+			writeError(w, http.StatusBadRequest, "workflow assignees require execution_mode create_issue")
+			return
 		}
 	}
 
@@ -1321,7 +1345,7 @@ func isAllowedWebhookProvider(p string) bool {
 
 func isValidAutopilotAssigneeType(t string) bool {
 	switch t {
-	case "agent", "squad":
+	case "agent", "squad", "workflow":
 		return true
 	default:
 		return false
@@ -1385,8 +1409,22 @@ func (h *Handler) validateAutopilotAssignee(w http.ResponseWriter, r *http.Reque
 			return false
 		}
 		return true
+	case "workflow":
+		wf, err := h.Queries.GetRavenWorkflow(r.Context(), db.GetRavenWorkflowParams{
+			ID:          assigneeID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "assignee must be a valid workflow in this workspace")
+			return false
+		}
+		if !wf.Enabled {
+			writeError(w, http.StatusUnprocessableEntity, "workflow is disabled; enable it before assigning autopilot")
+			return false
+		}
+		return true
 	default:
-		writeError(w, http.StatusBadRequest, "assignee_type must be agent or squad")
+		writeError(w, http.StatusBadRequest, "assignee_type must be agent, squad, or workflow")
 		return false
 	}
 }

@@ -1,12 +1,10 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -269,81 +267,11 @@ func (h *Handler) ListRavenEvidence(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"evidence": resp, "total": len(resp)})
 }
 
-// dispatchRavenRun creates a run row for a freshly opted-in requirement and
-// fires the trigger.dev task named after the workflow. Dispatch is
-// best-effort: with no dispatcher configured (local dev without
-// trigger.dev) the run stays pending and a warning is logged.
-func (h *Handler) dispatchRavenRun(r *http.Request, requirement db.RavenRequirement) {
-	ctx := r.Context()
-	if !requirement.WorkflowID.Valid {
-		return
+// ravenService returns the Raven domain service, created lazily so tests
+// can swap h.Raven directly.
+func (h *Handler) ravenService() *raven.Service {
+	if h.Raven == nil {
+		h.Raven = raven.NewService(h.Queries, raven.NewDispatcherFromEnv())
 	}
-	workflow, err := h.Queries.GetRavenWorkflow(ctx, db.GetRavenWorkflowParams{
-		ID: requirement.WorkflowID, WorkspaceID: requirement.WorkspaceID,
-	})
-	if err != nil {
-		slog.Warn("raven: dispatch: load workflow failed", append(logger.RequestAttrs(r), "error", err)...)
-		return
-	}
-	run, err := h.Queries.CreateRavenRun(ctx, db.CreateRavenRunParams{
-		WorkspaceID:   requirement.WorkspaceID,
-		RequirementID: requirement.ID,
-		WorkflowID:    requirement.WorkflowID,
-		Status:        "pending",
-	})
-	if err != nil {
-		slog.Warn("raven: dispatch: create run failed", append(logger.RequestAttrs(r), "error", err)...)
-		return
-	}
-
-	dispatcher := h.ravenDispatcher()
-	if !dispatcher.Configured() {
-		slog.Warn("raven: trigger.dev dispatcher not configured; run stays pending",
-			"run_id", uuidToString(run.ID), "workflow", workflow.Name)
-		return
-	}
-
-	// Detach from the request context: the HTTP response should not wait on
-	// or cancel the dispatch.
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		triggerRunID, err := dispatcher.TriggerRun(ctx, workflow.Name, map[string]any{
-			"workspace_id":   uuidToString(requirement.WorkspaceID),
-			"issue_id":       uuidToString(requirement.IssueID),
-			"requirement_id": uuidToString(requirement.ID),
-			"run_id":         uuidToString(run.ID),
-			"workflow_name":  workflow.Name,
-			"contract":       json.RawMessage(workflow.Contract),
-		})
-		if err != nil {
-			slog.Warn("raven: trigger.dev dispatch failed", "error", err, "run_id", uuidToString(run.ID), "workflow", workflow.Name)
-			reason := "dispatch failed: " + err.Error()
-			failed := "failed"
-			if _, uerr := h.Queries.UpdateRavenRun(ctx, db.UpdateRavenRunParams{
-				ID: run.ID, WorkspaceID: run.WorkspaceID,
-				Status:            ptrToText(&failed),
-				TerminationReason: ptrToText(&reason),
-			}); uerr != nil {
-				slog.Warn("raven: record dispatch failure failed", "error", uerr)
-			}
-			return
-		}
-		if _, err := h.Queries.UpdateRavenRun(ctx, db.UpdateRavenRunParams{
-			ID: run.ID, WorkspaceID: run.WorkspaceID,
-			TriggerRunID: pgtype.Text{String: triggerRunID, Valid: true},
-		}); err != nil {
-			slog.Warn("raven: record trigger run id failed", "error", err)
-		}
-	}()
-}
-
-// ravenDispatcher returns the configured dispatcher, creating it lazily so
-// tests can swap RavenDispatcher directly on the handler.
-func (h *Handler) ravenDispatcher() *raven.Dispatcher {
-	if h.RavenDispatcher != nil {
-		return h.RavenDispatcher
-	}
-	h.RavenDispatcher = raven.NewDispatcherFromEnv()
-	return h.RavenDispatcher
+	return h.Raven
 }

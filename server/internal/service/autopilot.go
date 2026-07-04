@@ -16,6 +16,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/events"
 	"github.com/multica-ai/multica/server/internal/issueposition"
 	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
+	"github.com/multica-ai/multica/server/internal/raven"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/protocol"
@@ -31,6 +32,26 @@ type AutopilotService struct {
 	TxStarter TxStarter
 	Bus       *events.Bus
 	TaskSvc   *TaskService
+	// Raven handles workflow-assigned autopilots: issues created for a
+	// workflow enter the Raven lifecycle instead of the agent task queue.
+	Raven *raven.Service
+}
+
+// creatorType / creatorID pick the issue-creator identity for an autopilot-
+// created issue: the executing agent normally, the configuring human for
+// workflow autopilots (no executing agent exists).
+func creatorType(isWorkflow bool, ap db.Autopilot) string {
+	if isWorkflow {
+		return ap.CreatedByType
+	}
+	return "agent"
+}
+
+func creatorID(isWorkflow bool, ap db.Autopilot, leader db.Agent) pgtype.UUID {
+	if isWorkflow {
+		return ap.CreatedByID
+	}
+	return leader.ID
 }
 
 // DefaultAutopilotTriggerTimezone is the timezone used to render Autopilot
@@ -40,7 +61,10 @@ type AutopilotService struct {
 const DefaultAutopilotTriggerTimezone = "UTC"
 
 func NewAutopilotService(q *db.Queries, tx TxStarter, bus *events.Bus, taskSvc *TaskService) *AutopilotService {
-	return &AutopilotService{Queries: q, TxStarter: tx, Bus: bus, TaskSvc: taskSvc}
+	return &AutopilotService{
+		Queries: q, TxStarter: tx, Bus: bus, TaskSvc: taskSvc,
+		Raven: raven.NewService(q, raven.NewDispatcherFromEnv()),
+	}
 }
 
 // DispatchAutopilot is the core execution entry point.
@@ -283,9 +307,18 @@ func (s *AutopilotService) dispatchAutopilot(
 // (the resolved leader for a squad autopilot, otherwise the assignee agent
 // itself), so activity / mentions render with the right author identity.
 func (s *AutopilotService) dispatchCreateIssue(ctx context.Context, ap db.Autopilot, run *db.AutopilotRun, triggerTimezone string) error {
-	leader, _, err := s.resolveAutopilotLeader(ctx, ap)
-	if err != nil {
-		return fmt.Errorf("resolve leader: %w", err)
+	// Workflow-assigned autopilots (Raven, ADR-0006): no leader agent — the
+	// issue's creator is the human who configured the autopilot, and instead
+	// of the agent task queue the issue enters the lifecycle track.
+	isWorkflow := ap.AssigneeType == "workflow"
+
+	var leader db.Agent
+	if !isWorkflow {
+		var err error
+		leader, _, err = s.resolveAutopilotLeader(ctx, ap)
+		if err != nil {
+			return fmt.Errorf("resolve leader: %w", err)
+		}
 	}
 
 	tx, err := s.TxStarter.Begin(ctx)
@@ -321,9 +354,10 @@ func (s *AutopilotService) dispatchCreateIssue(ctx context.Context, ap db.Autopi
 		// not the human who originally configured the autopilot. The latter
 		// is captured separately via origin_type=autopilot + origin_id. For
 		// squad-assigned autopilots, the creator is the resolved leader —
-		// the same agent the issue listener will end up enqueueing.
-		CreatorType:   "agent",
-		CreatorID:     leader.ID,
+		// the same agent the issue listener will end up enqueueing. Workflow
+		// autopilots have no executing agent: the configurer is the creator.
+		CreatorType:   creatorType(isWorkflow, ap),
+		CreatorID:     creatorID(isWorkflow, ap, leader),
 		ParentIssueID: pgtype.UUID{},
 		Position:      newPosition,
 		StartDate:     pgtype.Date{},
@@ -375,16 +409,20 @@ func (s *AutopilotService) dispatchCreateIssue(ctx context.Context, ap db.Autopi
 	// squad autopilots, this is what triggers shouldEnqueueSquadLeaderOnAssign
 	// → enqueueSquadLeaderTask — no separate squad-routing code needed here.
 	prefix := s.getIssuePrefix(ap.WorkspaceID)
+	// Workflow autopilots have no executing agent; the acting identity is
+	// the issue creator (the human who configured the autopilot).
+	actorType := creatorType(isWorkflow, ap)
+	actorID := creatorID(isWorkflow, ap, leader)
 	s.Bus.Publish(events.Event{
 		Type:        protocol.EventIssueCreated,
 		WorkspaceID: util.UUIDToString(ap.WorkspaceID),
-		ActorType:   "agent",
-		ActorID:     util.UUIDToString(leader.ID),
+		ActorType:   actorType,
+		ActorID:     util.UUIDToString(actorID),
 		Payload: map[string]any{
 			"issue": issueToMap(issue, prefix),
 		},
 	})
-	s.captureIssueCreatedFromAutopilot(ap, run, issue, leader.ID)
+	s.captureIssueCreatedFromAutopilot(ap, run, issue, actorID)
 
 	// The issue:created notification listener only handles handler.IssueResponse
 	// payloads and only direct-notifies the assignee + @mentions; subscribers
@@ -395,7 +433,19 @@ func (s *AutopilotService) dispatchCreateIssue(ctx context.Context, ap db.Autopi
 	// events as reason='manual'. Issue creation is one such event — so write
 	// the inbox rows directly here. Done after commit so a failure here doesn't
 	// roll back the issue itself.
-	s.notifyAutopilotSubscribersOnCreate(ctx, ap, issue, leader.ID, templateSubs)
+	s.notifyAutopilotSubscribersOnCreate(ctx, ap, issue, actorType, actorID, templateSubs)
+
+	// Workflow autopilots: enter the Raven lifecycle instead of the agent
+	// task queue — the workflow's trigger.dev run owns execution from here.
+	if isWorkflow {
+		s.Raven.EnsureRequirementForWorkflowAssign(ctx, issue, raven.SystemActor)
+		slog.Info("autopilot dispatched (create_issue → raven workflow)",
+			"autopilot_id", util.UUIDToString(ap.ID),
+			"issue_id", util.UUIDToString(issue.ID),
+			"run_id", util.UUIDToString(run.ID),
+		)
+		return nil
+	}
 
 	// Enqueue agent task via the existing flow. Squad-assigned autopilots
 	// route to the resolved leader as the executing agent (Path A from
@@ -439,7 +489,8 @@ func (s *AutopilotService) notifyAutopilotSubscribersOnCreate(
 	ctx context.Context,
 	ap db.Autopilot,
 	issue db.Issue,
-	leaderID pgtype.UUID,
+	actorType string,
+	actorID pgtype.UUID,
 	subscribers []db.AutopilotSubscriber,
 ) {
 	if len(subscribers) == 0 {
@@ -465,8 +516,8 @@ func (s *AutopilotService) notifyAutopilotSubscribersOnCreate(
 			IssueID:       issue.ID,
 			Title:         issue.Title,
 			Body:          pgtype.Text{},
-			ActorType:     pgtype.Text{String: "agent", Valid: true},
-			ActorID:       leaderID,
+			ActorType:     pgtype.Text{String: actorType, Valid: true},
+			ActorID:       actorID,
 			Details:       details,
 		})
 		if err != nil {
@@ -481,8 +532,8 @@ func (s *AutopilotService) notifyAutopilotSubscribersOnCreate(
 		s.Bus.Publish(events.Event{
 			Type:        protocol.EventInboxNew,
 			WorkspaceID: util.UUIDToString(ap.WorkspaceID),
-			ActorType:   "agent",
-			ActorID:     util.UUIDToString(leaderID),
+			ActorType:   actorType,
+			ActorID:     util.UUIDToString(actorID),
 			Payload: map[string]any{
 				"item": map[string]any{
 					"id":             util.UUIDToString(item.ID),
@@ -829,6 +880,25 @@ func (s *AutopilotService) failRun(ctx context.Context, runID pgtype.UUID, reaso
 func (s *AutopilotService) shouldSkipDispatch(ctx context.Context, ap db.Autopilot) (string, bool) {
 	if !ap.AssigneeID.Valid {
 		return "autopilot has no assignee", true
+	}
+	// Workflow assignees need no runtime admission — execution happens on
+	// trigger.dev, not an agent daemon. Only existence + enabled matter.
+	if ap.AssigneeType == "workflow" {
+		wf, err := s.Queries.GetRavenWorkflow(ctx, db.GetRavenWorkflowParams{
+			ID: ap.AssigneeID, WorkspaceID: ap.WorkspaceID,
+		})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return "workflow assignee no longer exists", true
+			}
+			slog.Warn("autopilot admission: workflow lookup failed", "error", err,
+				"autopilot_id", util.UUIDToString(ap.ID))
+			return "", false // fail-open on transient errors, same as agents
+		}
+		if !wf.Enabled {
+			return "workflow assignee is disabled", true
+		}
+		return "", false
 	}
 	agent, squadResolved, err := s.resolveAutopilotLeader(ctx, ap)
 	if err != nil {

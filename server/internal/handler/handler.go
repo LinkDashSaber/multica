@@ -139,10 +139,9 @@ type Handler struct {
 	MembershipCache      *auth.MembershipCache
 	WebhookRateLimiter   WebhookRateLimiter
 	WebhookIPRateLimiter WebhookRateLimiter
-	// RavenDispatcher triggers workflow runs on the self-hosted trigger.dev
-	// instance. Lazily created from env by ravenDispatcher(); tests swap in
-	// their own instance.
-	RavenDispatcher *raven.Dispatcher
+	// Raven is the Raven domain service (lifecycle, evidence, dispatch).
+	// Lazily created by ravenService(); tests swap in their own instance.
+	Raven *raven.Service
 	CloudRuntime         cloudRuntimeProxy
 	// Lark integration. All three are nil when the Lark master key
 	// (MULTICA_LARK_SECRET_KEY) is unset; the corresponding HTTP
