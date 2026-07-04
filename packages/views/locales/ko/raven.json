@@ -33,5 +33,57 @@
       "decided_by": "{{name}}이(가) 결정",
       "failed": "결정 제출에 실패했습니다"
     }
+  },
+  "workflows": {
+    "title": "워크플로우",
+    "empty": "등록된 워크플로우가 없습니다",
+    "not_found": "워크플로우를 찾을 수 없습니다",
+    "enabled": "활성화",
+    "disabled": "비활성화",
+    "version": "v{{version}}",
+    "columns": {
+      "name": "이름",
+      "status": "상태",
+      "runs": "실행 횟수",
+      "pass_rate": "승인율",
+      "rejection_rate": "반려율",
+      "avg_duration": "평균 실행 시간"
+    },
+    "detail": {
+      "description": "설명",
+      "contract": "컨트랙트",
+      "stages": "스테이지",
+      "gates": "게이트",
+      "gate_after": "{{stage}} 이후",
+      "budget": "예산",
+      "max_tokens": "최대 토큰",
+      "max_usd": "최대 비용(USD)",
+      "retry": "재시도",
+      "max_attempts": "최대 시도 횟수",
+      "timeout_seconds": "타임아웃(초)",
+      "runs": "실행 기록",
+      "runs_empty": "아직 실행 기록이 없습니다",
+      "view_issue": "이슈 보기",
+      "gate_decisions": "게이트 판정",
+      "no_gates": "게이트 판정이 없습니다"
+    },
+    "run_status": {
+      "pending": "대기 중",
+      "running": "실행 중",
+      "completed": "완료",
+      "failed": "실패",
+      "terminated": "종료됨"
+    }
+  },
+  "timeline": {
+    "title": "감사 타임라인",
+    "empty": "아직 감사 이벤트가 없습니다",
+    "state_change": "상태가 {{state}}(으)로 변경됨",
+    "by_actor": "{{name}} 님이 수행",
+    "system": "시스템",
+    "evidence": "증거",
+    "gate_opened": "게이트 {{name}} 열림",
+    "gate_approved": "게이트 {{name}} 승인됨",
+    "gate_rejected": "게이트 {{name}} 반려됨"
   }
 }

@@ -13,6 +13,13 @@ SELECT * FROM raven_gate_review
 WHERE requirement_id = $1 AND workspace_id = $2
 ORDER BY created_at DESC;
 
+-- name: ListRavenGateReviewsByWorkflow :many
+-- Gate decisions across all runs of a workflow (workflow detail page).
+SELECT g.* FROM raven_gate_review g
+JOIN raven_run r ON r.id = g.run_id
+WHERE r.workflow_id = $1 AND g.workspace_id = $2
+ORDER BY g.created_at DESC;
+
 -- name: ListPendingRavenGateReviews :many
 SELECT * FROM raven_gate_review
 WHERE workspace_id = $1 AND status = 'pending'

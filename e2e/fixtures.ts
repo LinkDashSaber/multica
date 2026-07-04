@@ -194,6 +194,14 @@ export class TestApiClient {
     return this.email;
   }
 
+  /**
+   * Authenticated raw request for endpoints without a dedicated helper
+   * (test setup/teardown only).
+   */
+  async apiFetch(path: string, init?: RequestInit) {
+    return this.authedFetch(path, init);
+  }
+
   private async authedFetch(path: string, init?: RequestInit) {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",

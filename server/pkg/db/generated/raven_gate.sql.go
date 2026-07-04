@@ -204,3 +204,48 @@ func (q *Queries) ListRavenGateReviewsByRequirement(ctx context.Context, arg Lis
 	}
 	return items, nil
 }
+
+const listRavenGateReviewsByWorkflow = `-- name: ListRavenGateReviewsByWorkflow :many
+SELECT g.id, g.workspace_id, g.requirement_id, g.run_id, g.gate_name, g.status, g.review_package, g.decided_by, g.decision_reason, g.created_at, g.decided_at FROM raven_gate_review g
+JOIN raven_run r ON r.id = g.run_id
+WHERE r.workflow_id = $1 AND g.workspace_id = $2
+ORDER BY g.created_at DESC
+`
+
+type ListRavenGateReviewsByWorkflowParams struct {
+	WorkflowID  pgtype.UUID `json:"workflow_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+// Gate decisions across all runs of a workflow (workflow detail page).
+func (q *Queries) ListRavenGateReviewsByWorkflow(ctx context.Context, arg ListRavenGateReviewsByWorkflowParams) ([]RavenGateReview, error) {
+	rows, err := q.db.Query(ctx, listRavenGateReviewsByWorkflow, arg.WorkflowID, arg.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RavenGateReview{}
+	for rows.Next() {
+		var i RavenGateReview
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.RequirementID,
+			&i.RunID,
+			&i.GateName,
+			&i.Status,
+			&i.ReviewPackage,
+			&i.DecidedBy,
+			&i.DecisionReason,
+			&i.CreatedAt,
+			&i.DecidedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -33,5 +33,57 @@
       "decided_by": "Decided by {{name}}",
       "failed": "Failed to submit decision"
     }
+  },
+  "workflows": {
+    "title": "Workflows",
+    "empty": "No workflows registered yet",
+    "not_found": "Workflow not found",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "version": "v{{version}}",
+    "columns": {
+      "name": "Name",
+      "status": "Status",
+      "runs": "Runs",
+      "pass_rate": "Pass rate",
+      "rejection_rate": "Rejection rate",
+      "avg_duration": "Avg duration"
+    },
+    "detail": {
+      "description": "Description",
+      "contract": "Contract",
+      "stages": "Stages",
+      "gates": "Gates",
+      "gate_after": "after {{stage}}",
+      "budget": "Budget",
+      "max_tokens": "Max tokens",
+      "max_usd": "Max USD",
+      "retry": "Retry",
+      "max_attempts": "Max attempts",
+      "timeout_seconds": "Timeout (seconds)",
+      "runs": "Run history",
+      "runs_empty": "No runs yet",
+      "view_issue": "View issue",
+      "gate_decisions": "Gate decisions",
+      "no_gates": "No gate decisions"
+    },
+    "run_status": {
+      "pending": "Pending",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "terminated": "Terminated"
+    }
+  },
+  "timeline": {
+    "title": "Audit timeline",
+    "empty": "No audit events yet",
+    "state_change": "State changed to {{state}}",
+    "by_actor": "by {{name}}",
+    "system": "System",
+    "evidence": "Evidence",
+    "gate_opened": "Gate {{name}} opened",
+    "gate_approved": "Gate {{name}} approved",
+    "gate_rejected": "Gate {{name}} rejected"
   }
 }

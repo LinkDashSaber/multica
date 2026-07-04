@@ -33,5 +33,57 @@
       "decided_by": "由 {{name}} 裁决",
       "failed": "提交裁决失败"
     }
+  },
+  "workflows": {
+    "title": "交付策略",
+    "empty": "还没有注册交付策略",
+    "not_found": "交付策略不存在",
+    "enabled": "已启用",
+    "disabled": "已停用",
+    "version": "v{{version}}",
+    "columns": {
+      "name": "名称",
+      "status": "状态",
+      "runs": "运行次数",
+      "pass_rate": "通过率",
+      "rejection_rate": "驳回率",
+      "avg_duration": "平均时长"
+    },
+    "detail": {
+      "description": "描述",
+      "contract": "合同",
+      "stages": "阶段",
+      "gates": "门禁",
+      "gate_after": "位于 {{stage}} 之后",
+      "budget": "预算",
+      "max_tokens": "Token 上限",
+      "max_usd": "费用上限（USD）",
+      "retry": "重试",
+      "max_attempts": "最大尝试次数",
+      "timeout_seconds": "超时（秒）",
+      "runs": "运行记录",
+      "runs_empty": "还没有运行记录",
+      "view_issue": "查看 issue",
+      "gate_decisions": "门禁裁决",
+      "no_gates": "没有门禁裁决"
+    },
+    "run_status": {
+      "pending": "待运行",
+      "running": "运行中",
+      "completed": "已完成",
+      "failed": "失败",
+      "terminated": "已终止"
+    }
+  },
+  "timeline": {
+    "title": "审计时间线",
+    "empty": "还没有审计事件",
+    "state_change": "状态变更为 {{state}}",
+    "by_actor": "由 {{name}} 操作",
+    "system": "系统",
+    "evidence": "证据",
+    "gate_opened": "门禁 {{name}} 开启",
+    "gate_approved": "门禁 {{name}} 已通过",
+    "gate_rejected": "门禁 {{name}} 已驳回"
   }
 }

@@ -13,6 +13,14 @@ SELECT * FROM raven_run
 WHERE requirement_id = $1 AND workspace_id = $2
 ORDER BY created_at DESC;
 
+-- name: ListRavenRunsByWorkflow :many
+-- Run history for one workflow, with the requirement's issue for linking.
+SELECT r.*, req.issue_id
+FROM raven_run r
+JOIN raven_requirement req ON req.id = r.requirement_id
+WHERE r.workflow_id = $1 AND r.workspace_id = $2
+ORDER BY r.created_at DESC;
+
 -- name: UpdateRavenRun :one
 UPDATE raven_run SET
     trigger_run_id = COALESCE(sqlc.narg('trigger_run_id'), trigger_run_id),

@@ -144,8 +144,8 @@ describe("ReviewPackagePage", () => {
       "/acme/issues/issue-1",
     );
 
-    // Evidence list.
-    expect(await screen.findByText("212 tests green")).toBeInTheDocument();
+    // Evidence list (also echoed in the audit timeline below the sections).
+    expect((await screen.findAllByText("212 tests green")).length).toBeGreaterThan(0);
 
     expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();

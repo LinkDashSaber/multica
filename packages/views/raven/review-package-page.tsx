@@ -21,6 +21,7 @@ import { Textarea } from "@multica/ui/components/ui/textarea";
 import { AppLink } from "../navigation";
 import { BreadcrumbHeader } from "../layout/breadcrumb-header";
 import { STATE_LABELS, STATE_CLASSES } from "../issues/components/raven-lifecycle-badge";
+import { RequirementTimeline } from "./requirement-timeline";
 import { useT } from "../i18n";
 
 const GATE_STATUS_CLASSES: Record<string, string> = {
@@ -384,6 +385,10 @@ export function ReviewPackagePage({ gateId }: { gateId: string }) {
           </section>
 
           <DecisionSection gate={gate} wsId={wsId} />
+
+          {requirementId && (
+            <RequirementTimeline wsId={wsId} requirementId={requirementId} />
+          )}
         </div>
       </div>
     </div>

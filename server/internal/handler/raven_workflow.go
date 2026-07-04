@@ -183,6 +183,109 @@ func (h *Handler) UpdateRavenWorkflow(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ravenWorkflowToResponse(wf))
 }
 
+// RavenWorkflowStatsResponse carries per-workflow run/gate aggregates. Rates
+// are computed client-side from the counts so the API stays additive.
+type RavenWorkflowStatsResponse struct {
+	WorkflowID    string  `json:"workflow_id"`
+	RunCount      int64   `json:"run_count"`
+	AvgRunSeconds float64 `json:"avg_run_seconds"`
+	ApprovedGates int64   `json:"approved_gates"`
+	RejectedGates int64   `json:"rejected_gates"`
+}
+
+// ListRavenWorkflowStats returns aggregates for every workflow in the
+// workspace (workflow list page: run count, pass/rejection rate, avg duration).
+func (h *Handler) ListRavenWorkflowStats(w http.ResponseWriter, r *http.Request) {
+	wsUUID, ok := parseUUIDOrBadRequest(w, h.resolveWorkspaceID(r), "workspace id")
+	if !ok {
+		return
+	}
+	list, err := h.Queries.ListRavenWorkflowStats(r.Context(), wsUUID)
+	if err != nil {
+		slog.Warn("ListRavenWorkflowStats failed", append(logger.RequestAttrs(r), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to list workflow stats")
+		return
+	}
+	resp := make([]RavenWorkflowStatsResponse, len(list))
+	for i, s := range list {
+		resp[i] = RavenWorkflowStatsResponse{
+			WorkflowID:    uuidToString(s.WorkflowID),
+			RunCount:      s.RunCount,
+			AvgRunSeconds: s.AvgRunSeconds,
+			ApprovedGates: s.ApprovedGates,
+			RejectedGates: s.RejectedGates,
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"stats": resp, "total": len(resp)})
+}
+
+// RavenWorkflowRunResponse is a run in a workflow's history, enriched with
+// the requirement's issue for linking and the gate decisions of that run.
+type RavenWorkflowRunResponse struct {
+	RavenRunResponse
+	IssueID string                    `json:"issue_id"`
+	Gates   []RavenGateReviewResponse `json:"gates"`
+}
+
+// ListRavenWorkflowRuns returns a workflow's run history (newest first) with
+// each run's gate decisions attached.
+func (h *Handler) ListRavenWorkflowRuns(w http.ResponseWriter, r *http.Request) {
+	idUUID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "id"), "workflow id")
+	if !ok {
+		return
+	}
+	wsUUID, ok := parseUUIDOrBadRequest(w, h.resolveWorkspaceID(r), "workspace id")
+	if !ok {
+		return
+	}
+	runs, err := h.Queries.ListRavenRunsByWorkflow(r.Context(), db.ListRavenRunsByWorkflowParams{
+		WorkflowID: idUUID, WorkspaceID: wsUUID,
+	})
+	if err != nil {
+		slog.Warn("ListRavenWorkflowRuns failed", append(logger.RequestAttrs(r), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to list workflow runs")
+		return
+	}
+	gates, err := h.Queries.ListRavenGateReviewsByWorkflow(r.Context(), db.ListRavenGateReviewsByWorkflowParams{
+		WorkflowID: idUUID, WorkspaceID: wsUUID,
+	})
+	if err != nil {
+		slog.Warn("ListRavenWorkflowRuns gates failed", append(logger.RequestAttrs(r), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to list workflow runs")
+		return
+	}
+	gatesByRun := make(map[string][]RavenGateReviewResponse)
+	for _, g := range gates {
+		key := uuidToString(g.RunID)
+		gatesByRun[key] = append(gatesByRun[key], ravenGateToResponse(g))
+	}
+	resp := make([]RavenWorkflowRunResponse, len(runs))
+	for i, run := range runs {
+		item := RavenWorkflowRunResponse{
+			RavenRunResponse: ravenRunToResponse(db.RavenRun{
+				ID:                run.ID,
+				WorkspaceID:       run.WorkspaceID,
+				RequirementID:     run.RequirementID,
+				WorkflowID:        run.WorkflowID,
+				TriggerRunID:      run.TriggerRunID,
+				Status:            run.Status,
+				TerminationReason: run.TerminationReason,
+				TokensSpent:       run.TokensSpent,
+				UsdSpent:          run.UsdSpent,
+				CreatedAt:         run.CreatedAt,
+				UpdatedAt:         run.UpdatedAt,
+			}),
+			IssueID: uuidToString(run.IssueID),
+			Gates:   gatesByRun[uuidToString(run.ID)],
+		}
+		if item.Gates == nil {
+			item.Gates = []RavenGateReviewResponse{}
+		}
+		resp[i] = item
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"runs": resp, "total": len(resp)})
+}
+
 // ensureRavenRequirementForWorkflowAssign is the opt-in hook (ADR-0006) —
 // thin wrapper deriving the actor from the request; logic lives in
 // raven.Service so the GitHub webhook and autopilot paths share it.

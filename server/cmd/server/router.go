@@ -1012,9 +1012,11 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 			r.Route("/api/raven/workflows", func(r chi.Router) {
 				r.Get("/", h.ListRavenWorkflows)
 				r.Post("/", h.CreateRavenWorkflow)
+				r.Get("/stats", h.ListRavenWorkflowStats)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", h.GetRavenWorkflow)
 					r.Put("/", h.UpdateRavenWorkflow)
+					r.Get("/runs", h.ListRavenWorkflowRuns)
 				})
 			})
 

@@ -74,6 +74,72 @@ func (q *Queries) GetRavenWorkflow(ctx context.Context, arg GetRavenWorkflowPara
 	return i, err
 }
 
+const listRavenWorkflowStats = `-- name: ListRavenWorkflowStats :many
+SELECT
+    w.id AS workflow_id,
+    COALESCE(rs.run_count, 0)::bigint AS run_count,
+    COALESCE(rs.avg_run_seconds, 0)::double precision AS avg_run_seconds,
+    COALESCE(gs.approved_gates, 0)::bigint AS approved_gates,
+    COALESCE(gs.rejected_gates, 0)::bigint AS rejected_gates
+FROM raven_workflow w
+LEFT JOIN (
+    SELECT rr.workflow_id,
+           count(*) AS run_count,
+           avg(EXTRACT(EPOCH FROM rr.updated_at - rr.created_at))
+               FILTER (WHERE rr.status IN ('completed', 'failed', 'terminated')) AS avg_run_seconds
+    FROM raven_run rr
+    WHERE rr.workspace_id = $1 AND rr.workflow_id IS NOT NULL
+    GROUP BY rr.workflow_id
+) rs ON rs.workflow_id = w.id
+LEFT JOIN (
+    SELECT r.workflow_id,
+           count(*) FILTER (WHERE g.status = 'approved') AS approved_gates,
+           count(*) FILTER (WHERE g.status = 'rejected') AS rejected_gates
+    FROM raven_gate_review g
+    JOIN raven_run r ON r.id = g.run_id
+    WHERE g.workspace_id = $1 AND r.workflow_id IS NOT NULL
+    GROUP BY r.workflow_id
+) gs ON gs.workflow_id = w.id
+WHERE w.workspace_id = $1
+`
+
+type ListRavenWorkflowStatsRow struct {
+	WorkflowID    pgtype.UUID `json:"workflow_id"`
+	RunCount      int64       `json:"run_count"`
+	AvgRunSeconds float64     `json:"avg_run_seconds"`
+	ApprovedGates int64       `json:"approved_gates"`
+	RejectedGates int64       `json:"rejected_gates"`
+}
+
+// Per-workflow run/gate aggregates for the workflow list page. Duration is
+// created_at → updated_at of finished runs (raven_run has no started/ended
+// columns; the SDK PATCHes terminal status, so updated_at is the end time).
+func (q *Queries) ListRavenWorkflowStats(ctx context.Context, workspaceID pgtype.UUID) ([]ListRavenWorkflowStatsRow, error) {
+	rows, err := q.db.Query(ctx, listRavenWorkflowStats, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRavenWorkflowStatsRow{}
+	for rows.Next() {
+		var i ListRavenWorkflowStatsRow
+		if err := rows.Scan(
+			&i.WorkflowID,
+			&i.RunCount,
+			&i.AvgRunSeconds,
+			&i.ApprovedGates,
+			&i.RejectedGates,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRavenWorkflows = `-- name: ListRavenWorkflows :many
 SELECT id, workspace_id, name, description, contract, version, enabled, created_at, updated_at FROM raven_workflow
 WHERE workspace_id = $1

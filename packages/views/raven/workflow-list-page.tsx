@@ -1,0 +1,171 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceId } from "@multica/core/hooks";
+import { useWorkspacePaths } from "@multica/core/paths";
+import {
+  ravenWorkflowListOptions,
+  ravenWorkflowStatsOptions,
+  type RavenWorkflowStats,
+} from "@multica/core/raven";
+import { Badge } from "@multica/ui/components/ui/badge";
+import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { AppLink, useNavigation } from "../navigation";
+import { BreadcrumbHeader } from "../layout/breadcrumb-header";
+import { useT } from "../i18n";
+
+/** "3m 20s" style compact duration; em dash when there is nothing to show. */
+export function formatRunDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "—";
+  const s = Math.round(seconds);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+/** approved / decided as a percentage string; em dash before any decision. */
+export function formatRate(numerator: number, decided: number): string {
+  if (decided <= 0) return "—";
+  return `${Math.round((numerator / decided) * 100)}%`;
+}
+
+export function WorkflowEnabledBadge({ enabled }: { enabled: boolean }) {
+  const { t } = useT("raven");
+  return (
+    <Badge
+      variant="secondary"
+      className={
+        enabled === true
+          ? "bg-green-500/15 text-green-600 dark:text-green-400"
+          : "bg-muted text-muted-foreground"
+      }
+      data-testid="workflow-enabled-badge"
+    >
+      {enabled === true
+        ? t(($) => $.workflows.enabled)
+        : t(($) => $.workflows.disabled)}
+    </Badge>
+  );
+}
+
+/**
+ * Workflow registry list: one row per workflow with run/gate aggregates
+ * (run count, pass rate, rejection rate, average run duration).
+ */
+export function WorkflowListPage() {
+  const { t } = useT("raven");
+  const wsId = useWorkspaceId();
+  const wsPaths = useWorkspacePaths();
+  const { push } = useNavigation();
+
+  const { data: workflows = [], isLoading } = useQuery(
+    ravenWorkflowListOptions(wsId),
+  );
+  const { data: stats = [] } = useQuery(ravenWorkflowStatsOptions(wsId));
+  const statsById = new Map<string, RavenWorkflowStats>(
+    stats.map((s) => [s.workflow_id, s]),
+  );
+
+  return (
+    <div className="flex flex-1 flex-col min-h-0">
+      <BreadcrumbHeader
+        segments={[]}
+        leaf={
+          <span className="truncate text-sm font-semibold">
+            {t(($) => $.workflows.title)}
+          </span>
+        }
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="mx-auto w-full max-w-5xl p-6">
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : workflows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t(($) => $.workflows.empty)}
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">
+                      {t(($) => $.workflows.columns.name)}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {t(($) => $.workflows.columns.status)}
+                    </th>
+                    <th className="px-3 py-2 font-medium text-right">
+                      {t(($) => $.workflows.columns.runs)}
+                    </th>
+                    <th className="px-3 py-2 font-medium text-right">
+                      {t(($) => $.workflows.columns.pass_rate)}
+                    </th>
+                    <th className="px-3 py-2 font-medium text-right">
+                      {t(($) => $.workflows.columns.rejection_rate)}
+                    </th>
+                    <th className="px-3 py-2 font-medium text-right">
+                      {t(($) => $.workflows.columns.avg_duration)}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {workflows.map((wf) => {
+                    const s = statsById.get(wf.id);
+                    const decided =
+                      (s?.approved_gates ?? 0) + (s?.rejected_gates ?? 0);
+                    return (
+                      <tr
+                        key={wf.id}
+                        data-testid="workflow-row"
+                        className="cursor-pointer hover:bg-muted/40"
+                        onClick={() => push(wsPaths.ravenWorkflowDetail(wf.id))}
+                      >
+                        <td className="px-3 py-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <AppLink
+                              href={wsPaths.ravenWorkflowDetail(wf.id)}
+                              className="truncate font-medium hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {wf.name}
+                            </AppLink>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {t(($) => $.workflows.version, {
+                                version: wf.version ?? 1,
+                              })}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <WorkflowEnabledBadge enabled={wf.enabled === true} />
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {s?.run_count ?? 0}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {formatRate(s?.approved_gates ?? 0, decided)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {formatRate(s?.rejected_gates ?? 0, decided)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {formatRunDuration(s?.avg_run_seconds ?? 0)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

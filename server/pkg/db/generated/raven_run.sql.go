@@ -203,6 +203,68 @@ func (q *Queries) ListRavenRunsByRequirement(ctx context.Context, arg ListRavenR
 	return items, nil
 }
 
+const listRavenRunsByWorkflow = `-- name: ListRavenRunsByWorkflow :many
+SELECT r.id, r.workspace_id, r.requirement_id, r.workflow_id, r.trigger_run_id, r.status, r.termination_reason, r.tokens_spent, r.usd_spent, r.created_at, r.updated_at, req.issue_id
+FROM raven_run r
+JOIN raven_requirement req ON req.id = r.requirement_id
+WHERE r.workflow_id = $1 AND r.workspace_id = $2
+ORDER BY r.created_at DESC
+`
+
+type ListRavenRunsByWorkflowParams struct {
+	WorkflowID  pgtype.UUID `json:"workflow_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+type ListRavenRunsByWorkflowRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	WorkspaceID       pgtype.UUID        `json:"workspace_id"`
+	RequirementID     pgtype.UUID        `json:"requirement_id"`
+	WorkflowID        pgtype.UUID        `json:"workflow_id"`
+	TriggerRunID      string             `json:"trigger_run_id"`
+	Status            string             `json:"status"`
+	TerminationReason string             `json:"termination_reason"`
+	TokensSpent       int64              `json:"tokens_spent"`
+	UsdSpent          float64            `json:"usd_spent"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	IssueID           pgtype.UUID        `json:"issue_id"`
+}
+
+// Run history for one workflow, with the requirement's issue for linking.
+func (q *Queries) ListRavenRunsByWorkflow(ctx context.Context, arg ListRavenRunsByWorkflowParams) ([]ListRavenRunsByWorkflowRow, error) {
+	rows, err := q.db.Query(ctx, listRavenRunsByWorkflow, arg.WorkflowID, arg.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRavenRunsByWorkflowRow{}
+	for rows.Next() {
+		var i ListRavenRunsByWorkflowRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.RequirementID,
+			&i.WorkflowID,
+			&i.TriggerRunID,
+			&i.Status,
+			&i.TerminationReason,
+			&i.TokensSpent,
+			&i.UsdSpent,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.IssueID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateRavenRun = `-- name: UpdateRavenRun :one
 UPDATE raven_run SET
     trigger_run_id = COALESCE($3, trigger_run_id),

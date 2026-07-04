@@ -402,6 +402,125 @@ export const EMPTY_RAVEN_EVIDENCE_LIST: RavenEvidenceListResponse = {
   total: 0,
 };
 
+// Per-workflow aggregates for the workflow list page. Rates are derived
+// client-side from the gate counts.
+export interface RavenWorkflowStats {
+  workflow_id: string;
+  run_count: number;
+  avg_run_seconds: number;
+  approved_gates: number;
+  rejected_gates: number;
+}
+
+export const RavenWorkflowStatsListSchema = z.object({
+  stats: z.array(
+    z.object({
+      workflow_id: z.string(),
+      run_count: z.number().default(0),
+      avg_run_seconds: z.number().default(0),
+      approved_gates: z.number().default(0),
+      rejected_gates: z.number().default(0),
+    }).loose(),
+  ).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenWorkflowStatsListResponse {
+  stats: RavenWorkflowStats[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_WORKFLOW_STATS_LIST: RavenWorkflowStatsListResponse = {
+  stats: [],
+  total: 0,
+};
+
+// A run in a workflow's history: the raven_run row plus the requirement's
+// issue for linking and the gate decisions made during the run.
+export interface RavenWorkflowRun {
+  id: string;
+  workspace_id: string;
+  requirement_id: string;
+  workflow_id: string | null;
+  trigger_run_id: string;
+  /** "pending" | "running" | "completed" | "failed" | "terminated"; treat unknown values as display-only. */
+  status: string;
+  termination_reason: string;
+  tokens_spent: number;
+  usd_spent: number;
+  created_at: string;
+  updated_at: string;
+  issue_id: string;
+  gates: RavenGateReview[];
+}
+
+export const RavenWorkflowRunListSchema = z.object({
+  runs: z.array(
+    z.object({
+      id: z.string(),
+      workspace_id: z.string().default(""),
+      requirement_id: z.string().default(""),
+      workflow_id: z.string().nullable().default(null),
+      trigger_run_id: z.string().default(""),
+      status: z.string().default("pending"),
+      termination_reason: z.string().default(""),
+      tokens_spent: z.number().default(0),
+      usd_spent: z.number().default(0),
+      created_at: z.string().default(""),
+      updated_at: z.string().default(""),
+      issue_id: z.string().default(""),
+      gates: z.array(RavenGateReviewSchema).default([]),
+    }).loose(),
+  ).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenWorkflowRunListResponse {
+  runs: RavenWorkflowRun[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_WORKFLOW_RUN_LIST: RavenWorkflowRunListResponse = {
+  runs: [],
+  total: 0,
+};
+
+// Requirement state transitions — the audit trail's backbone.
+export interface RavenTransition {
+  id: string;
+  from_state: string;
+  to_state: string;
+  actor_type: string;
+  actor_id: string;
+  reason: string;
+  created_at: string;
+}
+
+export const RavenTransitionListSchema = z.object({
+  transitions: z.array(
+    z.object({
+      id: z.string(),
+      from_state: z.string().default(""),
+      to_state: z.string().default(""),
+      actor_type: z.string().default(""),
+      actor_id: z.string().default(""),
+      reason: z.string().default(""),
+      created_at: z.string().default(""),
+    }).loose(),
+  ).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenTransitionListResponse {
+  transitions: RavenTransition[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_TRANSITION_LIST: RavenTransitionListResponse = {
+  transitions: [],
+  total: 0,
+};
+
 export const CreateFeedbackResponseSchema = z.object({
   id: z.string(),
   created_at: z.string(),

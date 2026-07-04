@@ -33,5 +33,57 @@
       "decided_by": "{{name}} が判定",
       "failed": "判定の送信に失敗しました"
     }
+  },
+  "workflows": {
+    "title": "ワークフロー",
+    "empty": "登録されたワークフローはありません",
+    "not_found": "ワークフローが見つかりません",
+    "enabled": "有効",
+    "disabled": "無効",
+    "version": "v{{version}}",
+    "columns": {
+      "name": "名前",
+      "status": "状態",
+      "runs": "実行回数",
+      "pass_rate": "承認率",
+      "rejection_rate": "却下率",
+      "avg_duration": "平均実行時間"
+    },
+    "detail": {
+      "description": "説明",
+      "contract": "コントラクト",
+      "stages": "ステージ",
+      "gates": "ゲート",
+      "gate_after": "{{stage}} の後",
+      "budget": "予算",
+      "max_tokens": "最大トークン",
+      "max_usd": "最大コスト（USD）",
+      "retry": "リトライ",
+      "max_attempts": "最大試行回数",
+      "timeout_seconds": "タイムアウト（秒）",
+      "runs": "実行履歴",
+      "runs_empty": "実行履歴はまだありません",
+      "view_issue": "イシューを表示",
+      "gate_decisions": "ゲート判定",
+      "no_gates": "ゲート判定はありません"
+    },
+    "run_status": {
+      "pending": "待機中",
+      "running": "実行中",
+      "completed": "完了",
+      "failed": "失敗",
+      "terminated": "強制終了"
+    }
+  },
+  "timeline": {
+    "title": "監査タイムライン",
+    "empty": "監査イベントはまだありません",
+    "state_change": "状態が {{state}} に変更されました",
+    "by_actor": "{{name}} による",
+    "system": "システム",
+    "evidence": "エビデンス",
+    "gate_opened": "ゲート {{name}} が開始",
+    "gate_approved": "ゲート {{name}} が承認されました",
+    "gate_rejected": "ゲート {{name}} が却下されました"
   }
 }

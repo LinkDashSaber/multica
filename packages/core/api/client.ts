@@ -198,6 +198,15 @@ import {
   RavenEvidenceListSchema,
   type RavenEvidenceListResponse,
   EMPTY_RAVEN_EVIDENCE_LIST,
+  RavenWorkflowStatsListSchema,
+  type RavenWorkflowStatsListResponse,
+  EMPTY_RAVEN_WORKFLOW_STATS_LIST,
+  RavenWorkflowRunListSchema,
+  type RavenWorkflowRunListResponse,
+  EMPTY_RAVEN_WORKFLOW_RUN_LIST,
+  RavenTransitionListSchema,
+  type RavenTransitionListResponse,
+  EMPTY_RAVEN_TRANSITION_LIST,
   GroupedIssuesResponseSchema,
   ListAutopilotsResponseSchema,
   EMPTY_LIST_AUTOPILOTS_RESPONSE,
@@ -1571,6 +1580,30 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(`/api/raven/workflows/${id}`);
     return parseWithFallback<RavenWorkflow>(raw, RavenWorkflowSchema, EMPTY_RAVEN_WORKFLOW, {
       endpoint: "GET /api/raven/workflows/{id}",
+    });
+  }
+
+  // Per-workflow run/gate aggregates (workflow list page).
+  async listRavenWorkflowStats(): Promise<RavenWorkflowStatsListResponse> {
+    const raw = await this.fetch<unknown>("/api/raven/workflows/stats");
+    return parseWithFallback<RavenWorkflowStatsListResponse>(raw, RavenWorkflowStatsListSchema, EMPTY_RAVEN_WORKFLOW_STATS_LIST, {
+      endpoint: "GET /api/raven/workflows/stats",
+    });
+  }
+
+  // Run history for one workflow, newest first, with nested gate decisions.
+  async listRavenWorkflowRuns(id: string): Promise<RavenWorkflowRunListResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/workflows/${id}/runs`);
+    return parseWithFallback<RavenWorkflowRunListResponse>(raw, RavenWorkflowRunListSchema, EMPTY_RAVEN_WORKFLOW_RUN_LIST, {
+      endpoint: "GET /api/raven/workflows/{id}/runs",
+    });
+  }
+
+  // Append-only state history of a requirement, oldest first.
+  async listRavenTransitions(requirementId: string): Promise<RavenTransitionListResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/requirements/${requirementId}/transitions`);
+    return parseWithFallback<RavenTransitionListResponse>(raw, RavenTransitionListSchema, EMPTY_RAVEN_TRANSITION_LIST, {
+      endpoint: "GET /api/raven/requirements/{id}/transitions",
     });
   }
 
