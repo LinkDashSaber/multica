@@ -21,11 +21,8 @@ export function LandingHeader({
   const starsLabel = stars != null ? formatStarCount(stars) : null;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const docsHref = docsHrefForLocale(locale);
-  const navLinks = [
-    { href: "/usecases", label: t.header.useCases },
-    { href: docsHref, label: t.header.docs },
-    { href: "/changelog", label: t.header.changelog },
-  ];
+  // Internal deployment: marketing pages (/usecases, /changelog) are removed.
+  const navLinks = [{ href: docsHref, label: t.header.docs }];
   const ctaHref = user ? "/" : "/login";
   const ctaLabel = user ? t.header.dashboard : t.header.cta;
 

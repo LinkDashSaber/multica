@@ -33,7 +33,15 @@ export function RedirectIfAuthenticated() {
   });
 
   useEffect(() => {
-    if (isLoading || !user || !isFetched) return;
+    if (isLoading) return;
+    // A stale multica_logged_in cookie with a dead session slips past the
+    // proxy's root redirect — send those visitors to /login instead of
+    // leaving them stuck on the blank root page.
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (!isFetched) return;
     router.replace(resolvePostAuthDestination(list, hasOnboarded));
   }, [isLoading, user, isFetched, list, hasOnboarded, router]);
 

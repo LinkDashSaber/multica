@@ -81,6 +81,15 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // --- Root path, logged out: straight to login (internal deployment, no
+  // marketing landing). Logged-in users without a workspace cookie fall
+  // through to the root page, whose client redirect picks a workspace.
+  if (pathname === "/" && !hasSession) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
   // --- Default: forward locale header to RSC, no redirect/rewrite ---
   // Covers logged-out root path, /login, /:slug/*, and everything else.
   return nextWithLocale(req);

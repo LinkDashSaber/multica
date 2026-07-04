@@ -15,10 +15,28 @@ import {
 } from "./shared";
 import { useLocale, locales, localeLabels } from "../i18n";
 
+// Marketing routes removed for the internal deployment — drop their footer
+// links so the (retained) /download page doesn't link into 404s.
+const REMOVED_ROUTES = new Set([
+  "/about",
+  "/changelog",
+  "/usecases",
+  "/contact-sales",
+]);
+
 export function LandingFooter() {
   const { t, locale, setLocale } = useLocale();
   const user = useAuthStore((s) => s.user);
-  const groups = Object.values(t.footer.groups);
+  const groups = Object.values(t.footer.groups)
+    .map((group) => ({
+      ...group,
+      // Anchor links ("#how-it-works" …) targeted sections of the removed
+      // landing page, so drop those too.
+      links: group.links.filter(
+        (link) => !REMOVED_ROUTES.has(link.href) && !link.href.startsWith("#"),
+      ),
+    }))
+    .filter((group) => group.links.length > 0);
 
   return (
     <footer className="bg-[#0a0d12] text-white">
@@ -27,7 +45,7 @@ export function LandingFooter() {
         <div className="flex flex-col gap-12 border-b border-white/10 py-16 sm:py-20 lg:flex-row lg:gap-20">
           {/* Left — newsletter / CTA */}
           <div className="lg:w-[340px] lg:shrink-0">
-            <Link href="#product" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3">
               <MulticaIcon className="size-5 text-white" noSpin />
               <span className="text-[18px] font-semibold tracking-[0.04em] lowercase">
                 multica

@@ -1,29 +1,26 @@
 import type { Metadata } from "next";
-import { MulticaLanding } from "@/features/landing/components/multica-landing";
+import { Loader2 } from "lucide-react";
 import { RedirectIfAuthenticated } from "@/features/landing/components/redirect-if-authenticated";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Multica — Project Management for Human + Agent Teams",
+    absolute: "Multica",
   },
-  description:
-    "Open-source platform that turns coding agents into real teammates. Assign tasks, track progress, compound skills.",
-  openGraph: {
-    title: "Multica — Project Management for Human + Agent Teams",
-    description:
-      "Manage your human + agent workforce in one place.",
-    url: "/",
-  },
-  alternates: {
-    canonical: "/",
-  },
+  robots: { index: false },
 };
 
-export default function LandingPage() {
+// Internal deployment: no marketing landing. The proxy sends logged-out
+// visitors to /login and cookie-carrying users to their last workspace;
+// this page only covers the gap where the session cookie exists but no
+// workspace cookie does yet (first login) — RedirectIfAuthenticated picks
+// the destination client-side.
+export default function RootPage() {
   return (
     <>
       <RedirectIfAuthenticated />
-      <MulticaLanding />
+      <div className="flex min-h-svh items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
     </>
   );
 }
