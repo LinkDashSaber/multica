@@ -211,6 +211,41 @@ export const EMPTY_APP_CONFIG: AppConfigResponse = {
   feature_flags: {},
 };
 
+// ---------------------------------------------------------------------------
+// Raven requirement lifecycle
+// ---------------------------------------------------------------------------
+
+export interface RavenRequirement {
+  id: string;
+  workspace_id: string;
+  issue_id: string;
+  /** One of the nine lifecycle states; treat unknown values as display-only. */
+  state: string;
+  next_states: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export const RavenRequirementSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string().default(""),
+  issue_id: z.string(),
+  state: z.string().default("idea"),
+  next_states: z.array(z.string()).default([]),
+  created_at: z.string().default(""),
+  updated_at: z.string().default(""),
+}).loose();
+
+export const EMPTY_RAVEN_REQUIREMENT: RavenRequirement = {
+  id: "",
+  workspace_id: "",
+  issue_id: "",
+  state: "idea",
+  next_states: [],
+  created_at: "",
+  updated_at: "",
+};
+
 export const CreateFeedbackResponseSchema = z.object({
   id: z.string(),
   created_at: z.string(),

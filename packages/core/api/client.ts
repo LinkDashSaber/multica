@@ -180,6 +180,9 @@ import {
   EMPTY_WEBHOOK_DELIVERY,
   AppConfigSchema,
   type AppConfigResponse,
+  RavenRequirementSchema,
+  type RavenRequirement,
+  EMPTY_RAVEN_REQUIREMENT,
   GroupedIssuesResponseSchema,
   ListAutopilotsResponseSchema,
   EMPTY_LIST_AUTOPILOTS_RESPONSE,
@@ -1539,6 +1542,21 @@ export class ApiClient {
       method: "PUT",
       body: JSON.stringify({ preferences }),
     });
+  }
+
+  // Raven requirement lifecycle
+  // 404 means the issue never opted into the Raven track (ADR-0006) — a
+  // normal state for bare issues, surfaced as null instead of an error.
+  async getRavenRequirementForIssue(issueId: string): Promise<RavenRequirement | null> {
+    try {
+      const raw = await this.fetch<unknown>(`/api/raven/issues/${issueId}/requirement`);
+      return parseWithFallback<RavenRequirement>(raw, RavenRequirementSchema, EMPTY_RAVEN_REQUIREMENT, {
+        endpoint: "GET /api/raven/issues/{issueId}/requirement",
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }
   }
 
   // App Config

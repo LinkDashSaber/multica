@@ -702,6 +702,26 @@ type ProjectResource struct {
 	CreatedBy    pgtype.UUID        `json:"created_by"`
 }
 
+type RavenRequirement struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	State       string             `json:"state"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type RavenRequirementTransition struct {
+	ID            pgtype.UUID        `json:"id"`
+	RequirementID pgtype.UUID        `json:"requirement_id"`
+	FromState     string             `json:"from_state"`
+	ToState       string             `json:"to_state"`
+	ActorType     string             `json:"actor_type"`
+	ActorID       string             `json:"actor_id"`
+	Reason        string             `json:"reason"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type RuntimeProfile struct {
 	ID             pgtype.UUID        `json:"id"`
 	WorkspaceID    pgtype.UUID        `json:"workspace_id"`

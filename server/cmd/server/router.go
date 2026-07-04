@@ -1008,6 +1008,18 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
+			// Raven requirement lifecycle (opt-in via workflow assignment)
+			r.Route("/api/raven/requirements", func(r chi.Router) {
+				r.Get("/", h.ListRavenRequirements)
+				r.Post("/", h.CreateRavenRequirement)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetRavenRequirement)
+					r.Get("/transitions", h.ListRavenTransitions)
+					r.Post("/transition", h.TransitionRavenRequirement)
+				})
+			})
+			r.Get("/api/raven/issues/{issueId}/requirement", h.GetRavenRequirementForIssue)
+
 			// Task messages (user-facing, not daemon auth)
 			r.Get("/api/tasks/{taskId}/messages", h.ListTaskMessagesByUser)
 

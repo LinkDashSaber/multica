@@ -60,6 +60,7 @@ import { CommentInput } from "./comment-input";
 import { ResolvedThreadBar } from "./resolved-thread-bar";
 import { collectThreadReplies, deriveThreadResolution } from "./thread-utils";
 import { IssueAgentHeaderChip } from "./issue-agent-header-chip";
+import { RavenLifecycleBadge } from "./raven-lifecycle-badge";
 import { ExecutionLogSection } from "./execution-log-section";
 import { PullRequestList } from "./pull-request-list";
 import { useGitHubSettings } from "@multica/core/github";
@@ -1815,6 +1816,8 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
                 it never overlaps the title (which truncates to make room).
                 It self-hides when no agent is active. */}
             <IssueAgentHeaderChip issueId={id} />
+            {/* Raven lifecycle state — self-hides for bare issues. */}
+            <RavenLifecycleBadge wsId={wsId} issueId={id} />
             {onDone && issue.status !== "done" && issue.status !== "cancelled" && (
               <Tooltip>
                 <TooltipTrigger
