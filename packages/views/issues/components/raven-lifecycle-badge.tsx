@@ -2,7 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@multica/ui/components/ui/badge";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@multica/ui/components/ui/tooltip";
 import { issueRequirementOptions } from "@multica/core/raven";
+import { useT } from "../../i18n";
 
 // Lifecycle state names are canonical glossary terms (CONTEXT.md) and are
 // displayed as-is in every locale, like "Merged" on a PR.
@@ -36,11 +42,12 @@ export function RavenLifecycleBadge({
   wsId: string;
   issueId: string;
 }) {
+  const { t } = useT("issues");
   const { data: requirement } = useQuery(issueRequirementOptions(wsId, issueId));
   if (!requirement) return null;
 
   const label = STATE_LABELS[requirement.state] ?? requirement.state;
-  return (
+  const badge = (
     <Badge
       variant="secondary"
       className={STATE_CLASSES[requirement.state] ?? ""}
@@ -48,5 +55,24 @@ export function RavenLifecycleBadge({
     >
       {label}
     </Badge>
+  );
+
+  // No successor states (e.g. terminal "learned") — keep the badge read-only:
+  // no tooltip, no focusable/interactive wrapper.
+  if (requirement.next_states.length === 0) return badge;
+
+  const sep = t(($) => $.raven_lifecycle.next_states_separator);
+  const states = requirement.next_states
+    .map((s) => STATE_LABELS[s] ?? s)
+    .join(sep);
+  const content = t(($) => $.raven_lifecycle.next_states, { states });
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span tabIndex={0} className="inline-flex" />}>
+        {badge}
+      </TooltipTrigger>
+      <TooltipContent>{content}</TooltipContent>
+    </Tooltip>
   );
 }

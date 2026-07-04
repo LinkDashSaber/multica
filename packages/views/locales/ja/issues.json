@@ -478,5 +478,9 @@
     "row_backlog_hint": "エージェントを一時停止のままにします",
     "row_todo_label": "未着手",
     "row_todo_hint": "エージェントを開始します"
+  },
+  "raven_lifecycle": {
+    "next_states": "次に進める状態：{{states}}",
+    "next_states_separator": "、"
   }
 }

@@ -498,5 +498,9 @@
     "row_backlog_hint": "keeps the agent paused",
     "row_todo_label": "Todo",
     "row_todo_hint": "starts the agent"
+  },
+  "raven_lifecycle": {
+    "next_states": "Can advance to: {{states}}",
+    "next_states_separator": ", "
   }
 }
