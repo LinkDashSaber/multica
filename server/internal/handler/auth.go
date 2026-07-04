@@ -121,16 +121,27 @@ func generateCode() (string, error) {
 }
 
 func isDevVerificationCode(code string) bool {
-	if isProductionEnv() {
-		return false
-	}
-
-	devCode := strings.TrimSpace(os.Getenv(devVerificationCodeEnv))
-	if !isSixDigitCode(devCode) {
+	devCode := activeDevVerificationCode()
+	if devCode == "" {
 		return false
 	}
 
 	return subtle.ConstantTimeCompare([]byte(code), []byte(devCode)) == 1
+}
+
+// activeDevVerificationCode returns the fixed local login code when the
+// MULTICA_DEV_VERIFICATION_CODE shortcut is enabled, or "" when it is not
+// (unset, malformed, or APP_ENV=production).
+func activeDevVerificationCode() string {
+	if isProductionEnv() {
+		return ""
+	}
+
+	devCode := strings.TrimSpace(os.Getenv(devVerificationCodeEnv))
+	if !isSixDigitCode(devCode) {
+		return ""
+	}
+	return devCode
 }
 
 func isProductionEnv() bool {

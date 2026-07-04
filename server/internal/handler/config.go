@@ -49,6 +49,13 @@ type AppConfig struct {
 	// FeatureFlags exposes only frontend-safe boolean decisions. Do not dump
 	// raw rules here: /api/config is public and may be called anonymously.
 	FeatureFlags map[string]bool `json:"feature_flags,omitempty"`
+
+	// DevVerificationCode surfaces MULTICA_DEV_VERIFICATION_CODE to the login
+	// UI so internal deployments can log in without hunting the code in server
+	// logs. Intentionally public: the fixed code already grants login to anyone
+	// who can reach the API, so echoing it here adds no exposure. Never set
+	// when APP_ENV=production (same gate as the verify path).
+	DevVerificationCode string `json:"dev_verification_code,omitempty"`
 }
 
 // GetConfig is mounted on the public (unauthenticated) route group because
@@ -66,6 +73,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	config.CdnSigned = h.CFSigner != nil
 	config.DaemonServerURL, config.DaemonAppURL = daemonSetupURLsFromEnv()
+	config.DevVerificationCode = activeDevVerificationCode()
 	config.FeatureFlags = featureflags.EvaluateFrontendPublicFlags(r.Context(), h.FeatureFlags)
 
 	// Re-read from env on every request so operators can rotate keys via

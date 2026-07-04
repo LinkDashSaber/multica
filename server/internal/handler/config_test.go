@@ -316,3 +316,41 @@ func TestGetConfigExposesFrontendFeatureFlags(t *testing.T) {
 		t.Fatalf("composio_mcp_apps: want true with flag enabled, got false")
 	}
 }
+
+func TestGetConfigExposesDevVerificationCode(t *testing.T) {
+	h := &Handler{}
+	fetch := func() AppConfig {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+		w := httptest.NewRecorder()
+		h.GetConfig(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GetConfig: expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var cfg AppConfig
+		if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+			t.Fatalf("decode config: %v", err)
+		}
+		return cfg
+	}
+
+	t.Setenv("APP_ENV", "")
+	t.Setenv("MULTICA_DEV_VERIFICATION_CODE", "888888")
+	if cfg := fetch(); cfg.DevVerificationCode != "888888" {
+		t.Fatalf("dev_verification_code: want 888888 in non-production, got %q", cfg.DevVerificationCode)
+	}
+
+	// Never leak the code on production deployments — same gate as the
+	// verify path.
+	t.Setenv("APP_ENV", "production")
+	if cfg := fetch(); cfg.DevVerificationCode != "" {
+		t.Fatalf("dev_verification_code: want empty in production, got %q", cfg.DevVerificationCode)
+	}
+
+	// Malformed codes are inert everywhere.
+	t.Setenv("APP_ENV", "")
+	t.Setenv("MULTICA_DEV_VERIFICATION_CODE", "abc")
+	if cfg := fetch(); cfg.DevVerificationCode != "" {
+		t.Fatalf("dev_verification_code: want empty for malformed code, got %q", cfg.DevVerificationCode)
+	}
+}

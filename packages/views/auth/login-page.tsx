@@ -19,6 +19,7 @@ import {
   InputOTPSlot,
 } from "@multica/ui/components/ui/input-otp";
 import { useAuthStore } from "@multica/core/auth";
+import { useConfigStore } from "@multica/core/config";
 import { workspaceKeys } from "@multica/core/workspace/queries";
 import { api } from "@multica/core/api";
 import type { User } from "@multica/core/types";
@@ -108,6 +109,9 @@ export function LoginPage({
 }: LoginPageProps) {
   const { t } = useT("auth");
   const qc = useQueryClient();
+  // Non-empty when the server runs with MULTICA_DEV_VERIFICATION_CODE —
+  // internal deployments skip the email round-trip and log in in one step.
+  const devVerificationCode = useConfigStore((s) => s.devVerificationCode);
   const [step, setStep] = useState<"email" | "code" | "cli_confirm">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -162,6 +166,46 @@ export function LoginPage({
     return () => clearTimeout(timer);
   }, [cooldown]);
 
+  const handleVerify = useCallback(
+    async (value: string): Promise<boolean> => {
+      if (value.length !== 6) return false;
+      setLoading(true);
+      setError("");
+      try {
+        if (cliCallback) {
+          // CLI path: get token directly for the redirect URL
+          const { token } = await api.verifyCode(email, value);
+          localStorage.setItem("multica_token", token);
+          api.setToken(token);
+          onTokenObtained?.();
+          redirectToCliCallback(cliCallback.url, token, cliCallback.state);
+          return true;
+        }
+
+        // Normal path: seed the workspace list into the Query cache so the
+        // caller's onSuccess can read it synchronously to compute a destination
+        // URL (first workspace's slug, or /workspaces/new for zero-workspace
+        // users).
+        await useAuthStore.getState().verifyCode(email, value);
+        const wsList = await api.listWorkspaces();
+        qc.setQueryData(workspaceKeys.list(), wsList);
+        onTokenObtained?.();
+        onSuccess();
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : t(($) => $.errors.code_invalid),
+        );
+        setCode("");
+        setLoading(false);
+        return false;
+      }
+    },
+    [email, onSuccess, cliCallback, onTokenObtained, qc, t],
+  );
+
   const handleSendCode = useCallback(
     async (e?: React.FormEvent) => {
       e?.preventDefault();
@@ -173,6 +217,12 @@ export function LoginPage({
       setError("");
       try {
         await useAuthStore.getState().sendCode(email);
+        // Dev-code shortcut: verify immediately with the fixed code so the
+        // user never sees the OTP step. On failure fall through to the
+        // normal code step with the error visible.
+        if (devVerificationCode && (await handleVerify(devVerificationCode))) {
+          return;
+        }
         setStep("code");
         setCode("");
         setCooldown(60);
@@ -186,45 +236,7 @@ export function LoginPage({
         setLoading(false);
       }
     },
-    [email, t],
-  );
-
-  const handleVerify = useCallback(
-    async (value: string) => {
-      if (value.length !== 6) return;
-      setLoading(true);
-      setError("");
-      try {
-        if (cliCallback) {
-          // CLI path: get token directly for the redirect URL
-          const { token } = await api.verifyCode(email, value);
-          localStorage.setItem("multica_token", token);
-          api.setToken(token);
-          onTokenObtained?.();
-          redirectToCliCallback(cliCallback.url, token, cliCallback.state);
-          return;
-        }
-
-        // Normal path: seed the workspace list into the Query cache so the
-        // caller's onSuccess can read it synchronously to compute a destination
-        // URL (first workspace's slug, or /workspaces/new for zero-workspace
-        // users).
-        await useAuthStore.getState().verifyCode(email, value);
-        const wsList = await api.listWorkspaces();
-        qc.setQueryData(workspaceKeys.list(), wsList);
-        onTokenObtained?.();
-        onSuccess();
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : t(($) => $.errors.code_invalid),
-        );
-        setCode("");
-        setLoading(false);
-      }
-    },
-    [email, onSuccess, cliCallback, onTokenObtained, qc, t],
+    [email, t, devVerificationCode, handleVerify],
   );
 
   const handleResend = async () => {

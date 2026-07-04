@@ -15,12 +15,16 @@ interface ConfigState {
   // must be hidden. Defaults to false so unknown / older servers behave like
   // the managed-cloud case.
   workspaceCreationDisabled: boolean;
+  // Fixed local login code from non-production servers with
+  // MULTICA_DEV_VERIFICATION_CODE set. Empty = normal email code flow.
+  devVerificationCode: string;
   featureFlags: Record<string, boolean>;
   setCdnConfig: (config: { cdnDomain: string; cdnSigned?: boolean }) => void;
   setAuthConfig: (config: {
     allowSignup: boolean;
     googleClientId?: string;
     workspaceCreationDisabled?: boolean;
+    devVerificationCode?: string;
   }) => void;
   setDaemonConfig: (config: {
     daemonServerUrl?: string;
@@ -37,10 +41,16 @@ export const configStore = createStore<ConfigState>((set) => ({
   daemonServerUrl: "",
   daemonAppUrl: "",
   workspaceCreationDisabled: false,
+  devVerificationCode: "",
   featureFlags: {},
   setCdnConfig: ({ cdnDomain, cdnSigned = false }) => set({ cdnDomain, cdnSigned }),
-  setAuthConfig: ({ allowSignup, googleClientId = "", workspaceCreationDisabled = false }) =>
-    set({ allowSignup, googleClientId, workspaceCreationDisabled }),
+  setAuthConfig: ({
+    allowSignup,
+    googleClientId = "",
+    workspaceCreationDisabled = false,
+    devVerificationCode = "",
+  }) =>
+    set({ allowSignup, googleClientId, workspaceCreationDisabled, devVerificationCode }),
   setDaemonConfig: ({ daemonServerUrl = "", daemonAppUrl = "" }) =>
     set({ daemonServerUrl, daemonAppUrl }),
   setFeatureFlags: (flags = {}) => set({ featureFlags: { ...flags } }),

@@ -44,6 +44,10 @@ export interface AppConfigResponse {
   daemon_app_url?: string;
   workspace_creation_disabled?: boolean;
   feature_flags?: Record<string, boolean>;
+  // Fixed local login code echoed by non-production servers that set
+  // MULTICA_DEV_VERIFICATION_CODE, so the login UI can skip the email
+  // verification round-trip. Absent on production servers.
+  dev_verification_code?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,6 +197,7 @@ export const AppConfigSchema = z.object({
   daemon_app_url: OptionalStringSchema,
   workspace_creation_disabled: BooleanWithDefaultSchema(false).optional(),
   feature_flags: FeatureFlagsSchema,
+  dev_verification_code: OptionalStringSchema,
 }).loose();
 
 export const EMPTY_APP_CONFIG: AppConfigResponse = {
