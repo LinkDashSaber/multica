@@ -38,6 +38,30 @@ type ContractStage struct {
 	Description string `json:"description,omitempty"`
 }
 
+// UnmarshalJSON accepts both the object form {"name": ..., "description": ...}
+// and the legacy bare-string form "clarify" (issue #15 backward compatibility).
+func (s *ContractStage) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
+		var name string
+		if err := json.Unmarshal(data, &name); err != nil {
+			return err
+		}
+		*s = ContractStage{Name: name}
+		return nil
+	}
+	// Local alias avoids recursing into this method; strict fields to match
+	// the top-level DisallowUnknownFields behaviour.
+	type stageAlias ContractStage
+	var a stageAlias
+	dec := json.NewDecoder(bytesReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&a); err != nil {
+		return err
+	}
+	*s = ContractStage(a)
+	return nil
+}
+
 type ContractGate struct {
 	Name string `json:"name"`
 	// AfterStage names the stage this gate suspends after. Must reference a

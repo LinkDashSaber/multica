@@ -55,7 +55,7 @@ func (q *Queries) CreateRavenEvidence(ctx context.Context, arg CreateRavenEviden
 const createRavenRun = `-- name: CreateRavenRun :one
 INSERT INTO raven_run (workspace_id, requirement_id, workflow_id, status)
 VALUES ($1, $2, $3, $4)
-RETURNING id, workspace_id, requirement_id, workflow_id, trigger_run_id, status, termination_reason, tokens_spent, usd_spent, created_at, updated_at
+RETURNING id, workspace_id, requirement_id, workflow_id, trigger_run_id, status, termination_reason, tokens_spent, usd_spent, created_at, updated_at, current_stage
 `
 
 type CreateRavenRunParams struct {
@@ -85,12 +85,45 @@ func (q *Queries) CreateRavenRun(ctx context.Context, arg CreateRavenRunParams) 
 		&i.UsdSpent,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CurrentStage,
+	)
+	return i, err
+}
+
+const createRavenRunStageEvent = `-- name: CreateRavenRunStageEvent :one
+INSERT INTO raven_run_stage_event (workspace_id, run_id, stage, event)
+VALUES ($1, $2, $3, $4)
+RETURNING id, workspace_id, run_id, stage, event, created_at
+`
+
+type CreateRavenRunStageEventParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	RunID       pgtype.UUID `json:"run_id"`
+	Stage       string      `json:"stage"`
+	Event       string      `json:"event"`
+}
+
+func (q *Queries) CreateRavenRunStageEvent(ctx context.Context, arg CreateRavenRunStageEventParams) (RavenRunStageEvent, error) {
+	row := q.db.QueryRow(ctx, createRavenRunStageEvent,
+		arg.WorkspaceID,
+		arg.RunID,
+		arg.Stage,
+		arg.Event,
+	)
+	var i RavenRunStageEvent
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.RunID,
+		&i.Stage,
+		&i.Event,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getRavenRun = `-- name: GetRavenRun :one
-SELECT id, workspace_id, requirement_id, workflow_id, trigger_run_id, status, termination_reason, tokens_spent, usd_spent, created_at, updated_at FROM raven_run
+SELECT id, workspace_id, requirement_id, workflow_id, trigger_run_id, status, termination_reason, tokens_spent, usd_spent, created_at, updated_at, current_stage FROM raven_run
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -115,6 +148,7 @@ func (q *Queries) GetRavenRun(ctx context.Context, arg GetRavenRunParams) (Raven
 		&i.UsdSpent,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CurrentStage,
 	)
 	return i, err
 }
@@ -160,8 +194,46 @@ func (q *Queries) ListRavenEvidenceByRequirement(ctx context.Context, arg ListRa
 	return items, nil
 }
 
+const listRavenRunStageEventsByRun = `-- name: ListRavenRunStageEventsByRun :many
+SELECT id, workspace_id, run_id, stage, event, created_at FROM raven_run_stage_event
+WHERE run_id = $1 AND workspace_id = $2
+ORDER BY created_at ASC
+`
+
+type ListRavenRunStageEventsByRunParams struct {
+	RunID       pgtype.UUID `json:"run_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+func (q *Queries) ListRavenRunStageEventsByRun(ctx context.Context, arg ListRavenRunStageEventsByRunParams) ([]RavenRunStageEvent, error) {
+	rows, err := q.db.Query(ctx, listRavenRunStageEventsByRun, arg.RunID, arg.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RavenRunStageEvent{}
+	for rows.Next() {
+		var i RavenRunStageEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.RunID,
+			&i.Stage,
+			&i.Event,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRavenRunsByRequirement = `-- name: ListRavenRunsByRequirement :many
-SELECT id, workspace_id, requirement_id, workflow_id, trigger_run_id, status, termination_reason, tokens_spent, usd_spent, created_at, updated_at FROM raven_run
+SELECT id, workspace_id, requirement_id, workflow_id, trigger_run_id, status, termination_reason, tokens_spent, usd_spent, created_at, updated_at, current_stage FROM raven_run
 WHERE requirement_id = $1 AND workspace_id = $2
 ORDER BY created_at DESC
 `
@@ -192,6 +264,7 @@ func (q *Queries) ListRavenRunsByRequirement(ctx context.Context, arg ListRavenR
 			&i.UsdSpent,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CurrentStage,
 		); err != nil {
 			return nil, err
 		}
@@ -204,7 +277,7 @@ func (q *Queries) ListRavenRunsByRequirement(ctx context.Context, arg ListRavenR
 }
 
 const listRavenRunsByWorkflow = `-- name: ListRavenRunsByWorkflow :many
-SELECT r.id, r.workspace_id, r.requirement_id, r.workflow_id, r.trigger_run_id, r.status, r.termination_reason, r.tokens_spent, r.usd_spent, r.created_at, r.updated_at, req.issue_id
+SELECT r.id, r.workspace_id, r.requirement_id, r.workflow_id, r.trigger_run_id, r.status, r.termination_reason, r.tokens_spent, r.usd_spent, r.created_at, r.updated_at, r.current_stage, req.issue_id
 FROM raven_run r
 JOIN raven_requirement req ON req.id = r.requirement_id
 WHERE r.workflow_id = $1 AND r.workspace_id = $2
@@ -228,6 +301,7 @@ type ListRavenRunsByWorkflowRow struct {
 	UsdSpent          float64            `json:"usd_spent"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	CurrentStage      string             `json:"current_stage"`
 	IssueID           pgtype.UUID        `json:"issue_id"`
 }
 
@@ -253,6 +327,7 @@ func (q *Queries) ListRavenRunsByWorkflow(ctx context.Context, arg ListRavenRuns
 			&i.UsdSpent,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CurrentStage,
 			&i.IssueID,
 		); err != nil {
 			return nil, err
@@ -272,9 +347,10 @@ UPDATE raven_run SET
     termination_reason = COALESCE($5, termination_reason),
     tokens_spent = COALESCE($6, tokens_spent),
     usd_spent = COALESCE($7, usd_spent),
+    current_stage = COALESCE($8, current_stage),
     updated_at = now()
 WHERE id = $1 AND workspace_id = $2
-RETURNING id, workspace_id, requirement_id, workflow_id, trigger_run_id, status, termination_reason, tokens_spent, usd_spent, created_at, updated_at
+RETURNING id, workspace_id, requirement_id, workflow_id, trigger_run_id, status, termination_reason, tokens_spent, usd_spent, created_at, updated_at, current_stage
 `
 
 type UpdateRavenRunParams struct {
@@ -285,6 +361,7 @@ type UpdateRavenRunParams struct {
 	TerminationReason pgtype.Text   `json:"termination_reason"`
 	TokensSpent       pgtype.Int8   `json:"tokens_spent"`
 	UsdSpent          pgtype.Float8 `json:"usd_spent"`
+	CurrentStage      pgtype.Text   `json:"current_stage"`
 }
 
 func (q *Queries) UpdateRavenRun(ctx context.Context, arg UpdateRavenRunParams) (RavenRun, error) {
@@ -296,6 +373,7 @@ func (q *Queries) UpdateRavenRun(ctx context.Context, arg UpdateRavenRunParams) 
 		arg.TerminationReason,
 		arg.TokensSpent,
 		arg.UsdSpent,
+		arg.CurrentStage,
 	)
 	var i RavenRun
 	err := row.Scan(
@@ -310,6 +388,7 @@ func (q *Queries) UpdateRavenRun(ctx context.Context, arg UpdateRavenRunParams) 
 		&i.UsdSpent,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CurrentStage,
 	)
 	return i, err
 }

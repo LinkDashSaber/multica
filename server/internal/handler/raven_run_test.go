@@ -130,6 +130,116 @@ func TestRavenRunAndEvidenceFlow(t *testing.T) {
 	}
 }
 
+// TestRavenRunStageEvents: SDK-style stage progress reporting — entered/exited
+// events append to the stream and mirror onto the run's current_stage.
+func TestRavenRunStageEvents(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	issueID := createTestIssue(t, "raven stage events", "backlog", "medium")
+	t.Cleanup(func() { deleteTestIssue(t, issueID) })
+	requirement := createRavenRequirement(t, issueID)
+
+	w := httptest.NewRecorder()
+	req := withURLParam(newRequest("POST", "/api/raven/requirements/"+requirement.ID+"/runs", nil), "id", requirement.ID)
+	testHandler.CreateRavenRun(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("CreateRavenRun: expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var run RavenRunResponse
+	json.NewDecoder(w.Body).Decode(&run)
+	if run.CurrentStage != "" {
+		t.Fatalf("fresh run current_stage: want empty, got %q", run.CurrentStage)
+	}
+
+	postEvent := func(body map[string]any) (int, RavenRunStageEventResponse) {
+		t.Helper()
+		w := httptest.NewRecorder()
+		req := withURLParam(newRequest("POST", "/api/raven/runs/"+run.ID+"/stage-events", body), "id", run.ID)
+		testHandler.CreateRavenRunStageEvent(w, req)
+		var resp RavenRunStageEventResponse
+		json.NewDecoder(w.Body).Decode(&resp)
+		return w.Code, resp
+	}
+	currentStage := func() string {
+		t.Helper()
+		w := httptest.NewRecorder()
+		testHandler.ListRavenRuns(w, withURLParam(newRequest("GET", "/api/raven/requirements/"+requirement.ID+"/runs", nil), "id", requirement.ID))
+		var list struct {
+			Runs []RavenRunResponse `json:"runs"`
+		}
+		json.NewDecoder(w.Body).Decode(&list)
+		for _, item := range list.Runs {
+			if item.ID == run.ID {
+				return item.CurrentStage
+			}
+		}
+		t.Fatalf("run %s missing from list", run.ID)
+		return ""
+	}
+
+	// entered → current_stage mirrors the stage.
+	if code, ev := postEvent(map[string]any{"stage": "clarify", "event": "entered"}); code != http.StatusCreated || ev.Stage != "clarify" || ev.Event != "entered" || ev.CreatedAt == "" {
+		t.Fatalf("entered event: code=%d ev=%+v", code, ev)
+	}
+	if got := currentStage(); got != "clarify" {
+		t.Fatalf("current_stage after entered: want clarify, got %q", got)
+	}
+
+	// exited the current stage → current_stage clears.
+	if code, _ := postEvent(map[string]any{"stage": "clarify", "event": "exited"}); code != http.StatusCreated {
+		t.Fatalf("exited event: code=%d", code)
+	}
+	if got := currentStage(); got != "" {
+		t.Fatalf("current_stage after exited: want empty, got %q", got)
+	}
+
+	// next stage entered.
+	postEvent(map[string]any{"stage": "plan", "event": "entered"})
+	if got := currentStage(); got != "plan" {
+		t.Fatalf("current_stage after second entered: want plan, got %q", got)
+	}
+
+	// Validation: unknown event type and missing stage are rejected.
+	if code, _ := postEvent(map[string]any{"stage": "plan", "event": "paused"}); code != http.StatusBadRequest {
+		t.Fatalf("unknown event type: expected 400, got %d", code)
+	}
+	if code, _ := postEvent(map[string]any{"event": "entered"}); code != http.StatusBadRequest {
+		t.Fatalf("missing stage: expected 400, got %d", code)
+	}
+
+	// Unknown run → 404.
+	wMissing := httptest.NewRecorder()
+	missingID := "00000000-0000-0000-0000-000000000001"
+	reqMissing := withURLParam(newRequest("POST", "/api/raven/runs/"+missingID+"/stage-events", map[string]any{"stage": "s", "event": "entered"}), "id", missingID)
+	testHandler.CreateRavenRunStageEvent(wMissing, reqMissing)
+	if wMissing.Code != http.StatusNotFound {
+		t.Fatalf("stage event on unknown run: expected 404, got %d", wMissing.Code)
+	}
+
+	// Event stream reads back oldest-first with timestamps.
+	wList := httptest.NewRecorder()
+	testHandler.ListRavenRunStageEvents(wList, withURLParam(newRequest("GET", "/api/raven/runs/"+run.ID+"/stage-events", nil), "id", run.ID))
+	if wList.Code != http.StatusOK {
+		t.Fatalf("ListRavenRunStageEvents: expected 200, got %d: %s", wList.Code, wList.Body.String())
+	}
+	var events struct {
+		Events []RavenRunStageEventResponse `json:"events"`
+		Total  int                          `json:"total"`
+	}
+	json.NewDecoder(wList.Body).Decode(&events)
+	if events.Total != 3 {
+		t.Fatalf("event stream: %+v", events)
+	}
+	want := [][2]string{{"clarify", "entered"}, {"clarify", "exited"}, {"plan", "entered"}}
+	for i, exp := range want {
+		got := events.Events[i]
+		if got.Stage != exp[0] || got.Event != exp[1] || got.CreatedAt == "" {
+			t.Fatalf("event[%d]: want %v, got %+v", i, exp, got)
+		}
+	}
+}
+
 // TestRavenContractRetryDeclaration: retry/timeout parse from the contract
 // declaration (the only place execution layers may read them from).
 func TestRavenContractRetryDeclaration(t *testing.T) {

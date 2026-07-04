@@ -23,6 +23,7 @@ type RavenRunResponse struct {
 	WorkflowID        *string `json:"workflow_id"`
 	TriggerRunID      string  `json:"trigger_run_id"`
 	Status            string  `json:"status"`
+	CurrentStage      string  `json:"current_stage"`
 	TerminationReason string  `json:"termination_reason"`
 	TokensSpent       int64   `json:"tokens_spent"`
 	UsdSpent          float64 `json:"usd_spent"`
@@ -49,6 +50,7 @@ func ravenRunToResponse(run db.RavenRun) RavenRunResponse {
 		WorkflowID:        uuidToPtr(run.WorkflowID),
 		TriggerRunID:      run.TriggerRunID,
 		Status:            run.Status,
+		CurrentStage:      run.CurrentStage,
 		TerminationReason: run.TerminationReason,
 		TokensSpent:       run.TokensSpent,
 		UsdSpent:          run.UsdSpent,
@@ -265,6 +267,122 @@ func (h *Handler) ListRavenEvidence(w http.ResponseWriter, r *http.Request) {
 		resp[i] = ravenEvidenceToResponse(e)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"evidence": resp, "total": len(resp)})
+}
+
+// --- Stage progress reporting (issue #15) -----------------------------------
+
+type RavenRunStageEventResponse struct {
+	ID        string `json:"id"`
+	RunID     string `json:"run_id"`
+	Stage     string `json:"stage"`
+	Event     string `json:"event"`
+	CreatedAt string `json:"created_at"`
+}
+
+func ravenRunStageEventToResponse(e db.RavenRunStageEvent) RavenRunStageEventResponse {
+	return RavenRunStageEventResponse{
+		ID:        uuidToString(e.ID),
+		RunID:     uuidToString(e.RunID),
+		Stage:     e.Stage,
+		Event:     e.Event,
+		CreatedAt: timestampToString(e.CreatedAt),
+	}
+}
+
+// CreateRavenRunStageEvent records a stage entered/exited event from the SDK
+// and mirrors it onto the run's current_stage.
+func (h *Handler) CreateRavenRunStageEvent(w http.ResponseWriter, r *http.Request) {
+	runUUID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "id"), "run id")
+	if !ok {
+		return
+	}
+	wsUUID, ok := parseUUIDOrBadRequest(w, h.resolveWorkspaceID(r), "workspace id")
+	if !ok {
+		return
+	}
+	var req struct {
+		Stage string `json:"stage"`
+		Event string `json:"event"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Stage == "" {
+		writeError(w, http.StatusBadRequest, "stage is required")
+		return
+	}
+	if req.Event != "entered" && req.Event != "exited" {
+		writeError(w, http.StatusBadRequest, `event must be "entered" or "exited"`)
+		return
+	}
+	// Tenant guard: the run must live in this workspace.
+	run, err := h.Queries.GetRavenRun(r.Context(), db.GetRavenRunParams{ID: runUUID, WorkspaceID: wsUUID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "run not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to load run")
+		return
+	}
+
+	event, err := h.Queries.CreateRavenRunStageEvent(r.Context(), db.CreateRavenRunStageEventParams{
+		WorkspaceID: wsUUID,
+		RunID:       run.ID,
+		Stage:       req.Stage,
+		Event:       req.Event,
+	})
+	if err != nil {
+		slog.Warn("CreateRavenRunStageEvent failed", append(logger.RequestAttrs(r), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to create stage event")
+		return
+	}
+
+	// current_stage mirrors the latest entered stage; exiting the current
+	// stage clears it (the next entered event sets the new one).
+	currentStage := ""
+	switch {
+	case req.Event == "entered":
+		currentStage = req.Stage
+	case req.Event == "exited" && run.CurrentStage != req.Stage:
+		currentStage = run.CurrentStage
+	}
+	if currentStage != run.CurrentStage {
+		if _, err := h.Queries.UpdateRavenRun(r.Context(), db.UpdateRavenRunParams{
+			ID: run.ID, WorkspaceID: wsUUID,
+			CurrentStage: pgtype.Text{String: currentStage, Valid: true},
+		}); err != nil {
+			slog.Warn("stage event current_stage update failed", append(logger.RequestAttrs(r), "error", err)...)
+			writeError(w, http.StatusInternalServerError, "failed to update run stage")
+			return
+		}
+	}
+	writeJSON(w, http.StatusCreated, ravenRunStageEventToResponse(event))
+}
+
+// ListRavenRunStageEvents returns a run's stage event stream, oldest first.
+func (h *Handler) ListRavenRunStageEvents(w http.ResponseWriter, r *http.Request) {
+	runUUID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "id"), "run id")
+	if !ok {
+		return
+	}
+	wsUUID, ok := parseUUIDOrBadRequest(w, h.resolveWorkspaceID(r), "workspace id")
+	if !ok {
+		return
+	}
+	list, err := h.Queries.ListRavenRunStageEventsByRun(r.Context(), db.ListRavenRunStageEventsByRunParams{
+		RunID: runUUID, WorkspaceID: wsUUID,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list stage events")
+		return
+	}
+	resp := make([]RavenRunStageEventResponse, len(list))
+	for i, e := range list {
+		resp[i] = ravenRunStageEventToResponse(e)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"events": resp, "total": len(resp)})
 }
 
 // ravenService returns the Raven domain service, created lazily so tests

@@ -28,9 +28,20 @@ UPDATE raven_run SET
     termination_reason = COALESCE(sqlc.narg('termination_reason'), termination_reason),
     tokens_spent = COALESCE(sqlc.narg('tokens_spent'), tokens_spent),
     usd_spent = COALESCE(sqlc.narg('usd_spent'), usd_spent),
+    current_stage = COALESCE(sqlc.narg('current_stage'), current_stage),
     updated_at = now()
 WHERE id = $1 AND workspace_id = $2
 RETURNING *;
+
+-- name: CreateRavenRunStageEvent :one
+INSERT INTO raven_run_stage_event (workspace_id, run_id, stage, event)
+VALUES ($1, $2, $3, $4)
+RETURNING *;
+
+-- name: ListRavenRunStageEventsByRun :many
+SELECT * FROM raven_run_stage_event
+WHERE run_id = $1 AND workspace_id = $2
+ORDER BY created_at ASC;
 
 -- name: CreateRavenEvidence :one
 INSERT INTO raven_evidence (workspace_id, requirement_id, run_id, kind, source, summary, payload)
