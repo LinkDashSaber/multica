@@ -92,5 +92,12 @@
     "use": "Use",
     "ignore": "Ignore",
     "fallback_squad": "Pick a squad"
+  },
+  "stage_strip": {
+    "title": "Delivery progress",
+    "done": "Done",
+    "running": "Running",
+    "waiting_decision": "Awaiting decision",
+    "pending": "Not started"
   }
 }

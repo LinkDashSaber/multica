@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
 import {
+  parseContractGates,
+  parseContractStages,
   ravenWorkflowOptions,
   ravenWorkflowRunsOptions,
   type RavenWorkflowRun,
@@ -63,28 +65,9 @@ function parseContractView(
     return view;
   }
   const obj = contract as Record<string, unknown>;
-  if (Array.isArray(obj.stages)) {
-    for (const s of obj.stages) {
-      if (s && typeof s === "object" && typeof (s as Record<string, unknown>).name === "string") {
-        const stage = s as { name: string; description?: unknown };
-        view.stages.push({
-          name: stage.name,
-          description: typeof stage.description === "string" ? stage.description : undefined,
-        });
-      }
-    }
-  }
-  if (Array.isArray(obj.gates)) {
-    for (const g of obj.gates) {
-      if (g && typeof g === "object" && typeof (g as Record<string, unknown>).name === "string") {
-        const gate = g as { name: string; after_stage?: unknown };
-        view.gates.push({
-          name: gate.name,
-          after_stage: typeof gate.after_stage === "string" ? gate.after_stage : undefined,
-        });
-      }
-    }
-  }
+  // Shared readers handle both stage forms (object / bare string, issue #15).
+  view.stages = parseContractStages(contract);
+  view.gates = parseContractGates(contract);
   const budget = obj.budget as Record<string, unknown> | undefined;
   if (budget && typeof budget === "object") {
     if (typeof budget.max_tokens === "number" && budget.max_tokens > 0) {

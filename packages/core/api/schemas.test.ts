@@ -13,9 +13,13 @@ import {
   EMPTY_RAVEN_GATE_REVIEW_LIST,
   EMPTY_USER,
   InboxUnreadSummarySchema,
+  EMPTY_RAVEN_RUN_LIST,
+  EMPTY_RAVEN_STAGE_EVENT_LIST,
   RavenEvidenceListSchema,
   RavenGateReviewListSchema,
   RavenGateReviewSchema,
+  RavenRunListSchema,
+  RavenStageEventListSchema,
   IssueTriggerPreviewSchema,
   ListIssuesResponseSchema,
   RuntimeHourlyActivityListSchema,
@@ -618,5 +622,71 @@ describe("RavenEvidenceListSchema", () => {
     expect(
       parseWithFallback([], RavenEvidenceListSchema, EMPTY_RAVEN_EVIDENCE_LIST, ENDPOINT),
     ).toBe(EMPTY_RAVEN_EVIDENCE_LIST);
+  });
+});
+
+describe("RavenRunListSchema", () => {
+  const ENDPOINT = { endpoint: "GET /api/raven/requirements/{id}/runs" };
+
+  it("parses runs and defaults current_stage for older backends", () => {
+    const parsed = parseWithFallback(
+      {
+        runs: [
+          {
+            id: "run-1",
+            requirement_id: "req-1",
+            status: "running",
+            current_stage: "execute",
+          },
+          // A pre-#15 backend row without current_stage must still parse.
+          { id: "run-0", requirement_id: "req-1", status: "completed" },
+        ],
+        total: 2,
+      },
+      RavenRunListSchema,
+      EMPTY_RAVEN_RUN_LIST,
+      ENDPOINT,
+    );
+    expect(parsed.runs[0]?.current_stage).toBe("execute");
+    expect(parsed.runs[1]?.current_stage).toBe("");
+    expect(parsed.runs[1]?.workflow_id).toBeNull();
+  });
+
+  it("returns the fallback for a malformed body", () => {
+    expect(parseWithFallback(null, RavenRunListSchema, EMPTY_RAVEN_RUN_LIST, ENDPOINT)).toBe(
+      EMPTY_RAVEN_RUN_LIST,
+    );
+    const empty = parseWithFallback({}, RavenRunListSchema, EMPTY_RAVEN_RUN_LIST, ENDPOINT);
+    expect(empty.runs).toEqual([]);
+  });
+});
+
+describe("RavenStageEventListSchema", () => {
+  const ENDPOINT = { endpoint: "GET /api/raven/runs/{id}/stage-events" };
+
+  it("parses the stage event stream with timestamps", () => {
+    const parsed = parseWithFallback(
+      {
+        events: [
+          { id: "e-1", run_id: "run-1", stage: "clarify", event: "entered", created_at: "2026-07-01T10:00:00Z" },
+          { id: "e-2", run_id: "run-1", stage: "clarify", event: "exited", created_at: "2026-07-01T10:30:00Z" },
+        ],
+        total: 2,
+      },
+      RavenStageEventListSchema,
+      EMPTY_RAVEN_STAGE_EVENT_LIST,
+      ENDPOINT,
+    );
+    expect(parsed.events).toHaveLength(2);
+    expect(parsed.events[0]?.stage).toBe("clarify");
+    expect(parsed.events[1]?.event).toBe("exited");
+  });
+
+  it("returns the fallback for a malformed body", () => {
+    expect(
+      parseWithFallback([], RavenStageEventListSchema, EMPTY_RAVEN_STAGE_EVENT_LIST, ENDPOINT),
+    ).toBe(EMPTY_RAVEN_STAGE_EVENT_LIST);
+    const empty = parseWithFallback({}, RavenStageEventListSchema, EMPTY_RAVEN_STAGE_EVENT_LIST, ENDPOINT);
+    expect(empty.events).toEqual([]);
   });
 });

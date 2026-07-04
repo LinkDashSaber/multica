@@ -204,6 +204,12 @@ import {
   RavenWorkflowRunListSchema,
   type RavenWorkflowRunListResponse,
   EMPTY_RAVEN_WORKFLOW_RUN_LIST,
+  RavenRunListSchema,
+  type RavenRunListResponse,
+  EMPTY_RAVEN_RUN_LIST,
+  RavenStageEventListSchema,
+  type RavenStageEventListResponse,
+  EMPTY_RAVEN_STAGE_EVENT_LIST,
   RavenTransitionListSchema,
   type RavenTransitionListResponse,
   EMPTY_RAVEN_TRANSITION_LIST,
@@ -1675,6 +1681,22 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(`/api/raven/requirements/${id}`);
     return parseWithFallback<RavenRequirement>(raw, RavenRequirementSchema, EMPTY_RAVEN_REQUIREMENT, {
       endpoint: "GET /api/raven/requirements/{id}",
+    });
+  }
+
+  // A requirement's runs, newest first (each carries current_stage).
+  async listRavenRuns(requirementId: string): Promise<RavenRunListResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/requirements/${requirementId}/runs`);
+    return parseWithFallback<RavenRunListResponse>(raw, RavenRunListSchema, EMPTY_RAVEN_RUN_LIST, {
+      endpoint: "GET /api/raven/requirements/{id}/runs",
+    });
+  }
+
+  // A run's stage event stream, oldest first (issue #15).
+  async listRavenRunStageEvents(runId: string): Promise<RavenStageEventListResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/runs/${runId}/stage-events`);
+    return parseWithFallback<RavenStageEventListResponse>(raw, RavenStageEventListSchema, EMPTY_RAVEN_STAGE_EVENT_LIST, {
+      endpoint: "GET /api/raven/runs/{id}/stage-events",
     });
   }
 

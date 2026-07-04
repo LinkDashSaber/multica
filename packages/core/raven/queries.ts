@@ -4,6 +4,8 @@ import type {
   RavenEvidence,
   RavenGateReview,
   RavenRequirement,
+  RavenRun,
+  RavenRunStageEvent,
   RavenTransition,
   RavenWorkflow,
   RavenWorkflowRun,
@@ -14,6 +16,8 @@ export type {
   RavenEvidence,
   RavenGateReview,
   RavenRequirement,
+  RavenRun,
+  RavenRunStageEvent,
   RavenTransition,
   RavenWorkflow,
   RavenWorkflowRun,
@@ -35,6 +39,10 @@ export const ravenKeys = {
     [...ravenKeys.all(wsId), "requirement-transitions", requirementId] as const,
   requirementGates: (wsId: string, requirementId: string) =>
     [...ravenKeys.all(wsId), "requirement-gates", requirementId] as const,
+  requirementRuns: (wsId: string, requirementId: string) =>
+    [...ravenKeys.all(wsId), "requirement-runs", requirementId] as const,
+  runStageEvents: (wsId: string, runId: string) =>
+    [...ravenKeys.all(wsId), "run-stage-events", runId] as const,
   requirement: (wsId: string, id: string) =>
     [...ravenKeys.all(wsId), "requirement", id] as const,
   requirementEvidence: (wsId: string, requirementId: string) =>
@@ -96,6 +104,29 @@ export function requirementGatesOptions(wsId: string, requirementId: string) {
     queryKey: ravenKeys.requirementGates(wsId, requirementId),
     queryFn: async () => (await api.listRavenGates(requirementId)).gates,
     staleTime: 15_000,
+  });
+}
+
+/**
+ * A requirement's runs, newest first. Polls while visible so the issue
+ * detail stage strip follows run progress (issue #15).
+ */
+export function requirementRunsOptions(wsId: string, requirementId: string) {
+  return queryOptions<RavenRun[]>({
+    queryKey: ravenKeys.requirementRuns(wsId, requirementId),
+    queryFn: async () => (await api.listRavenRuns(requirementId)).runs,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+}
+
+/** A run's stage event stream, oldest first (issue #15). */
+export function runStageEventsOptions(wsId: string, runId: string) {
+  return queryOptions<RavenRunStageEvent[]>({
+    queryKey: ravenKeys.runStageEvents(wsId, runId),
+    queryFn: async () => (await api.listRavenRunStageEvents(runId)).events,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
   });
 }
 

@@ -435,9 +435,8 @@ export const EMPTY_RAVEN_WORKFLOW_STATS_LIST: RavenWorkflowStatsListResponse = {
   total: 0,
 };
 
-// A run in a workflow's history: the raven_run row plus the requirement's
-// issue for linking and the gate decisions made during the run.
-export interface RavenWorkflowRun {
+// A bare raven_run row, as returned by the requirement runs endpoint.
+export interface RavenRun {
   id: string;
   workspace_id: string;
   requirement_id: string;
@@ -445,29 +444,88 @@ export interface RavenWorkflowRun {
   trigger_run_id: string;
   /** "pending" | "running" | "completed" | "failed" | "terminated"; treat unknown values as display-only. */
   status: string;
+  /** Contract stage the run is currently in; "" between stages / before start. */
+  current_stage: string;
   termination_reason: string;
   tokens_spent: number;
   usd_spent: number;
   created_at: string;
   updated_at: string;
+}
+
+const RavenRunObjectSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string().default(""),
+  requirement_id: z.string().default(""),
+  workflow_id: z.string().nullable().default(null),
+  trigger_run_id: z.string().default(""),
+  status: z.string().default("pending"),
+  current_stage: z.string().default(""),
+  termination_reason: z.string().default(""),
+  tokens_spent: z.number().default(0),
+  usd_spent: z.number().default(0),
+  created_at: z.string().default(""),
+  updated_at: z.string().default(""),
+});
+
+export const RavenRunListSchema = z.object({
+  runs: z.array(RavenRunObjectSchema.loose()).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenRunListResponse {
+  runs: RavenRun[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_RUN_LIST: RavenRunListResponse = {
+  runs: [],
+  total: 0,
+};
+
+// Stage event stream of one run (issue #15): entered/exited per stage.
+export interface RavenRunStageEvent {
+  id: string;
+  run_id: string;
+  stage: string;
+  /** "entered" | "exited"; treat unknown values as display-only. */
+  event: string;
+  created_at: string;
+}
+
+export const RavenStageEventListSchema = z.object({
+  events: z.array(
+    z.object({
+      id: z.string(),
+      run_id: z.string().default(""),
+      stage: z.string().default(""),
+      event: z.string().default(""),
+      created_at: z.string().default(""),
+    }).loose(),
+  ).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenStageEventListResponse {
+  events: RavenRunStageEvent[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_STAGE_EVENT_LIST: RavenStageEventListResponse = {
+  events: [],
+  total: 0,
+};
+
+// A run in a workflow's history: the raven_run row plus the requirement's
+// issue for linking and the gate decisions made during the run.
+export interface RavenWorkflowRun extends RavenRun {
   issue_id: string;
   gates: RavenGateReview[];
 }
 
 export const RavenWorkflowRunListSchema = z.object({
   runs: z.array(
-    z.object({
-      id: z.string(),
-      workspace_id: z.string().default(""),
-      requirement_id: z.string().default(""),
-      workflow_id: z.string().nullable().default(null),
-      trigger_run_id: z.string().default(""),
-      status: z.string().default("pending"),
-      termination_reason: z.string().default(""),
-      tokens_spent: z.number().default(0),
-      usd_spent: z.number().default(0),
-      created_at: z.string().default(""),
-      updated_at: z.string().default(""),
+    RavenRunObjectSchema.extend({
       issue_id: z.string().default(""),
       gates: z.array(RavenGateReviewSchema).default([]),
     }).loose(),
