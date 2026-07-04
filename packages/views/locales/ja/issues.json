@@ -428,7 +428,8 @@
       "search_placeholder": "担当者を割り当て...",
       "members_group": "メンバー",
       "agents_group": "エージェント",
-      "squads_group": "スクワッド"
+      "squads_group": "スクワッド",
+      "workflows_group": "ワークフロー"
     },
     "start_date": {
       "trigger_label": "開始日",

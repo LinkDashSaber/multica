@@ -709,6 +709,7 @@ type RavenRequirement struct {
 	State       string             `json:"state"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	WorkflowID  pgtype.UUID        `json:"workflow_id"`
 }
 
 type RavenRequirementTransition struct {
@@ -720,6 +721,18 @@ type RavenRequirementTransition struct {
 	ActorID       string             `json:"actor_id"`
 	Reason        string             `json:"reason"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+type RavenWorkflow struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Contract    []byte             `json:"contract"`
+	Version     int32              `json:"version"`
+	Enabled     bool               `json:"enabled"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type RuntimeProfile struct {

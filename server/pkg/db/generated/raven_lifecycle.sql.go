@@ -12,19 +12,25 @@ import (
 )
 
 const createRavenRequirement = `-- name: CreateRavenRequirement :one
-INSERT INTO raven_requirement (workspace_id, issue_id, state)
-VALUES ($1, $2, $3)
-RETURNING id, workspace_id, issue_id, state, created_at, updated_at
+INSERT INTO raven_requirement (workspace_id, issue_id, state, workflow_id)
+VALUES ($1, $2, $3, $4)
+RETURNING id, workspace_id, issue_id, state, created_at, updated_at, workflow_id
 `
 
 type CreateRavenRequirementParams struct {
 	WorkspaceID pgtype.UUID `json:"workspace_id"`
 	IssueID     pgtype.UUID `json:"issue_id"`
 	State       string      `json:"state"`
+	WorkflowID  pgtype.UUID `json:"workflow_id"`
 }
 
 func (q *Queries) CreateRavenRequirement(ctx context.Context, arg CreateRavenRequirementParams) (RavenRequirement, error) {
-	row := q.db.QueryRow(ctx, createRavenRequirement, arg.WorkspaceID, arg.IssueID, arg.State)
+	row := q.db.QueryRow(ctx, createRavenRequirement,
+		arg.WorkspaceID,
+		arg.IssueID,
+		arg.State,
+		arg.WorkflowID,
+	)
 	var i RavenRequirement
 	err := row.Scan(
 		&i.ID,
@@ -33,12 +39,13 @@ func (q *Queries) CreateRavenRequirement(ctx context.Context, arg CreateRavenReq
 		&i.State,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkflowID,
 	)
 	return i, err
 }
 
 const getRavenRequirement = `-- name: GetRavenRequirement :one
-SELECT id, workspace_id, issue_id, state, created_at, updated_at FROM raven_requirement
+SELECT id, workspace_id, issue_id, state, created_at, updated_at, workflow_id FROM raven_requirement
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -58,12 +65,13 @@ func (q *Queries) GetRavenRequirement(ctx context.Context, arg GetRavenRequireme
 		&i.State,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkflowID,
 	)
 	return i, err
 }
 
 const getRavenRequirementByIssue = `-- name: GetRavenRequirementByIssue :one
-SELECT id, workspace_id, issue_id, state, created_at, updated_at FROM raven_requirement
+SELECT id, workspace_id, issue_id, state, created_at, updated_at, workflow_id FROM raven_requirement
 WHERE issue_id = $1 AND workspace_id = $2
 `
 
@@ -82,6 +90,7 @@ func (q *Queries) GetRavenRequirementByIssue(ctx context.Context, arg GetRavenRe
 		&i.State,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkflowID,
 	)
 	return i, err
 }
@@ -125,7 +134,7 @@ func (q *Queries) InsertRavenTransition(ctx context.Context, arg InsertRavenTran
 }
 
 const listRavenRequirements = `-- name: ListRavenRequirements :many
-SELECT id, workspace_id, issue_id, state, created_at, updated_at FROM raven_requirement
+SELECT id, workspace_id, issue_id, state, created_at, updated_at, workflow_id FROM raven_requirement
 WHERE workspace_id = $1
 ORDER BY created_at DESC
 `
@@ -146,6 +155,7 @@ func (q *Queries) ListRavenRequirements(ctx context.Context, workspaceID pgtype.
 			&i.State,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.WorkflowID,
 		); err != nil {
 			return nil, err
 		}
@@ -203,7 +213,7 @@ UPDATE raven_requirement SET
     state = $2,
     updated_at = now()
 WHERE id = $1 AND workspace_id = $3
-RETURNING id, workspace_id, issue_id, state, created_at, updated_at
+RETURNING id, workspace_id, issue_id, state, created_at, updated_at, workflow_id
 `
 
 type UpdateRavenRequirementStateParams struct {
@@ -222,6 +232,7 @@ func (q *Queries) UpdateRavenRequirementState(ctx context.Context, arg UpdateRav
 		&i.State,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkflowID,
 	)
 	return i, err
 }

@@ -236,6 +236,45 @@ export const RavenRequirementSchema = z.object({
   updated_at: z.string().default(""),
 }).loose();
 
+export interface RavenWorkflow {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string;
+  contract: unknown;
+  version: number;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const RavenWorkflowSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string().default(""),
+  name: z.string(),
+  description: z.string().default(""),
+  contract: z.unknown().optional(),
+  version: z.number().default(1),
+  enabled: BooleanWithDefaultSchema(true),
+  created_at: z.string().default(""),
+  updated_at: z.string().default(""),
+}).loose();
+
+export const RavenWorkflowListSchema = z.object({
+  workflows: z.array(RavenWorkflowSchema).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenWorkflowListResponse {
+  workflows: RavenWorkflow[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_WORKFLOW_LIST: RavenWorkflowListResponse = {
+  workflows: [],
+  total: 0,
+};
+
 export const EMPTY_RAVEN_REQUIREMENT: RavenRequirement = {
   id: "",
   workspace_id: "",

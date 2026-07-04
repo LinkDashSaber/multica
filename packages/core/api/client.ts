@@ -183,6 +183,9 @@ import {
   RavenRequirementSchema,
   type RavenRequirement,
   EMPTY_RAVEN_REQUIREMENT,
+  RavenWorkflowListSchema,
+  type RavenWorkflowListResponse,
+  EMPTY_RAVEN_WORKFLOW_LIST,
   GroupedIssuesResponseSchema,
   ListAutopilotsResponseSchema,
   EMPTY_LIST_AUTOPILOTS_RESPONSE,
@@ -1541,6 +1544,14 @@ export class ApiClient {
     return this.fetch("/api/notification-preferences", {
       method: "PUT",
       body: JSON.stringify({ preferences }),
+    });
+  }
+
+  // Raven workflow registry
+  async listRavenWorkflows(): Promise<RavenWorkflowListResponse> {
+    const raw = await this.fetch<unknown>("/api/raven/workflows");
+    return parseWithFallback<RavenWorkflowListResponse>(raw, RavenWorkflowListSchema, EMPTY_RAVEN_WORKFLOW_LIST, {
+      endpoint: "GET /api/raven/workflows",
     });
   }
 

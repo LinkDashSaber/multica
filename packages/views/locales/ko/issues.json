@@ -428,7 +428,8 @@
       "search_placeholder": "담당자 지정...",
       "members_group": "멤버",
       "agents_group": "에이전트",
-      "squads_group": "스쿼드"
+      "squads_group": "스쿼드",
+      "workflows_group": "워크플로"
     },
     "start_date": {
       "trigger_label": "시작일",

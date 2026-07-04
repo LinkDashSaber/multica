@@ -1008,6 +1008,16 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
+			// Raven workflow registry
+			r.Route("/api/raven/workflows", func(r chi.Router) {
+				r.Get("/", h.ListRavenWorkflows)
+				r.Post("/", h.CreateRavenWorkflow)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetRavenWorkflow)
+					r.Put("/", h.UpdateRavenWorkflow)
+				})
+			})
+
 			// Raven requirement lifecycle (opt-in via workflow assignment)
 			r.Route("/api/raven/requirements", func(r chi.Router) {
 				r.Get("/", h.ListRavenRequirements)

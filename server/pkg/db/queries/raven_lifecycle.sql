@@ -1,6 +1,6 @@
 -- name: CreateRavenRequirement :one
-INSERT INTO raven_requirement (workspace_id, issue_id, state)
-VALUES ($1, $2, $3)
+INSERT INTO raven_requirement (workspace_id, issue_id, state, workflow_id)
+VALUES ($1, $2, $3, sqlc.narg('workflow_id'))
 RETURNING *;
 
 -- name: GetRavenRequirement :one

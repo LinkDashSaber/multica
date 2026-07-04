@@ -1161,7 +1161,7 @@ func splitCommaParam(raw string) []string {
 }
 
 func isIssueActorType(s string) bool {
-	return s == "member" || s == "agent" || s == "squad"
+	return s == "member" || s == "agent" || s == "squad" || s == "workflow"
 }
 
 func parseUUIDParamList(w http.ResponseWriter, raw, fieldName string) ([]pgtype.UUID, bool) {
@@ -2309,6 +2309,10 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 	issue := res.Issue
 	slog.Info("issue created", append(logger.RequestAttrs(r), "issue_id", uuidToString(issue.ID), "title", issue.Title, "status", issue.Status, "workspace_id", workspaceID)...)
 
+	// Raven opt-in (ADR-0006): issues born assigned to a workflow enter the
+	// lifecycle immediately.
+	h.ensureRavenRequirementForWorkflowAssign(r, issue)
+
 	resp := issueToResponse(issue, prefix)
 	resp.Attachments = buildAttachmentResponses(res.Attachments)
 	writeJSON(w, http.StatusCreated, resp)
@@ -2592,6 +2596,9 @@ func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {
 	// separate side effect and always runs, independent of the run decision.
 	if assigneeChanged {
 		h.TaskService.CancelTasksForIssue(r.Context(), issue.ID)
+		// Raven opt-in (ADR-0006): reassignment to a workflow puts the issue
+		// on the lifecycle track. No-op for every other assignee type.
+		h.ensureRavenRequirementForWorkflowAssign(r, issue)
 	}
 	if trigger, ok := h.IssueService.WillEnqueueRun(r.Context(),
 		service.IssueTriggerInput{
@@ -2692,8 +2699,20 @@ func (h *Handler) validateAssigneePair(ctx context.Context, r *http.Request, wor
 			return http.StatusForbidden, "cannot assign to squad with private leader"
 		}
 		return 0, ""
+	case "workflow":
+		wf, err := h.Queries.GetRavenWorkflow(ctx, db.GetRavenWorkflowParams{
+			ID:          assigneeID,
+			WorkspaceID: wsUUID,
+		})
+		if err != nil {
+			return http.StatusBadRequest, "assignee_id does not refer to a workflow in this workspace"
+		}
+		if !wf.Enabled {
+			return http.StatusBadRequest, "cannot assign to a disabled workflow"
+		}
+		return 0, ""
 	default:
-		return http.StatusBadRequest, "assignee_type must be 'member', 'agent', or 'squad'"
+		return http.StatusBadRequest, "assignee_type must be 'member', 'agent', 'squad', or 'workflow'"
 	}
 }
 

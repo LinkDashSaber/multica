@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "../hooks";
 import { memberListOptions, agentListOptions, squadListOptions } from "./queries";
+import { ravenWorkflowListOptions } from "../raven/queries";
 import { resolvePublicFileUrl } from "./avatar-url";
 
 export function useActorName() {
@@ -11,6 +12,7 @@ export function useActorName() {
   const { data: members = [] } = useQuery(memberListOptions(wsId));
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const { data: squads = [] } = useQuery(squadListOptions(wsId));
+  const { data: workflows = [] } = useQuery(ravenWorkflowListOptions(wsId));
 
   const getMemberName = useCallback((userId: string) => {
     const m = members.find((m) => m.user_id === userId);
@@ -31,9 +33,10 @@ export function useActorName() {
     if (type === "member") return getMemberName(id);
     if (type === "agent") return getAgentName(id);
     if (type === "squad") return getSquadName(id);
+    if (type === "workflow") return workflows.find((w) => w.id === id)?.name ?? "Unknown Workflow";
     if (type === "system") return "Multica";
     return "System";
-  }, [getAgentName, getMemberName, getSquadName]);
+  }, [getAgentName, getMemberName, getSquadName, workflows]);
 
   const getActorInitials = useCallback((type: string, id: string) => {
     const name = getActorName(type, id);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Lock, UserMinus } from "lucide-react";
+import { Lock, UserMinus, Workflow as WorkflowIcon } from "lucide-react";
 import type { Agent, IssueAssigneeType, UpdateIssueRequest } from "@multica/core/types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@multica/core/auth";
@@ -9,6 +9,7 @@ import { canAssignAgentToIssue } from "@multica/core/permissions";
 import { useActorName } from "@multica/core/workspace/hooks";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { memberListOptions, agentListOptions, squadListOptions, assigneeFrequencyOptions } from "@multica/core/workspace/queries";
+import { ravenWorkflowListOptions } from "@multica/core/raven";
 import { ActorAvatar } from "../../../common/actor-avatar";
 import {
   PropertyPicker,
@@ -74,6 +75,7 @@ export function AssigneePicker({
   const { data: members = [] } = useQuery(memberListOptions(wsId));
   const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const { data: squads = [] } = useQuery(squadListOptions(wsId));
+  const { data: workflows = [] } = useQuery(ravenWorkflowListOptions(wsId));
   const { data: frequency = [] } = useQuery(assigneeFrequencyOptions(wsId));
   const { getActorName } = useActorName();
 
@@ -101,6 +103,9 @@ export function AssigneePicker({
   const filteredSquads = squads
     .filter((s) => !s.archived_at && (s.name.toLowerCase().includes(query) || matchesPinyin(s.name, query)))
     .sort((a, b) => getFreq("squad", b.id) - getFreq("squad", a.id));
+  const filteredWorkflows = workflows
+    .filter((w) => w.enabled && (w.name.toLowerCase().includes(query) || matchesPinyin(w.name, query)))
+    .sort((a, b) => getFreq("workflow", b.id) - getFreq("workflow", a.id));
 
   const isSelected = (type: string, id: string) =>
     assigneeType === type && assigneeId === id;
@@ -233,9 +238,33 @@ export function AssigneePicker({
         </PickerSection>
       )}
 
+      {/* Workflows — assigning to a workflow opts the issue into the Raven
+          lifecycle (server-side hook creates the requirement, ADR-0006). */}
+      {filteredWorkflows.length > 0 && (
+        <PickerSection label={t(($) => $.pickers.assignee.workflows_group)}>
+          {filteredWorkflows.map((wf) => (
+            <PickerItem
+              key={wf.id}
+              selected={isSelected("workflow", wf.id)}
+              onClick={() => {
+                onUpdate({
+                  assignee_type: "workflow",
+                  assignee_id: wf.id,
+                });
+                setOpen(false);
+              }}
+            >
+              <WorkflowIcon className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="truncate">{wf.name}</span>
+            </PickerItem>
+          ))}
+        </PickerSection>
+      )}
+
       {filteredMembers.length === 0 &&
         filteredAgents.length === 0 &&
         filteredSquads.length === 0 &&
+        filteredWorkflows.length === 0 &&
         filter && <PickerEmpty />}
     </PropertyPicker>
   );

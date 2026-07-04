@@ -22,6 +22,7 @@ type RavenRequirementResponse struct {
 	ID          string   `json:"id"`
 	WorkspaceID string   `json:"workspace_id"`
 	IssueID     string   `json:"issue_id"`
+	WorkflowID  *string  `json:"workflow_id"`
 	State       string   `json:"state"`
 	NextStates  []string `json:"next_states"`
 	CreatedAt   string   `json:"created_at"`
@@ -48,6 +49,7 @@ func ravenRequirementToResponse(req db.RavenRequirement) RavenRequirementRespons
 		ID:          uuidToString(req.ID),
 		WorkspaceID: uuidToString(req.WorkspaceID),
 		IssueID:     uuidToString(req.IssueID),
+		WorkflowID:  uuidToPtr(req.WorkflowID),
 		State:       req.State,
 		NextStates:  nextStrs,
 		CreatedAt:   timestampToString(req.CreatedAt),
