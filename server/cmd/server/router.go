@@ -1026,8 +1026,13 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/", h.GetRavenRequirement)
 					r.Get("/transitions", h.ListRavenTransitions)
 					r.Post("/transition", h.TransitionRavenRequirement)
+					r.Get("/runs", h.ListRavenRuns)
+					r.Post("/runs", h.CreateRavenRun)
+					r.Get("/evidence", h.ListRavenEvidence)
 				})
 			})
+			r.Patch("/api/raven/runs/{id}", h.UpdateRavenRun)
+			r.Post("/api/raven/evidence", h.CreateRavenEvidence)
 			r.Get("/api/raven/issues/{issueId}/requirement", h.GetRavenRequirementForIssue)
 
 			// Task messages (user-facing, not daemon auth)

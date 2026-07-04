@@ -17,9 +17,19 @@ type Contract struct {
 	Stages []ContractStage `json:"stages"`
 	Gates  []ContractGate  `json:"gates"`
 	Budget ContractBudget  `json:"budget"`
+	// Retry/timeout policy lives ONLY here — the execution layers must read
+	// it from the declaration and never improvise their own (产品定义 §4).
+	Retry *ContractRetry `json:"retry,omitempty"`
 	// Permissions is free-form in v1 (harness-level enforcement comes later);
 	// kept in the schema so contracts declare intent from day one.
 	Permissions map[string]any `json:"permissions,omitempty"`
+}
+
+type ContractRetry struct {
+	// MaxAttempts caps agent() dispatch attempts; 0/absent = 1 (no retry).
+	MaxAttempts int `json:"max_attempts,omitempty"`
+	// TimeoutSeconds bounds a single agent() wait; 0/absent = SDK default.
+	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 }
 
 type ContractStage struct {

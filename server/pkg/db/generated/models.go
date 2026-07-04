@@ -702,6 +702,18 @@ type ProjectResource struct {
 	CreatedBy    pgtype.UUID        `json:"created_by"`
 }
 
+type RavenEvidence struct {
+	ID            pgtype.UUID        `json:"id"`
+	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
+	RequirementID pgtype.UUID        `json:"requirement_id"`
+	RunID         pgtype.UUID        `json:"run_id"`
+	Kind          string             `json:"kind"`
+	Source        string             `json:"source"`
+	Summary       string             `json:"summary"`
+	Payload       []byte             `json:"payload"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type RavenRequirement struct {
 	ID          pgtype.UUID        `json:"id"`
 	WorkspaceID pgtype.UUID        `json:"workspace_id"`
@@ -721,6 +733,20 @@ type RavenRequirementTransition struct {
 	ActorID       string             `json:"actor_id"`
 	Reason        string             `json:"reason"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+type RavenRun struct {
+	ID                pgtype.UUID        `json:"id"`
+	WorkspaceID       pgtype.UUID        `json:"workspace_id"`
+	RequirementID     pgtype.UUID        `json:"requirement_id"`
+	WorkflowID        pgtype.UUID        `json:"workflow_id"`
+	TriggerRunID      string             `json:"trigger_run_id"`
+	Status            string             `json:"status"`
+	TerminationReason string             `json:"termination_reason"`
+	TokensSpent       int64              `json:"tokens_spent"`
+	UsdSpent          float64            `json:"usd_spent"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
 type RavenWorkflow struct {

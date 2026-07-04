@@ -223,4 +223,5 @@ func (h *Handler) ensureRavenRequirementForWorkflowAssign(r *http.Request, issue
 		slog.Warn("raven: opt-in creation transition failed", append(logger.RequestAttrs(r), "error", err)...)
 	}
 	h.projectRavenStateToIssue(r, requirement)
+	h.dispatchRavenRun(r, requirement)
 }

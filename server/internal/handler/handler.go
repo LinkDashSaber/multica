@@ -27,6 +27,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/integrations/slack"
 	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
 	"github.com/multica-ai/multica/server/internal/middleware"
+	"github.com/multica-ai/multica/server/internal/raven"
 	"github.com/multica-ai/multica/server/internal/realtime"
 	"github.com/multica-ai/multica/server/internal/service"
 	"github.com/multica-ai/multica/server/internal/storage"
@@ -138,6 +139,10 @@ type Handler struct {
 	MembershipCache      *auth.MembershipCache
 	WebhookRateLimiter   WebhookRateLimiter
 	WebhookIPRateLimiter WebhookRateLimiter
+	// RavenDispatcher triggers workflow runs on the self-hosted trigger.dev
+	// instance. Lazily created from env by ravenDispatcher(); tests swap in
+	// their own instance.
+	RavenDispatcher *raven.Dispatcher
 	CloudRuntime         cloudRuntimeProxy
 	// Lark integration. All three are nil when the Lark master key
 	// (MULTICA_LARK_SECRET_KEY) is unset; the corresponding HTTP
