@@ -28,6 +28,7 @@ describe("paths.workspace() shape", () => {
         "runtimes",
         "skills",
         "squads",
+        "ravenDecisions",
         "ravenWorkflows",
         "ravenLearnings",
         "settings",

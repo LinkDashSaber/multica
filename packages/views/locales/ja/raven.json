@@ -113,6 +113,15 @@
     "gate_approved": "ゲート {{name}} が承認されました",
     "gate_rejected": "ゲート {{name}} が却下されました"
   },
+  "queue": {
+    "title": "自分の対応待ち",
+    "empty_title": "あなたの判断待ちはありません",
+    "empty_hint": "現在、あなたを待っている決定ポイントはありません。",
+    "remaining": "あなた待ちが {{count}} 件",
+    "next": "次へ",
+    "back_to_queue": "先頭へ戻る",
+    "untitled": "決定ポイント"
+  },
   "recommendation": {
     "suggest": "おすすめのワークフロー：{{name}}",
     "no_match": "一致するワークフローがありません。スクワッドに割り当てますか？",

@@ -362,6 +362,7 @@ export function DecisionSection({
         <div className="mt-2 flex gap-2">
           <Button
             size="sm"
+            data-testid="gate-approve"
             disabled={decideMutation.isPending}
             onClick={() => submit(true)}
           >
@@ -527,6 +528,7 @@ function ClarifyResponseSection({
       <Button
         size="sm"
         className="mt-3"
+        data-testid="clarify-submit"
         disabled={answerMutation.isPending || questions.length === 0}
         onClick={() => submit(answers)}
       >

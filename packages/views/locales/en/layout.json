@@ -2,6 +2,7 @@
   "nav": {
     "inbox": "Inbox",
     "my_issues": "My Issues",
+    "decisions": "Pending decisions",
     "issues": "Issues",
     "projects": "Projects",
     "autopilots": "Autopilot",

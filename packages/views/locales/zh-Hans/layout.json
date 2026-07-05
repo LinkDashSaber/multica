@@ -2,6 +2,7 @@
   "nav": {
     "inbox": "收件箱",
     "my_issues": "我的 issue",
+    "decisions": "待我处理",
     "issues": "Issues",
     "projects": "项目",
     "autopilots": "自动化",

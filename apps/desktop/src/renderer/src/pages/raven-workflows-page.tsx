@@ -1,8 +1,12 @@
 import { useParams } from "react-router-dom";
-import { WorkflowListPage, WorkflowDetailPage, LearningStreamPage, RunRoomPage } from "@multica/views/raven";
+import { WorkflowListPage, WorkflowDetailPage, LearningStreamPage, RunRoomPage, DecisionQueuePage } from "@multica/views/raven";
 
 export function RavenWorkflowsPage() {
   return <WorkflowListPage />;
+}
+
+export function RavenDecisionsPage() {
+  return <DecisionQueuePage />;
 }
 
 export function RavenWorkflowDetailPage() {

@@ -37,6 +37,7 @@ function workspaceScoped(slug: string) {
     skills: () => `${ws}/skills`,
     skillDetail: (id: string) => `${ws}/skills/${encode(id)}`,
     ravenGateDetail: (id: string) => `${ws}/raven/gates/${encode(id)}`,
+    ravenDecisions: () => `${ws}/raven/decisions`,
     ravenWorkflows: () => `${ws}/raven/workflows`,
     ravenWorkflowDetail: (id: string) => `${ws}/raven/workflows/${encode(id)}`,
     ravenLearnings: () => `${ws}/raven/learnings`,

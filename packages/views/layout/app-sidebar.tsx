@@ -37,6 +37,7 @@ import {
   Users,
   Workflow,
   Sprout,
+  Gavel,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
@@ -78,6 +79,7 @@ import { useModalStore } from "@multica/core/modals";
 import { useConfigStore } from "@multica/core/config";
 import { useMyRuntimesNeedUpdate } from "@multica/core/runtimes/hooks";
 import { pinListOptions } from "@multica/core/pins/queries";
+import { pendingDecisionPointsOptions, type RavenDecisionPoint } from "@multica/core/raven";
 import { useDeletePin, useReorderPins } from "@multica/core/pins/mutations";
 import { issueDetailOptions } from "@multica/core/issues/queries";
 import { projectDetailOptions } from "@multica/core/projects/queries";
@@ -104,6 +106,7 @@ const EMPTY_WORKSPACES: Awaited<ReturnType<typeof api.listWorkspaces>> = [];
 const EMPTY_INVITATIONS: Awaited<ReturnType<typeof api.listMyInvitations>> = [];
 const EMPTY_INBOX: Awaited<ReturnType<typeof api.listInbox>> = [];
 const EMPTY_INBOX_SUMMARY: Awaited<ReturnType<typeof api.getInboxUnreadSummary>> = [];
+const EMPTY_DECISIONS: RavenDecisionPoint[] = [];
 
 // Nav items reference WorkspacePaths method names so they can be resolved
 // against the current workspace slug at render time (see AppSidebar body).
@@ -116,6 +119,7 @@ type NavKey =
   | "autopilots"
   | "agents"
   | "squads"
+  | "ravenDecisions"
   | "ravenWorkflows"
   | "ravenLearnings"
   | "usage"
@@ -127,6 +131,7 @@ type NavKey =
 type NavLabelKey =
   | "inbox"
   | "my_issues"
+  | "decisions"
   | "issues"
   | "projects"
   | "autopilots"
@@ -142,6 +147,7 @@ type NavLabelKey =
 const personalNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
   { key: "inbox", labelKey: "inbox", icon: Inbox },
   { key: "myIssues", labelKey: "my_issues", icon: CircleUser },
+  { key: "ravenDecisions", labelKey: "decisions", icon: Gavel },
 ];
 
 const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
@@ -388,6 +394,13 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   // specific one(s) rather than just the aggregate avatar dot.
   const unreadWsIds = React.useMemo(() => unreadWorkspaceIds(unreadSummary), [unreadSummary]);
   const hasRuntimeUpdates = useMyRuntimesNeedUpdate(wsId);
+  // Pending-decision count for the "待我处理" nav badge (issue #21). Polls with
+  // the queue itself (15s) and is workspace-scoped like every raven query.
+  const { data: pendingDecisions = EMPTY_DECISIONS } = useQuery({
+    ...pendingDecisionPointsOptions(wsId ?? ""),
+    enabled: !!wsId,
+  });
+  const pendingDecisionsCount = pendingDecisions.length;
   const { data: pinnedItems = EMPTY_PINS } = useQuery({
     ...pinListOptions(wsId ?? "", userId ?? ""),
     enabled: !!wsId && !!userId,
@@ -675,6 +688,14 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                         {item.key === "inbox" && unreadCount > 0 && (
                           <span className="ml-auto text-xs">
                             {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                        {item.key === "ravenDecisions" && pendingDecisionsCount > 0 && (
+                          <span
+                            data-testid="sidebar-decisions-count"
+                            className="ml-auto rounded-full bg-amber-500/15 px-1.5 text-xs text-amber-600 dark:text-amber-400"
+                          >
+                            {pendingDecisionsCount > 99 ? "99+" : pendingDecisionsCount}
                           </span>
                         )}
                       </SidebarMenuButton>
