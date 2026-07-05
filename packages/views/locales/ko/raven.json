@@ -104,5 +104,27 @@
     "running": "실행 중",
     "waiting_decision": "승인 대기",
     "pending": "시작 전"
+  },
+  "graph": {
+    "title": "실행 그래프",
+    "design_hint": "실행을 선택하면 실제 실행 경로가 표시됩니다",
+    "rework": "재작업 ×{{count}}",
+    "tokens": "{{count}} 토큰",
+    "evidence_count": "증거 {{count}}건",
+    "drawer": {
+      "stage": "노드",
+      "gate": "게이트",
+      "clarification": "명확화 문답",
+      "output": "스테이지 산출물",
+      "no_output": "이 노드에는 아직 산출물이 없습니다",
+      "evidence": "증거",
+      "cost": "비용",
+      "duration": "소요 시간",
+      "run_tokens": "이번 실행 토큰",
+      "past_decisions": "과거 판정",
+      "question": "질문",
+      "answer": "답변",
+      "unanswered": "답변 대기"
+    }
   }
 }

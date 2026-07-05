@@ -4,3 +4,11 @@ export { WorkflowDetailPage } from "./workflow-detail-page";
 export { RequirementTimeline, IssueRequirementTimeline } from "./requirement-timeline";
 export { WorkflowRecommendationBanner } from "./workflow-recommendation-banner";
 export { RunFailureSummary, parseTerminationReason } from "./run-failure-summary";
+export { RunGraph, type RunGraphProps } from "./run-graph";
+export {
+  deriveRunGraph,
+  type RunGraph as RunGraphModel,
+  type RunGraphNode,
+  type RunGraphEdge,
+  type RunGraphClarificationInput,
+} from "./run-graph-model";

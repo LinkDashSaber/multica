@@ -212,6 +212,37 @@
   }
 }
 
+/* Raven run graph (issue #17): completed edges carry a particle flow — a
+ * bright dashed overlay sliding along the SVG path over a static base line.
+ * Negative dashoffset moves the dashes in the path's forward direction. */
+@keyframes raven-edge-flow {
+  to { stroke-dashoffset: -64; }
+}
+
+.animate-raven-edge-flow {
+  stroke-dasharray: 4 12;
+  animation: raven-edge-flow 1.6s linear infinite;
+}
+
+/* Raven run graph: the active node breathes — a soft ring expanding from the
+ * card. Color comes in via the `--raven-breathe-color` custom property so the
+ * same keyframes serve the blue active stage and the amber waiting gate. */
+@keyframes raven-node-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 var(--raven-breathe-color); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+
+.animate-raven-node-breathe {
+  animation: raven-node-breathe 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-raven-edge-flow,
+  .animate-raven-node-breathe {
+    animation: none;
+  }
+}
+
 /* Sidebar: open triggers (dropdown/popover) get active background */
 [data-sidebar="menu-button"][data-popup-open] {
   background-color: var(--sidebar-accent);

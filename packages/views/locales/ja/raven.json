@@ -104,5 +104,27 @@
     "running": "実行中",
     "waiting_decision": "承認待ち",
     "pending": "未着手"
+  },
+  "graph": {
+    "title": "実行グラフ",
+    "design_hint": "実行を選択すると実際の実行パスが表示されます",
+    "rework": "手戻り ×{{count}}",
+    "tokens": "{{count}} トークン",
+    "evidence_count": "エビデンス {{count}} 件",
+    "drawer": {
+      "stage": "ノード",
+      "gate": "ゲート",
+      "clarification": "確認事項",
+      "output": "ステージ成果物",
+      "no_output": "このノードにはまだ成果物がありません",
+      "evidence": "エビデンス",
+      "cost": "コスト",
+      "duration": "所要時間",
+      "run_tokens": "この実行のトークン",
+      "past_decisions": "過去の裁定",
+      "question": "質問",
+      "answer": "回答",
+      "unanswered": "回答待ち"
+    }
   }
 }
