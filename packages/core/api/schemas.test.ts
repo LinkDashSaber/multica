@@ -19,6 +19,10 @@ import {
   EMPTY_USER,
   InboxUnreadSummarySchema,
   EMPTY_RAVEN_RUN_LIST,
+  RavenRunSchema,
+  EMPTY_RAVEN_RUN,
+  RavenClarificationListSchema,
+  EMPTY_RAVEN_CLARIFICATION_LIST,
   EMPTY_RAVEN_STAGE_EVENT_LIST,
   RavenEvidenceListSchema,
   RavenGateReviewListSchema,
@@ -893,5 +897,49 @@ describe("RavenLearningSchema / RavenLearningListSchema", () => {
     ).toBe(EMPTY_RAVEN_LEARNING);
     const empty = parseWithFallback({}, RavenLearningListSchema, EMPTY_RAVEN_LEARNING_LIST, ENDPOINT);
     expect(empty.learnings).toEqual([]);
+  });
+});
+
+describe("RavenRunSchema / RavenClarificationListSchema (run room, issue #18)", () => {
+  const runEndpoint = { endpoint: "GET /api/raven/runs/{id}" };
+  const listEndpoint = { endpoint: "GET /api/raven/requirements/{id}/clarifications" };
+
+  it("parses a single run and defaults omitted fields (older backend)", () => {
+    const parsed = parseWithFallback(
+      { id: "run-1", requirement_id: "req-1" },
+      RavenRunSchema,
+      EMPTY_RAVEN_RUN,
+      runEndpoint,
+    );
+    expect(parsed.id).toBe("run-1");
+    expect(parsed.status).toBe("pending");
+    expect(parsed.tokens_spent).toBe(0);
+  });
+
+  it("returns the fallback for malformed run bodies", () => {
+    expect(parseWithFallback(null, RavenRunSchema, EMPTY_RAVEN_RUN, runEndpoint)).toBe(EMPTY_RAVEN_RUN);
+    expect(parseWithFallback({ id: 42 }, RavenRunSchema, EMPTY_RAVEN_RUN, runEndpoint)).toBe(EMPTY_RAVEN_RUN);
+  });
+
+  it("parses the clarification list and defaults an omitted array", () => {
+    const parsed = parseWithFallback(
+      { clarifications: [{ id: "c-1", questions: [{ question: "Q" }] }], total: 1 },
+      RavenClarificationListSchema,
+      EMPTY_RAVEN_CLARIFICATION_LIST,
+      listEndpoint,
+    );
+    expect(parsed.clarifications[0]?.id).toBe("c-1");
+    expect(parsed.clarifications[0]?.status).toBe("pending");
+    const empty = parseWithFallback({}, RavenClarificationListSchema, EMPTY_RAVEN_CLARIFICATION_LIST, listEndpoint);
+    expect(empty.clarifications).toEqual([]);
+  });
+
+  it("returns the fallback for malformed clarification list bodies", () => {
+    expect(
+      parseWithFallback([], RavenClarificationListSchema, EMPTY_RAVEN_CLARIFICATION_LIST, listEndpoint),
+    ).toBe(EMPTY_RAVEN_CLARIFICATION_LIST);
+    expect(
+      parseWithFallback({ clarifications: "nope" }, RavenClarificationListSchema, EMPTY_RAVEN_CLARIFICATION_LIST, listEndpoint),
+    ).toBe(EMPTY_RAVEN_CLARIFICATION_LIST);
   });
 });

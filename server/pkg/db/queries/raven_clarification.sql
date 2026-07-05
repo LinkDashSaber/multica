@@ -8,6 +8,13 @@ RETURNING *;
 SELECT * FROM raven_clarification
 WHERE id = $1 AND workspace_id = $2;
 
+-- name: ListRavenClarificationsByRequirement :many
+-- All clarifications of a requirement (any status), oldest first — feeds the
+-- run room's graph overlay and timeline (issue #18).
+SELECT * FROM raven_clarification
+WHERE requirement_id = $1 AND workspace_id = $2
+ORDER BY created_at ASC;
+
 -- name: ListPendingRavenClarifications :many
 SELECT * FROM raven_clarification
 WHERE workspace_id = $1 AND status = 'pending'

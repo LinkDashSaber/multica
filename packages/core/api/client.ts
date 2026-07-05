@@ -198,6 +198,9 @@ import {
   RavenClarificationSchema,
   type RavenClarification,
   EMPTY_RAVEN_CLARIFICATION,
+  RavenClarificationListSchema,
+  type RavenClarificationListResponse,
+  EMPTY_RAVEN_CLARIFICATION_LIST,
   RavenDecisionPointListSchema,
   type RavenDecisionPointListResponse,
   EMPTY_RAVEN_DECISION_POINT_LIST,
@@ -213,6 +216,9 @@ import {
   RavenRunListSchema,
   type RavenRunListResponse,
   EMPTY_RAVEN_RUN_LIST,
+  RavenRunSchema,
+  type RavenRun,
+  EMPTY_RAVEN_RUN,
   RavenStageEventListSchema,
   type RavenStageEventListResponse,
   EMPTY_RAVEN_STAGE_EVENT_LIST,
@@ -1727,6 +1733,22 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(`/api/raven/requirements/${requirementId}/runs`);
     return parseWithFallback<RavenRunListResponse>(raw, RavenRunListSchema, EMPTY_RAVEN_RUN_LIST, {
       endpoint: "GET /api/raven/requirements/{id}/runs",
+    });
+  }
+
+  // One run by id — the run room (issue #18) loads without a requirement id.
+  async getRavenRun(id: string): Promise<RavenRun> {
+    const raw = await this.fetch<unknown>(`/api/raven/runs/${id}`);
+    return parseWithFallback<RavenRun>(raw, RavenRunSchema, EMPTY_RAVEN_RUN, {
+      endpoint: "GET /api/raven/runs/{id}",
+    });
+  }
+
+  // A requirement's clarification history (any status), oldest first (issue #18).
+  async listRavenClarifications(requirementId: string): Promise<RavenClarificationListResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/requirements/${requirementId}/clarifications`);
+    return parseWithFallback<RavenClarificationListResponse>(raw, RavenClarificationListSchema, EMPTY_RAVEN_CLARIFICATION_LIST, {
+      endpoint: "GET /api/raven/requirements/{id}/clarifications",
     });
   }
 

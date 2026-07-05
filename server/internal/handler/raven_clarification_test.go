@@ -204,3 +204,48 @@ func TestRavenClarificationRules(t *testing.T) {
 		t.Fatalf("status=answered: expected 400, got %d", filterW.Code)
 	}
 }
+
+// TestListRavenClarificationsByRequirement: the run room (issue #18) lists a
+// requirement's clarification history, any status, oldest first.
+func TestListRavenClarificationsByRequirement(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	requirement, _ := gateFixture(t)
+
+	first := openClarification(t, requirement.ID, testQuestions)
+	if first.Code != http.StatusCreated {
+		t.Fatalf("open first clarification: %d %s", first.Code, first.Body.String())
+	}
+	var c1 RavenClarificationResponse
+	json.NewDecoder(first.Body).Decode(&c1)
+	// Answer the first so the list mixes answered and pending records.
+	ansW := httptest.NewRecorder()
+	testHandler.AnswerRavenClarification(ansW, withURLParam(newRequest("POST", "/api/raven/clarifications/"+c1.ID+"/answer", map[string]any{
+		"answer": "JWT",
+	}), "id", c1.ID))
+	if ansW.Code != http.StatusOK {
+		t.Fatalf("answer: %d %s", ansW.Code, ansW.Body.String())
+	}
+	second := openClarification(t, requirement.ID, []map[string]any{{"question": "второй вопрос?"}})
+	if second.Code != http.StatusCreated {
+		t.Fatalf("open second clarification: %d %s", second.Code, second.Body.String())
+	}
+
+	listW := httptest.NewRecorder()
+	testHandler.ListRavenClarifications(listW, withURLParam(newRequest("GET", "/api/raven/requirements/"+requirement.ID+"/clarifications", nil), "id", requirement.ID))
+	if listW.Code != http.StatusOK {
+		t.Fatalf("ListRavenClarifications: expected 200, got %d: %s", listW.Code, listW.Body.String())
+	}
+	var resp struct {
+		Clarifications []RavenClarificationResponse `json:"clarifications"`
+		Total          int                          `json:"total"`
+	}
+	json.NewDecoder(listW.Body).Decode(&resp)
+	if resp.Total != 2 || len(resp.Clarifications) != 2 {
+		t.Fatalf("clarification list size: %+v", resp)
+	}
+	if resp.Clarifications[0].ID != c1.ID || resp.Clarifications[0].Status != "answered" || resp.Clarifications[1].Status != "pending" {
+		t.Fatalf("clarification list order/status: %+v", resp.Clarifications)
+	}
+}

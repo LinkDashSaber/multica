@@ -147,5 +147,30 @@
     "promoted_to_label": "去向：{{dest}}",
     "expire": "标记过期",
     "action_failed": "操作失败"
+  },
+  "run_room": {
+    "title": "运行室",
+    "open": "进入运行室",
+    "not_found": "运行不存在",
+    "no_contract": "找不到这次运行的合同",
+    "budget": {
+      "title": "预算遥测",
+      "tokens": "Token 消耗",
+      "duration": "运行时长",
+      "usd": "费用（USD）"
+    },
+    "timeline": {
+      "title": "执行流",
+      "empty": "还没有执行事件",
+      "stage_entered": "进入阶段 {{stage}}",
+      "stage_exited": "完成阶段 {{stage}}",
+      "evidence": "记录证据（{{kind}}）",
+      "gate_opened": "门禁 {{name}} 开启，等待拍板",
+      "gate_approved": "门禁 {{name}} 已通过",
+      "gate_rejected": "门禁 {{name}} 已驳回",
+      "clarification_asked": "澄清问题等待拍板",
+      "clarification_answered": "澄清问题已回答",
+      "comment": "{{name}} 发表评论"
+    }
   }
 }

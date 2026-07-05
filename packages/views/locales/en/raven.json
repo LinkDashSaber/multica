@@ -147,5 +147,30 @@
     "promoted_to_label": "Promoted to: {{dest}}",
     "expire": "Mark expired",
     "action_failed": "Action failed"
+  },
+  "run_room": {
+    "title": "Run room",
+    "open": "Open run room",
+    "not_found": "Run not found",
+    "no_contract": "The run's contract could not be loaded",
+    "budget": {
+      "title": "Budget telemetry",
+      "tokens": "Tokens spent",
+      "duration": "Duration",
+      "usd": "Cost (USD)"
+    },
+    "timeline": {
+      "title": "Execution stream",
+      "empty": "No execution events yet",
+      "stage_entered": "Entered stage {{stage}}",
+      "stage_exited": "Completed stage {{stage}}",
+      "evidence": "Evidence recorded ({{kind}})",
+      "gate_opened": "Gate {{name}} opened, awaiting decision",
+      "gate_approved": "Gate {{name}} approved",
+      "gate_rejected": "Gate {{name}} rejected",
+      "clarification_asked": "Clarification awaiting decision",
+      "clarification_answered": "Clarification answered",
+      "comment": "{{name}} commented"
+    }
   }
 }

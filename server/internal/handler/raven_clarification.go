@@ -145,6 +145,32 @@ func (h *Handler) GetRavenClarification(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, ravenClarificationToResponse(clarification))
 }
 
+// ListRavenClarifications returns every clarification of a requirement (any
+// status), oldest first — the run room (issue #18) overlays them on the run
+// graph and merges them into the execution timeline.
+func (h *Handler) ListRavenClarifications(w http.ResponseWriter, r *http.Request) {
+	reqUUID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "id"), "requirement id")
+	if !ok {
+		return
+	}
+	wsUUID, ok := parseUUIDOrBadRequest(w, h.resolveWorkspaceID(r), "workspace id")
+	if !ok {
+		return
+	}
+	list, err := h.Queries.ListRavenClarificationsByRequirement(r.Context(), db.ListRavenClarificationsByRequirementParams{
+		RequirementID: reqUUID, WorkspaceID: wsUUID,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list clarifications")
+		return
+	}
+	resp := make([]RavenClarificationResponse, len(list))
+	for i, c := range list {
+		resp[i] = ravenClarificationToResponse(c)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"clarifications": resp, "total": len(resp)})
+}
+
 // AnswerRavenClarification records the human answer (free text or a chosen
 // recommended option, verbatim). Humans only; answering twice is a conflict.
 func (h *Handler) AnswerRavenClarification(w http.ResponseWriter, r *http.Request) {

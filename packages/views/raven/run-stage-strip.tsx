@@ -15,7 +15,9 @@ import {
   type ContractStageView,
   type ContractGateView,
 } from "@multica/core/raven";
+import { useWorkspacePaths } from "@multica/core/paths";
 import { cn } from "@multica/ui/lib/utils";
+import { AppLink } from "../navigation";
 import { useT } from "../i18n";
 
 export type StageNodeState = "done" | "active" | "waiting" | "pending";
@@ -91,6 +93,7 @@ export function IssueRunStageStrip({
   className?: string;
 }) {
   const { t } = useT("raven");
+  const wsPaths = useWorkspacePaths();
 
   const { data: requirement } = useQuery(issueRequirementOptions(wsId, issueId));
   const requirementId = requirement?.id ?? "";
@@ -137,7 +140,17 @@ export function IssueRunStageStrip({
 
   return (
     <section data-testid="run-stage-strip" className={className}>
-      <h2 className="text-sm font-semibold">{t(($) => $.stage_strip.title)}</h2>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold">{t(($) => $.stage_strip.title)}</h2>
+        {/* Entry to the run room (issue #18) for the latest run. */}
+        <AppLink
+          href={wsPaths.ravenRunDetail(run.id)}
+          data-testid="open-run-room"
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          {t(($) => $.run_room.open)}
+        </AppLink>
+      </div>
       <ol className="mt-2 flex flex-wrap items-center gap-x-1 gap-y-2 rounded-md border px-3 py-2">
         {stages.map((stage, i) => {
           const state = states[stage.name] ?? "pending";

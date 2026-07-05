@@ -12,5 +12,14 @@ export {
   type RunGraphEdge,
   type RunGraphClarificationInput,
 } from "./run-graph-model";
+export { RunRoomPage } from "./run-room-page";
+export {
+  mergeRunTimeline,
+  clarificationsToGraphInput,
+  clarificationQuestions,
+  contractMaxTokens,
+  runDurationSeconds,
+  type RunTimelineItem,
+} from "./run-room-model";
 export { LearningStreamPage } from "./learning-stream-page";
 export { LearningList } from "./learning-list";

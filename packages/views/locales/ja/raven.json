@@ -147,5 +147,30 @@
     "promoted_to_label": "昇格先: {{dest}}",
     "expire": "期限切れにする",
     "action_failed": "操作に失敗しました"
+  },
+  "run_room": {
+    "title": "実行ルーム",
+    "open": "実行ルームを開く",
+    "not_found": "実行が見つかりません",
+    "no_contract": "この実行の契約を読み込めませんでした",
+    "budget": {
+      "title": "予算テレメトリ",
+      "tokens": "トークン消費",
+      "duration": "実行時間",
+      "usd": "コスト（USD）"
+    },
+    "timeline": {
+      "title": "実行ストリーム",
+      "empty": "実行イベントはまだありません",
+      "stage_entered": "ステージ {{stage}} に入りました",
+      "stage_exited": "ステージ {{stage}} を完了しました",
+      "evidence": "エビデンスを記録（{{kind}}）",
+      "gate_opened": "ゲート {{name}} が開き、承認待ちです",
+      "gate_approved": "ゲート {{name}} が承認されました",
+      "gate_rejected": "ゲート {{name}} が却下されました",
+      "clarification_asked": "確認事項が承認待ちです",
+      "clarification_answered": "確認事項に回答しました",
+      "comment": "{{name}} がコメントしました"
+    }
   }
 }

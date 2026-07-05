@@ -1037,9 +1037,13 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/runs", h.ListRavenRuns)
 					r.Post("/runs", h.CreateRavenRun)
 					r.Get("/evidence", h.ListRavenEvidence)
+					// Clarification history feeds the run room (issue #18).
+					r.Get("/clarifications", h.ListRavenClarifications)
 				})
 			})
 			r.Route("/api/raven/runs/{id}", func(r chi.Router) {
+				// Run room (issue #18) loads a run directly by id.
+				r.Get("/", h.GetRavenRun)
 				r.Patch("/", h.UpdateRavenRun)
 				// Stage progress reporting (issue #15): SDK writes, UI reads.
 				r.Post("/stage-events", h.CreateRavenRunStageEvent)

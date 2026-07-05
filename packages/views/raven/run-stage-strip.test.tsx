@@ -6,6 +6,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider } from "@multica/core/i18n/react";
 import { WorkspaceSlugProvider } from "@multica/core/paths";
+import { NavigationProvider } from "../navigation";
+import type { NavigationAdapter } from "../navigation";
 import enRaven from "../locales/en/raven.json";
 
 const mockGetRequirementForIssue = vi.hoisted(() => vi.fn());
@@ -80,12 +82,23 @@ function event(stage: string, kind: "entered" | "exited", at: string) {
   return { id: `${stage}-${kind}`, run_id: "run-1", stage, event: kind, created_at: at };
 }
 
+const navigation: NavigationAdapter = {
+  push: vi.fn(),
+  replace: vi.fn(),
+  back: vi.fn(),
+  pathname: "/acme/issues/issue-1",
+  searchParams: new URLSearchParams(),
+  getShareableUrl: (p) => p,
+};
+
 function Wrapper({ children }: { children: ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={qc}>
       <I18nProvider locale="en" resources={{ en: { raven: enRaven } }}>
-        <WorkspaceSlugProvider slug="acme">{children}</WorkspaceSlugProvider>
+        <WorkspaceSlugProvider slug="acme">
+          <NavigationProvider value={navigation}>{children}</NavigationProvider>
+        </WorkspaceSlugProvider>
       </I18nProvider>
     </QueryClientProvider>
   );

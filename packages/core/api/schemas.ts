@@ -413,6 +413,23 @@ export const EMPTY_RAVEN_CLARIFICATION: RavenClarification = {
   answered_at: null,
 };
 
+// A requirement's clarification history (issue #18) — the run room overlays
+// these on the run graph and merges them into the execution timeline.
+export const RavenClarificationListSchema = z.object({
+  clarifications: z.array(RavenClarificationSchema).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenClarificationListResponse {
+  clarifications: RavenClarification[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_CLARIFICATION_LIST: RavenClarificationListResponse = {
+  clarifications: [],
+  total: 0,
+};
+
 // One pending decision point (gate or clarify) from the unified queue, with
 // the three essentials: node position (stage), context, and response form.
 export interface RavenDecisionPoint {
@@ -576,6 +593,24 @@ export interface RavenRunListResponse {
   runs: RavenRun[];
   total: number;
 }
+
+// Single-run lookup (GET /api/raven/runs/{id}) backs the run room (issue #18).
+export const RavenRunSchema = RavenRunObjectSchema.loose();
+
+export const EMPTY_RAVEN_RUN: RavenRun = {
+  id: "",
+  workspace_id: "",
+  requirement_id: "",
+  workflow_id: null,
+  trigger_run_id: "",
+  status: "pending",
+  current_stage: "",
+  termination_reason: "",
+  tokens_spent: 0,
+  usd_spent: 0,
+  created_at: "",
+  updated_at: "",
+};
 
 export const EMPTY_RAVEN_RUN_LIST: RavenRunListResponse = {
   runs: [],
