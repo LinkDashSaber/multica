@@ -158,6 +158,10 @@
       "submit_failed": "回答の送信に失敗しました",
       "answered_title": "回答済み",
       "answered_by": "{{name}} が回答"
+    },
+    "why_promotion": "ゲート {{gate}} が抜き取り検査への昇格を申請しています",
+    "promotion": {
+      "evidence_count": "証拠として連続ゼロ差し戻し {{count}} 回"
     }
   },
   "stage_strip": {

@@ -10,12 +10,14 @@ import {
   gateOptions,
   parseContractGates,
   parseContractStages,
+  ravenPromotionOptions,
   ravenRequirementOptions,
   ravenWorkflowOptions,
   ravenWorkflowStatsOptions,
   requirementRunsOptions,
   useAnswerRavenClarification,
   useDecideRavenGate,
+  useDecideRavenPromotion,
   type ContractStageView,
   type RavenClarification,
   type RavenGateReview,
@@ -543,9 +545,176 @@ function ClarifyResponseSection({
 // The letter itself
 // ---------------------------------------------------------------------------
 
+/**
+ * Trust-promotion letter (issue #25): a workflow×gate applying to downgrade
+ * from full review to spot checks after 8 consecutive zero-reject reviews.
+ * Governance decision point, so no run/stage — just the streak evidence and an
+ * approve/reject verdict (reject requires a reason), reusing the letter shell.
+ */
+function PromotionLetterCard({
+  wsId,
+  id,
+  className,
+}: {
+  wsId: string;
+  id: string;
+  className?: string;
+}) {
+  const { t } = useT("raven");
+  const { getActorName } = useActorName();
+  const decideMutation = useDecideRavenPromotion(wsId);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState("");
+
+  const { data: promotion, isLoading } = useQuery(ravenPromotionOptions(wsId, id));
+  const pendingDuration = usePendingDuration(promotion?.created_at ?? "");
+
+  if (isLoading) {
+    return (
+      <div className={cn("space-y-3", className)}>
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+    );
+  }
+  if (!promotion) {
+    return (
+      <p className={cn("text-sm text-muted-foreground", className)}>
+        {t(($) => $.letter.not_found)}
+      </p>
+    );
+  }
+
+  const reviews = Array.isArray(promotion.evidence) ? promotion.evidence : [];
+  const isPending = promotion.status === "pending";
+
+  const submit = (approve: boolean) => {
+    const trimmed = reason.trim();
+    if (!approve && !trimmed) {
+      setReasonError(t(($) => $.gate.decision.reason_required));
+      return;
+    }
+    decideMutation.mutate(
+      { promotionId: promotion.id, approve, reason: approve ? "" : trimmed },
+      {
+        onError: (err) =>
+          toast.error(
+            err instanceof Error && err.message
+              ? err.message
+              : t(($) => $.gate.decision.failed),
+          ),
+      },
+    );
+  };
+
+  return (
+    <section data-testid="promotion-letter-card" className={cn("space-y-4", className)}>
+      <div className="flex flex-wrap items-center gap-2">
+        <p data-testid="letter-why" className="text-sm font-medium">
+          {t(($) => $.letter.why_promotion, { gate: promotion.gate_name })}
+        </p>
+        {isPending && pendingDuration && (
+          <Badge
+            variant="secondary"
+            className="bg-amber-500/15 text-amber-600 dark:text-amber-400"
+          >
+            {t(($) => $.letter.pending_for, { duration: pendingDuration })}
+          </Badge>
+        )}
+      </div>
+
+      <p className="text-sm text-muted-foreground">
+        {t(($) => $.letter.promotion.evidence_count, { count: reviews.length })}
+      </p>
+
+      {!isPending ? (
+        <section data-testid="promotion-decided">
+          <h2 className="text-sm font-semibold">{t(($) => $.gate.decision.title)}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {promotion.decided_by
+              ? t(($) => $.gate.decision.decided_by, {
+                  name: getActorName("member", promotion.decided_by),
+                })
+              : null}
+          </p>
+          {promotion.decision_reason && (
+            <p className="mt-1 whitespace-pre-wrap text-sm">{promotion.decision_reason}</p>
+          )}
+        </section>
+      ) : (
+        <section>
+          <h2 className="text-sm font-semibold">{t(($) => $.gate.decision.title)}</h2>
+          {rejecting ? (
+            <div className="mt-2 space-y-2">
+              <Textarea
+                autoFocus
+                value={reason}
+                onChange={(e) => {
+                  setReason(e.target.value);
+                  setReasonError("");
+                }}
+                placeholder={t(($) => $.gate.decision.reason_placeholder)}
+                aria-label={t(($) => $.gate.decision.reason_label)}
+              />
+              {reasonError && <p className="text-xs text-destructive">{reasonError}</p>}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={decideMutation.isPending}
+                  onClick={() => submit(false)}
+                >
+                  {decideMutation.isPending && (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  )}
+                  {t(($) => $.gate.decision.confirm_reject)}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={decideMutation.isPending}
+                  onClick={() => {
+                    setRejecting(false);
+                    setReasonError("");
+                  }}
+                >
+                  {t(($) => $.gate.decision.cancel)}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 flex gap-2">
+              <Button
+                size="sm"
+                data-testid="promotion-approve"
+                disabled={decideMutation.isPending}
+                onClick={() => submit(true)}
+              >
+                {decideMutation.isPending && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                )}
+                {t(($) => $.gate.decision.approve)}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={decideMutation.isPending}
+                onClick={() => setRejecting(true)}
+              >
+                {t(($) => $.gate.decision.reject)}
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
+    </section>
+  );
+}
+
 export interface DecisionLetterCardProps {
   wsId: string;
-  /** "gate" | "clarify" — matches RavenDecisionPoint.kind and inbox item types. */
+  /** "gate" | "clarify" | "promotion" — matches RavenDecisionPoint.kind and inbox item types. */
   kind: string;
   /** Gate review id (kind="gate") or clarification id (kind="clarify"). */
   id: string;
@@ -560,7 +729,14 @@ export interface DecisionLetterCardProps {
  * consequence preview, and the response controls. Used verbatim in the inbox
  * detail pane, the gate review page, and (later, S7) the pending-queue page.
  */
-export function DecisionLetterCard({
+export function DecisionLetterCard(props: DecisionLetterCardProps) {
+  if (props.kind === "promotion") {
+    return <PromotionLetterCard wsId={props.wsId} id={props.id} className={props.className} />;
+  }
+  return <GateOrClarifyLetterCard {...props} />;
+}
+
+function GateOrClarifyLetterCard({
   wsId,
   kind,
   id,

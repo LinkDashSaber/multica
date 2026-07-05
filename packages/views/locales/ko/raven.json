@@ -158,6 +158,10 @@
       "submit_failed": "답변 제출 실패",
       "answered_title": "답변 완료",
       "answered_by": "{{name}} 님이 답변"
+    },
+    "why_promotion": "게이트 {{gate}}가 표본 검사로의 승격을 신청합니다",
+    "promotion": {
+      "evidence_count": "증거로 연속 무반려 {{count}}회"
     }
   },
   "stage_strip": {

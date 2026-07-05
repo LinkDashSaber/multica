@@ -158,6 +158,10 @@
       "submit_failed": "Failed to submit answers",
       "answered_title": "Answered",
       "answered_by": "Answered by {{name}}"
+    },
+    "why_promotion": "Gate {{gate}} is applying for promotion to spot checks",
+    "promotion": {
+      "evidence_count": "{{count}} consecutive zero-reject reviews as evidence"
     }
   },
   "stage_strip": {

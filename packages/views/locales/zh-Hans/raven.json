@@ -158,6 +158,10 @@
       "submit_failed": "提交答复失败",
       "answered_title": "已答复",
       "answered_by": "由 {{name}} 答复"
+    },
+    "why_promotion": "策略 {{gate}} 门禁申请晋升为抽查",
+    "promotion": {
+      "evidence_count": "已积累 {{count}} 次连续零驳回作为证据"
     }
   },
   "stage_strip": {
