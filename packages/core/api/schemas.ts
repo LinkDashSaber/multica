@@ -365,6 +365,103 @@ export const EMPTY_RAVEN_GATE_REVIEW_LIST: RavenGateReviewListResponse = {
   total: 0,
 };
 
+// ---------------------------------------------------------------------------
+// Raven clarification decision points (issue #19). `questions` and the
+// unified decision-point `context` stay untyped JSON straight from the run.
+// ---------------------------------------------------------------------------
+
+export interface RavenClarification {
+  id: string;
+  workspace_id: string;
+  requirement_id: string;
+  run_id: string | null;
+  stage: string;
+  questions: unknown;
+  /** "pending" | "answered"; treat unknown values as display-only. */
+  status: string;
+  answer: string;
+  answered_by: string | null;
+  created_at: string;
+  answered_at: string | null;
+}
+
+export const RavenClarificationSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string().default(""),
+  requirement_id: z.string().default(""),
+  run_id: z.string().nullable().default(null),
+  stage: z.string().default(""),
+  questions: z.unknown().optional(),
+  status: z.string().default("pending"),
+  answer: z.string().default(""),
+  answered_by: z.string().nullable().default(null),
+  created_at: z.string().default(""),
+  answered_at: z.string().nullable().default(null),
+}).loose();
+
+export const EMPTY_RAVEN_CLARIFICATION: RavenClarification = {
+  id: "",
+  workspace_id: "",
+  requirement_id: "",
+  run_id: null,
+  stage: "",
+  questions: undefined,
+  status: "pending",
+  answer: "",
+  answered_by: null,
+  created_at: "",
+  answered_at: null,
+};
+
+// One pending decision point (gate or clarify) from the unified queue, with
+// the three essentials: node position (stage), context, and response form.
+export interface RavenDecisionPoint {
+  /** "gate" | "clarify"; unknown kinds render generically. */
+  kind: string;
+  id: string;
+  workspace_id: string;
+  requirement_id: string;
+  run_id: string | null;
+  stage: string;
+  /** Gate name for gates; empty for clarifications. */
+  title: string;
+  /** Gate: review_package; clarify: {questions: [...]}. */
+  context: unknown;
+  /** "approve_reject" | "answer"; switch with a default branch. */
+  response_kind: string;
+  status: string;
+  created_at: string;
+}
+
+export const RavenDecisionPointSchema = z.object({
+  kind: z.string().default(""),
+  id: z.string(),
+  workspace_id: z.string().default(""),
+  requirement_id: z.string().default(""),
+  run_id: z.string().nullable().default(null),
+  stage: z.string().default(""),
+  title: z.string().default(""),
+  context: z.unknown().optional(),
+  response_kind: z.string().default(""),
+  status: z.string().default("pending"),
+  created_at: z.string().default(""),
+}).loose();
+
+export const RavenDecisionPointListSchema = z.object({
+  items: z.array(RavenDecisionPointSchema).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenDecisionPointListResponse {
+  items: RavenDecisionPoint[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_DECISION_POINT_LIST: RavenDecisionPointListResponse = {
+  items: [],
+  total: 0,
+};
+
 export interface RavenEvidence {
   id: string;
   requirement_id: string;

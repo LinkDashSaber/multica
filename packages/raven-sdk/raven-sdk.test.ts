@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Contract } from "./src/contract";
 import { ControlPlaneClient, type FetchImpl } from "./src/control-client";
 import { defineWorkflow } from "./src/define-workflow";
-import { BudgetExceededError, RunContext, type RunPayload } from "./src/run-context";
+import { BudgetExceededError, parseClarifyQuestions, RunContext, type RunPayload } from "./src/run-context";
 
 // --- fetch mock -------------------------------------------------------------
 
@@ -344,5 +344,108 @@ describe("gate() primitive", () => {
     const ctx = makeCtx(baseContract, makeClient(fetchImpl));
     await expect(ctx.gate("rogue-gate")).rejects.toThrow(/not declared/);
     expect(calls.length).toBe(0);
+  });
+});
+
+// --- 6. clarify() primitive (issue #19) ---------------------------------------
+
+describe("clarify() primitive", () => {
+  const questions = [
+    { question: "用哪个鉴权方案？", options: ["JWT", "session"], recommended: "JWT" },
+    { question: "要不要兼容旧客户端？", recommended: "不要" },
+  ];
+
+  it("posts a question comment, creates the decision point, polls until answered, and posts the answer copy", async () => {
+    let polls = 0;
+    const { calls, fetchImpl } = makeMock((call) => {
+      const p = path(call.url);
+      if (p === "/api/issues/issue-1/comments" && call.method === "POST") {
+        return { body: { id: `comment-${calls.length}` } };
+      }
+      if (p === "/api/raven/clarifications" && call.method === "POST") {
+        return { body: { id: "clar-1", status: "pending" } };
+      }
+      if (p === "/api/raven/clarifications/clar-1") {
+        polls++;
+        return polls < 3
+          ? { body: { id: "clar-1", status: "pending", answer: "" } }
+          : { body: { id: "clar-1", status: "answered", answer: "JWT；不兼容旧客户端" } };
+      }
+      return undefined;
+    });
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+
+    const result = await ctx.clarify({ questions, stage: "clarify" });
+
+    expect(result).toEqual({ clarificationId: "clar-1", answer: "JWT；不兼容旧客户端" });
+    const create = calls.find(
+      (c) => c.method === "POST" && path(c.url) === "/api/raven/clarifications",
+    );
+    expect(create?.body).toEqual({
+      requirement_id: "req-1",
+      run_id: "run-1",
+      stage: "clarify",
+      questions,
+    });
+    // Q&A trace: question comment before the decision point, answer copy after.
+    const comments = calls.filter(
+      (c) => c.method === "POST" && path(c.url) === "/api/issues/issue-1/comments",
+    );
+    expect(comments).toHaveLength(2);
+    expect((comments[0]?.body as { content: string }).content).toContain("用哪个鉴权方案？");
+    expect((comments[0]?.body as { content: string }).content).toContain("推荐：JWT");
+    expect((comments[1]?.body as { content: string }).content).toContain("JWT；不兼容旧客户端");
+    expect(polls).toBe(3);
+  });
+
+  it("defaults the stage to the enclosing ctx.stage() scope", async () => {
+    const { calls, fetchImpl } = makeMock((call) => {
+      const p = path(call.url);
+      if (p === "/api/raven/clarifications" && call.method === "POST") {
+        return { body: { id: "clar-2", status: "pending" } };
+      }
+      if (p === "/api/raven/clarifications/clar-2") {
+        return { body: { id: "clar-2", status: "answered", answer: "ok" } };
+      }
+      return { body: { id: "x" } };
+    });
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+
+    await ctx.stage("clarify", () => ctx.clarify({ questions }));
+
+    const create = calls.find(
+      (c) => c.method === "POST" && path(c.url) === "/api/raven/clarifications",
+    );
+    expect((create?.body as { stage: string }).stage).toBe("clarify");
+  });
+
+  it("rejects an empty question list without any HTTP call", async () => {
+    const { calls, fetchImpl } = makeMock(() => undefined);
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+    await expect(ctx.clarify({ questions: [] })).rejects.toThrow(/at least one question/);
+    expect(calls).toEqual([]);
+  });
+});
+
+// --- 7. parseClarifyQuestions --------------------------------------------------
+
+describe("parseClarifyQuestions", () => {
+  it("parses a fenced JSON array with options and recommended answers", () => {
+    const text = '```json\n[{"question":"Q1","options":["a","b"],"recommended":"a"},{"question":"Q2"}]\n```';
+    expect(parseClarifyQuestions(text)).toEqual([
+      { question: "Q1", options: ["a", "b"], recommended: "a" },
+      { question: "Q2" },
+    ]);
+  });
+
+  it("wraps non-JSON output as a single free-form question", () => {
+    expect(parseClarifyQuestions("1. 先问这个？\n2. 再问那个？")).toEqual([
+      { question: "1. 先问这个？\n2. 再问那个？" },
+    ]);
+  });
+
+  it("wraps malformed entries (no question field) as a single question", () => {
+    const text = '[{"recommended":"a"}]';
+    expect(parseClarifyQuestions(text)).toEqual([{ question: text }]);
   });
 });

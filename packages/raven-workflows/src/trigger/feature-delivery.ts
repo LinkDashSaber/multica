@@ -1,10 +1,10 @@
-import { defineWorkflow, type RunContext } from "@multica/raven-sdk";
+import { defineWorkflow, parseClarifyQuestions, type RunContext } from "@multica/raven-sdk";
 import { toTriggerTask } from "@multica/raven-sdk/trigger";
 
 // feature-delivery — the first production workflow (issue #7).
 //
-// 澄清 (clarify in issue comments) → Spec → spec-confirm gate (Ready 门禁)
-// → plan → execute → self-check → PR → human-review gate.
+// 澄清 (clarify decision point, issue #19) → Spec → spec-confirm gate (Ready
+// 门禁) → plan → execute → self-check → PR → human-review gate.
 //
 // The Merged transition is NOT performed here: the GitHub webhook loop
 // (issue #6) advances the lifecycle when the PR actually merges.
@@ -24,18 +24,16 @@ async function clarifyAndSpec(ctx: RunContext): Promise<string> {
     prompt: [
       `你在为一条需求做交付前澄清。父需求 issue ID：${ctx.payload.issue_id}。`,
       "先读取该 issue 的标题、描述和已有评论，再检查代码库里相关的模块，做足功课。",
-      "然后输出 2-3 个真正需要人拍板的问题（不是能自己查代码回答的问题），",
-      "每个问题附上你推荐的答案。只输出问题清单本身，不要寒暄。",
+      "然后输出 2-3 个真正需要人拍板的问题（不是能自己查代码回答的问题），每个问题附上你推荐的答案。",
+      '只输出一个 JSON 数组，元素形如 {"question": "...", "options": ["..."], "recommended": "..."}（options 可省略），不要寒暄。',
     ].join("\n"),
   });
 
-  const question = await ctx.comment(
-    `【澄清】请回答以下拍板问题（直接回复本评论即可）：\n\n${clarify.output}`,
-  );
-  const answer = await ctx.waitForHumanComment(question.id);
+  const questions = parseClarifyQuestions(clarify.output);
+  const answered = await ctx.clarify({ questions });
   await ctx.evidence("clarify", "澄清问答完成", {
-    questions: clarify.output,
-    answer: answer.content,
+    questions,
+    answer: answered.answer,
   });
 
   const spec = await ctx.agent({
@@ -43,8 +41,8 @@ async function clarifyAndSpec(ctx: RunContext): Promise<string> {
     title: "产出结构化 Spec",
     prompt: [
       `根据父需求 issue ${ctx.payload.issue_id} 的内容、以下澄清问答，产出结构化 Spec：`,
-      `## 澄清问题\n${clarify.output}`,
-      `## 人类回答\n${answer.content}`,
+      `## 澄清问题\n${JSON.stringify(questions, null, 2)}`,
+      `## 人类回答\n${answered.answer}`,
       "Spec 格式：目标 / 范围（含明确不做的）/ 验收标准（可勾选清单）/ 技术要点。",
       "只输出 Spec 本身。",
     ].join("\n\n"),

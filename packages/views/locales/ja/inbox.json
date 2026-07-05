@@ -52,6 +52,7 @@
     "quick_create_done": "エージェントで作成",
     "quick_create_failed": "エージェントでの作成に失敗",
     "raven_gate_pending": "ゲートレビュー待ち",
+    "raven_clarify_pending": "確認事項の回答待ち",
     "raven_uptrack_proposal": "ワークフロー化の提案"
   },
   "labels": {

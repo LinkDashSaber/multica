@@ -702,6 +702,20 @@ type ProjectResource struct {
 	CreatedBy    pgtype.UUID        `json:"created_by"`
 }
 
+type RavenClarification struct {
+	ID            pgtype.UUID        `json:"id"`
+	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
+	RequirementID pgtype.UUID        `json:"requirement_id"`
+	RunID         pgtype.UUID        `json:"run_id"`
+	Stage         string             `json:"stage"`
+	Questions     []byte             `json:"questions"`
+	Status        string             `json:"status"`
+	Answer        string             `json:"answer"`
+	AnsweredBy    pgtype.UUID        `json:"answered_by"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	AnsweredAt    pgtype.Timestamptz `json:"answered_at"`
+}
+
 type RavenEvidence struct {
 	ID            pgtype.UUID        `json:"id"`
 	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
