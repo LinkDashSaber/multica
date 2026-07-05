@@ -15,7 +15,7 @@ import { MemberDetailPage } from "./pages/member-detail-page";
 import { RuntimeDetailPage } from "./pages/runtime-detail-page";
 import { AttachmentPreviewRoute } from "./pages/attachment-preview-page";
 import { RavenGatePage } from "./pages/raven-gate-page";
-import { RavenWorkflowsPage, RavenWorkflowDetailPage, RavenLearningsPage, RavenRunRoomPage } from "./pages/raven-workflows-page";
+import { RavenWorkflowsPage, RavenWorkflowDetailPage, RavenLearningsPage, RavenRunRoomPage, RavenDecisionsPage } from "./pages/raven-workflows-page";
 import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { DashboardPage } from "@multica/views/dashboard";
@@ -192,6 +192,11 @@ export const appRoutes: RouteObject[] = [
             path: "raven/gates/:id",
             element: <RavenGatePage />,
             handle: { title: "Gate" },
+          },
+          {
+            path: "raven/decisions",
+            element: <RavenDecisionsPage />,
+            handle: { title: "待我处理" },
           },
           {
             path: "raven/workflows",

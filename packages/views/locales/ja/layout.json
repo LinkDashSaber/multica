@@ -2,6 +2,7 @@
   "nav": {
     "inbox": "インボックス",
     "my_issues": "マイイシュー",
+    "decisions": "自分の対応待ち",
     "issues": "イシュー",
     "projects": "プロジェクト",
     "autopilots": "オートパイロット",

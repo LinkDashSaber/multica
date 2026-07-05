@@ -113,6 +113,15 @@
     "gate_approved": "Gate {{name}} approved",
     "gate_rejected": "Gate {{name}} rejected"
   },
+  "queue": {
+    "title": "Pending decisions",
+    "empty_title": "Nothing needs your call",
+    "empty_hint": "No decision points are waiting on you right now.",
+    "remaining": "{{count}} waiting on you",
+    "next": "Next",
+    "back_to_queue": "Back to top",
+    "untitled": "Decision point"
+  },
   "recommendation": {
     "suggest": "Suggested workflow: {{name}}",
     "no_match": "No matching workflow — assign a squad instead?",

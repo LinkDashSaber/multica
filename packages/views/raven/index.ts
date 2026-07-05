@@ -31,3 +31,4 @@ export {
 } from "./run-room-model";
 export { LearningStreamPage } from "./learning-stream-page";
 export { LearningList } from "./learning-list";
+export { DecisionQueuePage, sortDecisionQueue } from "./decision-queue-page";

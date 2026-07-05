@@ -113,6 +113,15 @@
     "gate_approved": "门禁 {{name}} 已通过",
     "gate_rejected": "门禁 {{name}} 已驳回"
   },
+  "queue": {
+    "title": "待我处理",
+    "empty_title": "没有待你拍板的事项",
+    "empty_hint": "当前没有等你处理的拍板点。",
+    "remaining": "还有 {{count}} 项待你拍板",
+    "next": "下一个",
+    "back_to_queue": "回队列",
+    "untitled": "拍板点"
+  },
   "recommendation": {
     "suggest": "推荐交付策略：{{name}}",
     "no_match": "没有匹配的交付策略，转小队处理？",
