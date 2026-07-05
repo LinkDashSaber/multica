@@ -47,7 +47,8 @@
       "runs": "実行回数",
       "pass_rate": "承認率",
       "rejection_rate": "却下率",
-      "avg_duration": "平均実行時間"
+      "avg_duration": "平均実行時間",
+      "active_runs": "実行中"
     },
     "detail": {
       "description": "説明",
@@ -73,6 +74,10 @@
       "completed": "完了",
       "failed": "失敗",
       "terminated": "強制終了"
+    },
+    "run_failure": {
+      "title": "失敗理由",
+      "raw": "生データ"
     }
   },
   "timeline": {

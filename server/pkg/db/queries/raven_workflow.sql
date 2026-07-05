@@ -20,6 +20,7 @@ ORDER BY created_at ASC;
 SELECT
     w.id AS workflow_id,
     COALESCE(rs.run_count, 0)::bigint AS run_count,
+    COALESCE(rs.active_runs, 0)::bigint AS active_runs,
     COALESCE(rs.avg_run_seconds, 0)::double precision AS avg_run_seconds,
     COALESCE(gs.approved_gates, 0)::bigint AS approved_gates,
     COALESCE(gs.rejected_gates, 0)::bigint AS rejected_gates
@@ -27,6 +28,7 @@ FROM raven_workflow w
 LEFT JOIN (
     SELECT rr.workflow_id,
            count(*) AS run_count,
+           count(*) FILTER (WHERE rr.status IN ('pending', 'running')) AS active_runs,
            avg(EXTRACT(EPOCH FROM rr.updated_at - rr.created_at))
                FILTER (WHERE rr.status IN ('completed', 'failed', 'terminated')) AS avg_run_seconds
     FROM raven_run rr

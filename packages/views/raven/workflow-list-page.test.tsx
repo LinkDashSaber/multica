@@ -57,6 +57,7 @@ const STATS = {
     {
       workflow_id: "wf-1",
       run_count: 8,
+      active_runs: 2,
       avg_run_seconds: 200,
       approved_gates: 3,
       rejected_gates: 1,
@@ -105,8 +106,13 @@ describe("WorkflowListPage", () => {
     const rows = await screen.findAllByTestId("workflow-row");
     expect(rows).toHaveLength(2);
 
-    // wf-1: 8 runs, 3 approved / 1 rejected → 75% pass, 25% rejection, 3m 20s.
+    // wf-1: 8 runs (2 active), 3 approved / 1 rejected → 75% pass, 25%
+    // rejection, 3m 20s.
     expect(rows[0]).toHaveTextContent("8");
+    const activeCells = screen.getAllByTestId("workflow-active-runs");
+    expect(activeCells[0]).toHaveTextContent("2");
+    // wf-2 has no stats row → active runs default to 0.
+    expect(activeCells[1]).toHaveTextContent("0");
     expect(rows[0]).toHaveTextContent("75%");
     expect(rows[0]).toHaveTextContent("25%");
     expect(rows[0]).toHaveTextContent("3m 20s");

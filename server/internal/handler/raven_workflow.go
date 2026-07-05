@@ -188,6 +188,7 @@ func (h *Handler) UpdateRavenWorkflow(w http.ResponseWriter, r *http.Request) {
 type RavenWorkflowStatsResponse struct {
 	WorkflowID    string  `json:"workflow_id"`
 	RunCount      int64   `json:"run_count"`
+	ActiveRuns    int64   `json:"active_runs"`
 	AvgRunSeconds float64 `json:"avg_run_seconds"`
 	ApprovedGates int64   `json:"approved_gates"`
 	RejectedGates int64   `json:"rejected_gates"`
@@ -211,6 +212,7 @@ func (h *Handler) ListRavenWorkflowStats(w http.ResponseWriter, r *http.Request)
 		resp[i] = RavenWorkflowStatsResponse{
 			WorkflowID:    uuidToString(s.WorkflowID),
 			RunCount:      s.RunCount,
+			ActiveRuns:    s.ActiveRuns,
 			AvgRunSeconds: s.AvgRunSeconds,
 			ApprovedGates: s.ApprovedGates,
 			RejectedGates: s.RejectedGates,

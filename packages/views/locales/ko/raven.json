@@ -47,7 +47,8 @@
       "runs": "실행 횟수",
       "pass_rate": "승인율",
       "rejection_rate": "반려율",
-      "avg_duration": "평균 실행 시간"
+      "avg_duration": "평균 실행 시간",
+      "active_runs": "실행 중"
     },
     "detail": {
       "description": "설명",
@@ -73,6 +74,10 @@
       "completed": "완료",
       "failed": "실패",
       "terminated": "종료됨"
+    },
+    "run_failure": {
+      "title": "실패 사유",
+      "raw": "원본 데이터"
     }
   },
   "timeline": {

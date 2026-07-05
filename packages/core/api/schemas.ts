@@ -407,6 +407,7 @@ export const EMPTY_RAVEN_EVIDENCE_LIST: RavenEvidenceListResponse = {
 export interface RavenWorkflowStats {
   workflow_id: string;
   run_count: number;
+  active_runs: number;
   avg_run_seconds: number;
   approved_gates: number;
   rejected_gates: number;
@@ -417,6 +418,7 @@ export const RavenWorkflowStatsListSchema = z.object({
     z.object({
       workflow_id: z.string(),
       run_count: z.number().default(0),
+      active_runs: z.number().default(0),
       avg_run_seconds: z.number().default(0),
       approved_gates: z.number().default(0),
       rejected_gates: z.number().default(0),

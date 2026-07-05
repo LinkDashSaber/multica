@@ -11,6 +11,7 @@ import {
   EMPTY_RAVEN_EVIDENCE_LIST,
   EMPTY_RAVEN_GATE_REVIEW,
   EMPTY_RAVEN_GATE_REVIEW_LIST,
+  EMPTY_RAVEN_WORKFLOW_STATS_LIST,
   EMPTY_USER,
   InboxUnreadSummarySchema,
   EMPTY_RAVEN_RUN_LIST,
@@ -20,6 +21,7 @@ import {
   RavenGateReviewSchema,
   RavenRunListSchema,
   RavenStageEventListSchema,
+  RavenWorkflowStatsListSchema,
   IssueTriggerPreviewSchema,
   ListIssuesResponseSchema,
   RuntimeHourlyActivityListSchema,
@@ -688,5 +690,49 @@ describe("RavenStageEventListSchema", () => {
     ).toBe(EMPTY_RAVEN_STAGE_EVENT_LIST);
     const empty = parseWithFallback({}, RavenStageEventListSchema, EMPTY_RAVEN_STAGE_EVENT_LIST, ENDPOINT);
     expect(empty.events).toEqual([]);
+  });
+});
+
+describe("RavenWorkflowStatsListSchema", () => {
+  const ENDPOINT = { endpoint: "GET /api/raven/workflows/stats" };
+
+  it("parses stats and defaults a missing active_runs (older backend) to 0", () => {
+    const parsed = parseWithFallback(
+      {
+        stats: [
+          {
+            workflow_id: "wf-1",
+            run_count: 3,
+            active_runs: 2,
+            avg_run_seconds: 10,
+            approved_gates: 1,
+            rejected_gates: 0,
+          },
+          // Older backend without the active_runs field.
+          { workflow_id: "wf-2", run_count: 1 },
+        ],
+        total: 2,
+      },
+      RavenWorkflowStatsListSchema,
+      EMPTY_RAVEN_WORKFLOW_STATS_LIST,
+      ENDPOINT,
+    );
+    expect(parsed.stats[0]?.active_runs).toBe(2);
+    expect(parsed.stats[1]?.active_runs).toBe(0);
+    expect(parsed.stats[1]?.avg_run_seconds).toBe(0);
+  });
+
+  it("returns the empty fallback for a malformed body", () => {
+    expect(
+      parseWithFallback(
+        { stats: [{ workflow_id: 42 }] },
+        RavenWorkflowStatsListSchema,
+        EMPTY_RAVEN_WORKFLOW_STATS_LIST,
+        ENDPOINT,
+      ),
+    ).toBe(EMPTY_RAVEN_WORKFLOW_STATS_LIST);
+    expect(
+      parseWithFallback(null, RavenWorkflowStatsListSchema, EMPTY_RAVEN_WORKFLOW_STATS_LIST, ENDPOINT),
+    ).toBe(EMPTY_RAVEN_WORKFLOW_STATS_LIST);
   });
 });

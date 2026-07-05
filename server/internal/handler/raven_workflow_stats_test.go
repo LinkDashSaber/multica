@@ -88,6 +88,10 @@ func TestRavenWorkflowStatsAndRuns(t *testing.T) {
 	if stats.RunCount != 2 {
 		t.Fatalf("run_count: want 2, got %d", stats.RunCount)
 	}
+	// The auto-dispatched run stays pending; the explicit run completed.
+	if stats.ActiveRuns != 1 {
+		t.Fatalf("active_runs: want 1, got %d", stats.ActiveRuns)
+	}
 	if stats.ApprovedGates != 1 || stats.RejectedGates != 1 {
 		t.Fatalf("gate counts: want 1/1, got %d/%d", stats.ApprovedGates, stats.RejectedGates)
 	}

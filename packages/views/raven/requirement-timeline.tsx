@@ -20,6 +20,7 @@ import {
   CollapsibleTrigger,
 } from "@multica/ui/components/ui/collapsible";
 import { STATE_LABELS, STATE_CLASSES } from "../issues/components/raven-lifecycle-badge";
+import { CollapsibleMarkdown } from "../common/collapsible-markdown";
 import { useT } from "../i18n";
 
 interface TimelineEvent {
@@ -138,7 +139,7 @@ export function RequirementTimeline({
           <span className="ml-auto shrink-0">{when(ev.created_at)}</span>
         </div>
         {ev.summary && (
-          <p className="mt-1 whitespace-pre-wrap text-sm">{ev.summary}</p>
+          <CollapsibleMarkdown content={ev.summary} className="mt-1" />
         )}
       </div>
     ),
