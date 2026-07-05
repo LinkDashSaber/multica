@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
 import {
+  RAVEN_PROMOTION_THRESHOLD,
   ravenWorkflowListOptions,
   ravenWorkflowStatsOptions,
   type RavenWorkflowStats,
@@ -47,6 +48,33 @@ export function WorkflowEnabledBadge({ enabled }: { enabled: boolean }) {
         ? t(($) => $.workflows.enabled)
         : t(($) => $.workflows.disabled)}
     </Badge>
+  );
+}
+
+/**
+ * Trust promotion progress (issue #25): "production line" once any gate is
+ * downgraded to spot checks, otherwise "N more zero-reject reviews".
+ */
+export function WorkflowTrustCell({ stats }: { stats?: RavenWorkflowStats }) {
+  const { t } = useT("raven");
+  if ((stats?.promoted_gates ?? 0) > 0) {
+    return (
+      <Badge
+        variant="secondary"
+        className="bg-green-500/15 text-green-600 dark:text-green-400"
+        data-testid="workflow-production-line"
+      >
+        {t(($) => $.workflows.trust.production_line)}
+      </Badge>
+    );
+  }
+  const streak = stats?.max_gate_streak ?? 0;
+  if (streak <= 0) return <span className="text-muted-foreground">—</span>;
+  const remaining = Math.max(0, RAVEN_PROMOTION_THRESHOLD - streak);
+  return (
+    <span className="text-xs text-muted-foreground" data-testid="workflow-trust-progress">
+      {t(($) => $.workflows.trust.remaining, { count: remaining })}
+    </span>
   );
 }
 
@@ -124,6 +152,9 @@ export function WorkflowListPage() {
                     <th className="whitespace-nowrap px-3 py-2 font-medium text-right">
                       {t(($) => $.workflows.columns.avg_duration)}
                     </th>
+                    <th className="whitespace-nowrap px-3 py-2 font-medium">
+                      {t(($) => $.workflows.trust.column)}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -174,6 +205,9 @@ export function WorkflowListPage() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                           {formatRunDuration(s?.avg_run_seconds ?? 0)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <WorkflowTrustCell stats={s} />
                         </td>
                       </tr>
                     );

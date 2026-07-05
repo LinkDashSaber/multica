@@ -2,6 +2,12 @@
 // Stages accept both the object form {name, description} and the legacy
 // bare-string form; anything malformed is simply skipped.
 
+/**
+ * Consecutive zero-reject reviews required before a gate may apply for
+ * promotion to spot checks (issue #25, ADR-0009). Fixed, not configurable.
+ */
+export const RAVEN_PROMOTION_THRESHOLD = 8;
+
 export interface ContractStageView {
   name: string;
   description?: string;

@@ -192,6 +192,11 @@ type RavenWorkflowStatsResponse struct {
 	AvgRunSeconds float64 `json:"avg_run_seconds"`
 	ApprovedGates int64   `json:"approved_gates"`
 	RejectedGates int64   `json:"rejected_gates"`
+	// Trust promotion (issue #25): number of gates downgraded to spot
+	// checks, and the best live zero-reject streak among non-promoted
+	// gates ("N more to the production line").
+	PromotedGates int64 `json:"promoted_gates"`
+	MaxGateStreak int64 `json:"max_gate_streak"`
 }
 
 // ListRavenWorkflowStats returns aggregates for every workflow in the
@@ -207,15 +212,52 @@ func (h *Handler) ListRavenWorkflowStats(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusInternalServerError, "failed to list workflow stats")
 		return
 	}
+	// Trust promotion aggregates (issue #25): sampled-gate count per
+	// workflow and the best streak among gates still under full review.
+	policies, err := h.Queries.ListRavenGatePolicies(r.Context(), wsUUID)
+	if err != nil {
+		slog.Warn("ListRavenWorkflowStats policies failed", append(logger.RequestAttrs(r), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to list workflow stats")
+		return
+	}
+	streaks, err := h.Queries.ListRavenGateStreaks(r.Context(), wsUUID)
+	if err != nil {
+		slog.Warn("ListRavenWorkflowStats streaks failed", append(logger.RequestAttrs(r), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to list workflow stats")
+		return
+	}
+	promotedByWorkflow := map[string]int64{}
+	sampledGate := map[string]bool{} // workflowID + "\x00" + gateName
+	for _, p := range policies {
+		if p.Mode == "sampled" {
+			wfID := uuidToString(p.WorkflowID)
+			promotedByWorkflow[wfID]++
+			sampledGate[wfID+"\x00"+p.GateName] = true
+		}
+	}
+	maxStreakByWorkflow := map[string]int64{}
+	for _, st := range streaks {
+		wfID := uuidToString(st.WorkflowID)
+		if sampledGate[wfID+"\x00"+st.GateName] {
+			continue // already promoted; its streak is not progress
+		}
+		if st.Streak > maxStreakByWorkflow[wfID] {
+			maxStreakByWorkflow[wfID] = st.Streak
+		}
+	}
+
 	resp := make([]RavenWorkflowStatsResponse, len(list))
 	for i, s := range list {
+		wfID := uuidToString(s.WorkflowID)
 		resp[i] = RavenWorkflowStatsResponse{
-			WorkflowID:    uuidToString(s.WorkflowID),
+			WorkflowID:    wfID,
 			RunCount:      s.RunCount,
 			ActiveRuns:    s.ActiveRuns,
 			AvgRunSeconds: s.AvgRunSeconds,
 			ApprovedGates: s.ApprovedGates,
 			RejectedGates: s.RejectedGates,
+			PromotedGates: promotedByWorkflow[wfID],
+			MaxGateStreak: maxStreakByWorkflow[wfID],
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"stats": resp, "total": len(resp)})

@@ -53,6 +53,7 @@
     "quick_create_failed": "Create with agent failed",
     "raven_gate_pending": "Gate review pending",
     "raven_clarify_pending": "Clarification pending",
+    "raven_promotion_pending": "Trust promotion pending",
     "raven_uptrack_proposal": "Uptrack proposal"
   },
   "labels": {

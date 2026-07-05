@@ -78,6 +78,17 @@
     "run_failure": {
       "title": "失敗理由",
       "raw": "生データ"
+    },
+    "trust": {
+      "column": "信頼度",
+      "production_line": "本番ライン",
+      "remaining": "本番ラインまであと {{count}} 回のゼロ差し戻し",
+      "title": "信頼度",
+      "mode_full": "全件レビュー",
+      "mode_sampled": "抜き取り 1/5",
+      "streak": "連続ゼロ差し戻し {{count}} 回",
+      "revoke": "全件レビューに戻す",
+      "revoke_failed": "差し戻しに失敗しました"
     }
   },
   "timeline": {

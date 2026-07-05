@@ -78,6 +78,17 @@
     "run_failure": {
       "title": "失败原因",
       "raw": "原始数据"
+    },
+    "trust": {
+      "column": "信任额度",
+      "production_line": "生产线",
+      "remaining": "距生产线还差 {{count}} 次零驳回",
+      "title": "信任额度",
+      "mode_full": "全审",
+      "mode_sampled": "抽查 1/5",
+      "streak": "连续零驳回 {{count}} 次",
+      "revoke": "收回全审",
+      "revoke_failed": "收回失败"
     }
   },
   "timeline": {

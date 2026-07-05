@@ -27,8 +27,11 @@ type RavenGateReviewResponse struct {
 	ReviewPackage  json.RawMessage `json:"review_package"`
 	DecidedBy      *string         `json:"decided_by"`
 	DecisionReason string          `json:"decision_reason"`
-	CreatedAt      string          `json:"created_at"`
-	DecidedAt      *string         `json:"decided_at"`
+	// SampleResult: "" (full review), "selected" (spot check hit), or
+	// "auto_approved" (spot check miss, issue #25).
+	SampleResult string  `json:"sample_result"`
+	CreatedAt    string  `json:"created_at"`
+	DecidedAt    *string `json:"decided_at"`
 }
 
 func ravenGateToResponse(g db.RavenGateReview) RavenGateReviewResponse {
@@ -42,6 +45,7 @@ func ravenGateToResponse(g db.RavenGateReview) RavenGateReviewResponse {
 		ReviewPackage:  json.RawMessage(g.ReviewPackage),
 		DecidedBy:      uuidToPtr(g.DecidedBy),
 		DecisionReason: g.DecisionReason,
+		SampleResult:   g.SampleResult,
 		CreatedAt:      timestampToString(g.CreatedAt),
 	}
 	if g.DecidedAt.Valid {
@@ -127,12 +131,41 @@ func (h *Handler) CreateRavenGate(w http.ResponseWriter, r *http.Request) {
 		reviewPackage = json.RawMessage("{}")
 	}
 
+	// Trust promotion (issue #25): under a sampled policy only 1-in-N gates
+	// go to a human; the rest auto-pass with a permanent trace.
+	sampleResult := ""
+	if policy, perr := h.Queries.GetRavenGatePolicy(r.Context(), db.GetRavenGatePolicyParams{
+		WorkflowID: requirement.WorkflowID, GateName: req.GateName, WorkspaceID: wsUUID,
+	}); perr == nil && policy.Mode == "sampled" {
+		if h.ravenSampleIntN(ravenSampleRate) == 0 {
+			sampleResult = "selected" // spot check hit → normal human review
+		} else {
+			gate, err := h.Queries.CreateAutoApprovedRavenGateReview(r.Context(), db.CreateAutoApprovedRavenGateReviewParams{
+				WorkspaceID:    wsUUID,
+				RequirementID:  requirement.ID,
+				RunID:          runUUID,
+				GateName:       req.GateName,
+				ReviewPackage:  []byte(reviewPackage),
+				DecisionReason: "抽查未命中，自动通过",
+			})
+			if err != nil {
+				slog.Warn("CreateRavenGate auto-approve failed", append(logger.RequestAttrs(r), "error", err)...)
+				writeError(w, http.StatusInternalServerError, "failed to create gate review")
+				return
+			}
+			// No lifecycle suspension and no inbox noise: the run continues.
+			writeJSON(w, http.StatusCreated, ravenGateToResponse(gate))
+			return
+		}
+	}
+
 	gate, err := h.Queries.CreateRavenGateReview(r.Context(), db.CreateRavenGateReviewParams{
 		WorkspaceID:   wsUUID,
 		RequirementID: requirement.ID,
 		RunID:         runUUID,
 		GateName:      req.GateName,
 		ReviewPackage: []byte(reviewPackage),
+		SampleResult:  sampleResult,
 	})
 	if err != nil {
 		slog.Warn("CreateRavenGate failed", append(logger.RequestAttrs(r), "error", err)...)
@@ -269,6 +302,10 @@ func (h *Handler) DecideRavenGate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to decide gate review")
 		return
 	}
+
+	// Trust bookkeeping (issue #25): revert on sampled rejection, issue a
+	// promotion letter on the Nth consecutive approval.
+	h.ravenTrustAfterGateDecision(r, gate)
 
 	writeJSON(w, http.StatusOK, ravenGateToResponse(gate))
 }

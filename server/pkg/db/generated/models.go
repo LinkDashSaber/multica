@@ -728,6 +728,17 @@ type RavenEvidence struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type RavenGatePolicy struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	WorkflowID  pgtype.UUID        `json:"workflow_id"`
+	GateName    string             `json:"gate_name"`
+	Mode        string             `json:"mode"`
+	ApprovedBy  pgtype.UUID        `json:"approved_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type RavenGateReview struct {
 	ID             pgtype.UUID        `json:"id"`
 	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
@@ -736,6 +747,20 @@ type RavenGateReview struct {
 	GateName       string             `json:"gate_name"`
 	Status         string             `json:"status"`
 	ReviewPackage  []byte             `json:"review_package"`
+	DecidedBy      pgtype.UUID        `json:"decided_by"`
+	DecisionReason string             `json:"decision_reason"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	DecidedAt      pgtype.Timestamptz `json:"decided_at"`
+	SampleResult   string             `json:"sample_result"`
+}
+
+type RavenPromotion struct {
+	ID             pgtype.UUID        `json:"id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	WorkflowID     pgtype.UUID        `json:"workflow_id"`
+	GateName       string             `json:"gate_name"`
+	Status         string             `json:"status"`
+	Evidence       []byte             `json:"evidence"`
 	DecidedBy      pgtype.UUID        `json:"decided_by"`
 	DecisionReason string             `json:"decision_reason"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
