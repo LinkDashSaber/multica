@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
@@ -13,12 +13,14 @@ import {
 } from "@multica/core/raven";
 import { Badge } from "@multica/ui/components/ui/badge";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
+import { cn } from "@multica/ui/lib/utils";
 import { AppLink } from "../navigation";
 import { BreadcrumbHeader } from "../layout/breadcrumb-header";
 import { CollapsibleMarkdown } from "../common/collapsible-markdown";
 import { useT } from "../i18n";
 import { WorkflowEnabledBadge, formatRunDuration } from "./workflow-list-page";
 import { RunFailureSummary } from "./run-failure-summary";
+import { RunGraph } from "./run-graph";
 
 const RUN_STATUS_CLASSES: Record<string, string> = {
   running: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
@@ -98,7 +100,15 @@ const GATE_STATUS_CLASSES: Record<string, string> = {
   rejected: "bg-red-500/15 text-red-600 dark:text-red-400",
 };
 
-function RunRow({ run }: { run: RavenWorkflowRun }) {
+function RunRow({
+  run,
+  selected,
+  onSelect,
+}: {
+  run: RavenWorkflowRun;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   const { t } = useT("raven");
   const wsPaths = useWorkspacePaths();
   const started = run.created_at ? new Date(run.created_at).toLocaleString() : "";
@@ -107,7 +117,17 @@ function RunRow({ run }: { run: RavenWorkflowRun }) {
   const ended = isTerminal && run.updated_at ? new Date(run.updated_at).toLocaleString() : "";
 
   return (
-    <li className="px-3 py-2" data-testid="workflow-run-row">
+    // Selecting a run drives the run graph above (issue #17). The row itself
+    // is the click target; inner links keep their own navigation.
+    <li
+      className={cn(
+        "cursor-pointer px-3 py-2 transition-colors",
+        selected ? "bg-accent/60" : "hover:bg-accent/30",
+      )}
+      data-testid="workflow-run-row"
+      data-selected={selected || undefined}
+      onClick={onSelect}
+    >
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <RunStatusBadge status={run.status} />
         <span>{started}</span>
@@ -169,6 +189,12 @@ export function WorkflowDetailPage({ workflowId }: { workflowId: string }) {
     ravenWorkflowOptions(wsId, workflowId),
   );
   const { data: runs = [] } = useQuery(ravenWorkflowRunsOptions(wsId, workflowId));
+
+  // Run selection drives the run graph. Default to the newest run so the
+  // page opens "alive"; with no runs the graph shows the design skeleton.
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const selectedRun =
+    runs.find((r) => r.id === selectedRunId) ?? runs[0] ?? null;
 
   const sectionTitle = t(($) => $.workflows.title);
   const pageTitle = workflow?.name
@@ -237,6 +263,19 @@ export function WorkflowDetailPage({ workflowId }: { workflowId: string }) {
               />
             </section>
           )}
+
+          <section>
+            <h2 className="text-sm font-semibold">
+              {t(($) => $.graph.title)}
+            </h2>
+            <RunGraph
+              wsId={wsId}
+              contract={workflow.contract}
+              run={selectedRun}
+              issueId={selectedRun?.issue_id || undefined}
+              className="mt-2"
+            />
+          </section>
 
           <section>
             <h2 className="text-sm font-semibold">
@@ -325,7 +364,12 @@ export function WorkflowDetailPage({ workflowId }: { workflowId: string }) {
             ) : (
               <ul className="mt-2 divide-y rounded-md border">
                 {runs.map((run) => (
-                  <RunRow key={run.id} run={run} />
+                  <RunRow
+                    key={run.id}
+                    run={run}
+                    selected={selectedRun?.id === run.id}
+                    onSelect={() => setSelectedRunId(run.id)}
+                  />
                 ))}
               </ul>
             )}

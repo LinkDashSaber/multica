@@ -104,5 +104,27 @@
     "running": "Running",
     "waiting_decision": "Awaiting decision",
     "pending": "Not started"
+  },
+  "graph": {
+    "title": "Run graph",
+    "design_hint": "Select a run to see its real execution path",
+    "rework": "Rework ×{{count}}",
+    "tokens": "{{count}} tokens",
+    "evidence_count": "{{count}} evidence",
+    "drawer": {
+      "stage": "Node",
+      "gate": "Gate",
+      "clarification": "Clarification",
+      "output": "Stage output",
+      "no_output": "No output from this node yet",
+      "evidence": "Evidence",
+      "cost": "Cost",
+      "duration": "Duration",
+      "run_tokens": "Run tokens",
+      "past_decisions": "Past decisions",
+      "question": "Question",
+      "answer": "Answer",
+      "unanswered": "Awaiting answer"
+    }
   }
 }

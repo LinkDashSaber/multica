@@ -104,5 +104,27 @@
     "running": "运行中",
     "waiting_decision": "等待拍板",
     "pending": "未开始"
+  },
+  "graph": {
+    "title": "运行图",
+    "design_hint": "选中一次运行，查看真实执行路径",
+    "rework": "返工 ×{{count}}",
+    "tokens": "{{count}} tokens",
+    "evidence_count": "{{count}} 条证据",
+    "drawer": {
+      "stage": "节点",
+      "gate": "门禁",
+      "clarification": "澄清问答",
+      "output": "阶段产出",
+      "no_output": "该节点还没有产出",
+      "evidence": "证据",
+      "cost": "耗费",
+      "duration": "时长",
+      "run_tokens": "本次运行 token",
+      "past_decisions": "历史裁决",
+      "question": "问题",
+      "answer": "回答",
+      "unanswered": "待回答"
+    }
   }
 }
