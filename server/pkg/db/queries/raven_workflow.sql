@@ -8,6 +8,12 @@ RETURNING *;
 SELECT * FROM raven_workflow
 WHERE id = $1 AND workspace_id = $2;
 
+-- name: GetRavenWorkflowByName :one
+-- Name lookup for the merge-registration hook (ADR-0010): decides
+-- create-vs-update so re-registering the same name never duplicates.
+SELECT * FROM raven_workflow
+WHERE workspace_id = $1 AND name = $2;
+
 -- name: ListRavenWorkflows :many
 SELECT * FROM raven_workflow
 WHERE workspace_id = $1

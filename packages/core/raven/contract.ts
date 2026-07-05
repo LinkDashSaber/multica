@@ -2,6 +2,12 @@
 // Stages accept both the object form {name, description} and the legacy
 // bare-string form; anything malformed is simply skipped.
 
+/**
+ * Registry name of the built-in authoring strategy (ADR-0010). The "新建交付
+ * 策略" entry creates a requirement assigned to this workflow.
+ */
+export const AUTHORING_WORKFLOW_NAME = "workflow-authoring";
+
 export interface ContractStageView {
   name: string;
   description?: string;

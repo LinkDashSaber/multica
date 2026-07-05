@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
 import {
+  AUTHORING_WORKFLOW_NAME,
   ravenWorkflowListOptions,
   ravenWorkflowStatsOptions,
   type RavenWorkflowStats,
 } from "@multica/core/raven";
 import { Badge } from "@multica/ui/components/ui/badge";
+import { Button } from "@multica/ui/components/ui/button";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { AppLink, useNavigation } from "../navigation";
 import { BreadcrumbHeader } from "../layout/breadcrumb-header";
 import { useT } from "../i18n";
+import { CreateStrategyModal } from "./create-strategy-modal";
 
 /** "3m 20s" style compact duration; em dash when there is nothing to show. */
 export function formatRunDuration(seconds: number): string {
@@ -74,6 +77,13 @@ export function WorkflowListPage() {
     stats.map((s) => [s.workflow_id, s]),
   );
 
+  // 「新建交付策略」= a requirement assigned to the built-in authoring
+  // strategy (ADR-0010); without it registered the entry stays disabled.
+  const [createOpen, setCreateOpen] = useState(false);
+  const authoring = workflows.find(
+    (wf) => wf.name === AUTHORING_WORKFLOW_NAME && wf.enabled === true,
+  );
+
   return (
     <div className="flex flex-1 flex-col min-h-0">
       <BreadcrumbHeader
@@ -83,7 +93,29 @@ export function WorkflowListPage() {
             {t(($) => $.workflows.title)}
           </span>
         }
+        actions={
+          <Button
+            size="sm"
+            disabled={authoring === undefined}
+            title={
+              authoring === undefined
+                ? t(($) => $.workflows.create.unavailable)
+                : undefined
+            }
+            onClick={() => setCreateOpen(true)}
+            data-testid="create-strategy-button"
+          >
+            {t(($) => $.workflows.create.button)}
+          </Button>
+        }
       />
+      {authoring !== undefined ? (
+        <CreateStrategyModal
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          authoringWorkflowId={authoring.id}
+        />
+      ) : null}
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="mx-auto w-full max-w-5xl p-6">
           {isLoading ? (
