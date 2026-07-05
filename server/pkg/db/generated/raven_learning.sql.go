@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countRavenLearningsByRequirement = `-- name: CountRavenLearningsByRequirement :one
+SELECT count(*) FROM raven_learning l
+JOIN raven_run r ON r.id = l.run_id
+WHERE r.requirement_id = $1
+`
+
+func (q *Queries) CountRavenLearningsByRequirement(ctx context.Context, requirementID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countRavenLearningsByRequirement, requirementID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createRavenLearning = `-- name: CreateRavenLearning :one
 INSERT INTO raven_learning (workspace_id, run_id, stage, content)
 VALUES ($1, $2, $3, $4)

@@ -75,5 +75,12 @@ func (h *Handler) ravenOnCheckSuiteEvent(ctx context.Context, pr db.GithubPullRe
 				"conclusion": conclusion,
 				"html_url":   pr.HtmlUrl,
 			})
+		// Delivery-verification signal (issue #23): a terminal CI conclusion
+		// after merge settles the requirement Merged → Observed → Learned
+		// right away instead of waiting for the observation window.
+		if requirement.State == string(raven.StateMerged) {
+			svc.SettleToLearned(ctx, requirement,
+				fmt.Sprintf("CI %s on PR #%d after merge", conclusion, pr.PrNumber))
+		}
 	}
 }

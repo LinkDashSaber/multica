@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countRejectedRavenGateReviews = `-- name: CountRejectedRavenGateReviews :one
+SELECT count(*) FROM raven_gate_review
+WHERE requirement_id = $1 AND status = 'rejected'
+`
+
+func (q *Queries) CountRejectedRavenGateReviews(ctx context.Context, requirementID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countRejectedRavenGateReviews, requirementID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createRavenGateReview = `-- name: CreateRavenGateReview :one
 INSERT INTO raven_gate_review (workspace_id, requirement_id, run_id, gate_name, review_package)
 VALUES ($1, $2, $5, $3, $4)
