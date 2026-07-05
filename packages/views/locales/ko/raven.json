@@ -98,6 +98,37 @@
     "ignore": "무시",
     "fallback_squad": "스쿼드 선택"
   },
+  "letter": {
+    "not_found": "결재 포인트를 찾을 수 없습니다",
+    "pending_for": "대기 중 {{duration}}",
+    "why_gate": "워크플로가 게이트 {{gate}}에서 당신의 결정을 기다리고 있습니다",
+    "why_clarify": "실행 중인 에이전트에 확인이 필요한 질문이 {{num}}개 있습니다",
+    "open_detail": "리뷰 패키지 열기",
+    "consequence": {
+      "title": "결과 미리보기",
+      "approve_next": "승인 → {{stage}} 단계로 진행",
+      "approve_done": "승인 → 딜리버리 완료",
+      "reject_redo": "반려 → 재작업으로 되돌림",
+      "answer_resume": "답변 후 → {{stage}} 단계 재개",
+      "avg_duration": "이 워크플로의 과거 평균 전체 소요 시간 {{duration}}",
+      "tokens_spent": "이번 run에서 {{tokens}} tokens 사용됨",
+      "usd_spent": "누적 비용 약 ${{usd}}"
+    },
+    "clarify": {
+      "title": "확인 질문",
+      "stage_context": "실행이 {{stage}} 단계에서 멈춰 있습니다",
+      "recommended": "추천",
+      "apply_all_recommended": "모두 추천대로",
+      "answer_placeholder": "답변 입력…",
+      "answer_label": "질문 {{index}}에 대한 답변",
+      "answer_prefix": "답: ",
+      "answer_required": "아직 답하지 않은 질문이 있습니다",
+      "submit": "답변 제출",
+      "submit_failed": "답변 제출 실패",
+      "answered_title": "답변 완료",
+      "answered_by": "{{name}} 님이 답변"
+    }
+  },
   "stage_strip": {
     "title": "딜리버리 진행 상황",
     "done": "완료",

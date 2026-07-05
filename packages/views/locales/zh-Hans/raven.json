@@ -98,6 +98,37 @@
     "ignore": "忽略",
     "fallback_squad": "转小队"
   },
+  "letter": {
+    "not_found": "拍板点不存在",
+    "pending_for": "已挂起 {{duration}}",
+    "why_gate": "策略在 {{gate}} 门禁等你裁决",
+    "why_clarify": "执行中的 agent 有 {{num}} 个问题需要澄清",
+    "open_detail": "查看审查包",
+    "consequence": {
+      "title": "后果预览",
+      "approve_next": "通过 → 进入 {{stage}} 阶段",
+      "approve_done": "通过 → 交付完成",
+      "reject_redo": "驳回 → 打回返工",
+      "answer_resume": "答复后 → 继续 {{stage}} 阶段",
+      "avg_duration": "该策略历史平均全程 {{duration}}",
+      "tokens_spent": "本 run 已计 {{tokens}} tokens",
+      "usd_spent": "已计费用约 ${{usd}}"
+    },
+    "clarify": {
+      "title": "澄清问题",
+      "stage_context": "执行停在 {{stage}} 阶段",
+      "recommended": "推荐",
+      "apply_all_recommended": "全部按推荐",
+      "answer_placeholder": "输入答复…",
+      "answer_label": "问题 {{index}} 的答复",
+      "answer_prefix": "答：",
+      "answer_required": "还有问题未作答",
+      "submit": "提交答复",
+      "submit_failed": "提交答复失败",
+      "answered_title": "已答复",
+      "answered_by": "由 {{name}} 答复"
+    }
+  },
   "stage_strip": {
     "title": "交付进度",
     "done": "已完成",

@@ -98,6 +98,37 @@
     "ignore": "無視",
     "fallback_squad": "スクワッドを選ぶ"
   },
+  "letter": {
+    "not_found": "決裁ポイントが見つかりません",
+    "pending_for": "保留中 {{duration}}",
+    "why_gate": "ワークフローがゲート {{gate}} であなたの裁決を待っています",
+    "why_clarify": "実行中のエージェントに確認したい質問が {{num}} 件あります",
+    "open_detail": "レビューパッケージを開く",
+    "consequence": {
+      "title": "結果プレビュー",
+      "approve_next": "承認 → {{stage}} ステージへ進む",
+      "approve_done": "承認 → デリバリー完了",
+      "reject_redo": "却下 → 差し戻して再作業",
+      "answer_resume": "回答後 → {{stage}} ステージを再開",
+      "avg_duration": "このワークフローの過去平均所要時間 {{duration}}",
+      "tokens_spent": "この run で {{tokens}} tokens 消費済み",
+      "usd_spent": "これまでの費用 約 ${{usd}}"
+    },
+    "clarify": {
+      "title": "確認事項",
+      "stage_context": "実行は {{stage}} ステージで停止中",
+      "recommended": "推奨",
+      "apply_all_recommended": "すべて推奨どおり",
+      "answer_placeholder": "回答を入力…",
+      "answer_label": "質問 {{index}} への回答",
+      "answer_prefix": "答：",
+      "answer_required": "未回答の質問があります",
+      "submit": "回答を送信",
+      "submit_failed": "回答の送信に失敗しました",
+      "answered_title": "回答済み",
+      "answered_by": "{{name}} が回答"
+    }
+  },
   "stage_strip": {
     "title": "デリバリー進捗",
     "done": "完了",

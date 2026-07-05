@@ -24,6 +24,7 @@ import { useCreateIssue } from "@multica/core/issues/mutations";
 import type { IssueAssigneeType } from "@multica/core/types";
 
 import { IssueDetail } from "../../issues/components";
+import { DecisionLetterCard } from "../../raven/decision-letter-card";
 import { ErrorBoundary } from "@multica/ui/components/common/error-boundary";
 import { useNavigation } from "../../navigation";
 import { toast } from "sonner";
@@ -289,6 +290,7 @@ export function InboxPage() {
   );
 
   const selectedGateId = selected?.details?.gate_id ?? "";
+  const selectedClarificationId = selected?.details?.clarification_id ?? "";
 
   // 沉淀提议 (raven_uptrack_proposal): accepting spawns the draft-PR agent
   // issue from the server-composed material; the agent then opens the
@@ -323,19 +325,28 @@ export function InboxPage() {
     // newest one — keying on its id would remount IssueDetail on every event,
     // wiping the comment composer draft and resetting scroll position.
     <ErrorBoundary resetKeys={[selected.issue_id]}>
-      {/* Gate notifications carry an issue, so they land in the IssueDetail
-          branch — surface the review call-to-action above it. */}
+      {/* Raven decision points carry an issue, so they land in the
+          IssueDetail branch — mount the decision letter (issue #20) above it,
+          same card as the review package page. */}
       {selected.type === "raven_gate_pending" && selectedGateId && (
-        <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2">
-          <p className="text-sm text-muted-foreground">
-            {typeLabels[selected.type]}
-          </p>
-          <Button
-            size="sm"
-            onClick={() => push(wsPaths.ravenGateDetail(selectedGateId))}
-          >
-            {t(($) => $.detail.review_gate)}
-          </Button>
+        <div className="max-h-[55%] shrink-0 overflow-y-auto border-b">
+          <DecisionLetterCard
+            wsId={wsId}
+            kind="gate"
+            id={selectedGateId}
+            detailHref={wsPaths.ravenGateDetail(selectedGateId)}
+            className="p-4"
+          />
+        </div>
+      )}
+      {selected.type === "raven_clarify_pending" && selectedClarificationId && (
+        <div className="max-h-[55%] shrink-0 overflow-y-auto border-b">
+          <DecisionLetterCard
+            wsId={wsId}
+            kind="clarify"
+            id={selectedClarificationId}
+            className="p-4"
+          />
         </div>
       )}
       {/* 沉淀提议: accept spawns the workflow-draft PR issue; dismiss archives. */}
