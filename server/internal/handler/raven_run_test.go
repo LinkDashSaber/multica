@@ -54,6 +54,12 @@ func TestRavenRunAndEvidenceFlow(t *testing.T) {
 		t.Fatalf("run after termination patch: %+v", got)
 	}
 
+	// A later successful attempt must clear the failure residue: completed
+	// runs never carry termination_reason from earlier failed attempts.
+	if got := patch(map[string]any{"status": "completed"}); got.Status != "completed" || got.TerminationReason != "" {
+		t.Fatalf("completed run must clear termination_reason: %+v", got)
+	}
+
 	// Unknown status rejected.
 	wBad := httptest.NewRecorder()
 	reqBad := withURLParam(newRequest("PATCH", "/api/raven/runs/"+run.ID, map[string]any{"status": "paused"}), "id", run.ID)

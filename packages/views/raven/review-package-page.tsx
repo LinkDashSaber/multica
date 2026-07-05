@@ -21,6 +21,7 @@ import { Textarea } from "@multica/ui/components/ui/textarea";
 import { AppLink } from "../navigation";
 import { BreadcrumbHeader } from "../layout/breadcrumb-header";
 import { STATE_LABELS, STATE_CLASSES } from "../issues/components/raven-lifecycle-badge";
+import { CollapsibleMarkdown } from "../common/collapsible-markdown";
 import { RequirementTimeline } from "./requirement-timeline";
 import { useT } from "../i18n";
 
@@ -104,9 +105,7 @@ function ReviewPackageSection({ pkg }: { pkg: unknown }) {
       ) : (
         <div className="mt-2 space-y-3">
           {summary && (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-              {summary}
-            </p>
+            <CollapsibleMarkdown content={summary} className="text-foreground/90" />
           )}
           {scalars.length > 0 && (
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
@@ -374,9 +373,7 @@ export function ReviewPackagePage({ gateId }: { gateId: string }) {
                       )}
                     </div>
                     {item.summary && (
-                      <p className="mt-1 whitespace-pre-wrap text-sm">
-                        {item.summary}
-                      </p>
+                      <CollapsibleMarkdown content={item.summary} className="mt-1" />
                     )}
                   </li>
                 ))}

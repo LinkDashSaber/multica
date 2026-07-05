@@ -25,7 +25,12 @@ ORDER BY r.created_at DESC;
 UPDATE raven_run SET
     trigger_run_id = COALESCE(sqlc.narg('trigger_run_id'), trigger_run_id),
     status = COALESCE(sqlc.narg('status'), status),
-    termination_reason = COALESCE(sqlc.narg('termination_reason'), termination_reason),
+    -- Completed runs carry no failure residue: earlier failed attempts may
+    -- have written termination_reason, and a later success must clear it.
+    termination_reason = CASE
+        WHEN COALESCE(sqlc.narg('status'), status) = 'completed' THEN ''
+        ELSE COALESCE(sqlc.narg('termination_reason'), termination_reason)
+    END,
     tokens_spent = COALESCE(sqlc.narg('tokens_spent'), tokens_spent),
     usd_spent = COALESCE(sqlc.narg('usd_spent'), usd_spent),
     updated_at = now()

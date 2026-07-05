@@ -196,12 +196,12 @@ export const appRoutes: RouteObject[] = [
           {
             path: "raven/workflows",
             element: <RavenWorkflowsPage />,
-            handle: { title: "Workflows" },
+            handle: { title: "交付策略" },
           },
           {
             path: "raven/workflows/:id",
             element: <RavenWorkflowDetailPage />,
-            handle: { title: "Workflow" },
+            handle: { title: "交付策略" },
           },
           {
             path: "attachments/:id/preview",

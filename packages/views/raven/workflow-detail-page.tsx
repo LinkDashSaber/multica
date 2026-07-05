@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
@@ -12,8 +13,10 @@ import { Badge } from "@multica/ui/components/ui/badge";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { AppLink } from "../navigation";
 import { BreadcrumbHeader } from "../layout/breadcrumb-header";
+import { CollapsibleMarkdown } from "../common/collapsible-markdown";
 import { useT } from "../i18n";
 import { WorkflowEnabledBadge, formatRunDuration } from "./workflow-list-page";
+import { RunFailureSummary } from "./run-failure-summary";
 
 const RUN_STATUS_CLASSES: Record<string, string> = {
   running: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
@@ -142,9 +145,12 @@ function RunRow({ run }: { run: RavenWorkflowRun }) {
           </AppLink>
         )}
       </div>
-      {run.termination_reason && (
-        <p className="mt-1 text-xs text-muted-foreground">{run.termination_reason}</p>
-      )}
+      {/* Completed runs never show failure residue; the server clears it,
+          and the guard keeps older backends from leaking it (API compat). */}
+      {run.termination_reason &&
+        (run.status === "failed" || run.status === "terminated") && (
+          <RunFailureSummary reason={run.termination_reason} className="mt-1" />
+        )}
       {(run.gates ?? []).length > 0 && (
         <ul className="mt-2 space-y-1">
           {(run.gates ?? []).map((gate) => (
@@ -180,6 +186,15 @@ export function WorkflowDetailPage({ workflowId }: { workflowId: string }) {
     ravenWorkflowOptions(wsId, workflowId),
   );
   const { data: runs = [] } = useQuery(ravenWorkflowRunsOptions(wsId, workflowId));
+
+  const sectionTitle = t(($) => $.workflows.title);
+  const pageTitle = workflow?.name
+    ? `${workflow.name} · ${sectionTitle}`
+    : sectionTitle;
+  // Browser tab / desktop tab title must match the sidebar naming.
+  useEffect(() => {
+    if (pageTitle) document.title = pageTitle;
+  }, [pageTitle]);
 
   if (isLoading) {
     return (
@@ -233,9 +248,10 @@ export function WorkflowDetailPage({ workflowId }: { workflowId: string }) {
               <h2 className="text-sm font-semibold">
                 {t(($) => $.workflows.detail.description)}
               </h2>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                {workflow.description}
-              </p>
+              <CollapsibleMarkdown
+                content={workflow.description}
+                className="mt-2 text-foreground/90"
+              />
             </section>
           )}
 

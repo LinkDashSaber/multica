@@ -47,7 +47,8 @@
       "runs": "运行次数",
       "pass_rate": "通过率",
       "rejection_rate": "驳回率",
-      "avg_duration": "平均时长"
+      "avg_duration": "平均时长",
+      "active_runs": "活跃 run"
     },
     "detail": {
       "description": "描述",
@@ -73,6 +74,10 @@
       "completed": "已完成",
       "failed": "失败",
       "terminated": "已终止"
+    },
+    "run_failure": {
+      "title": "失败原因",
+      "raw": "原始数据"
     }
   },
   "timeline": {

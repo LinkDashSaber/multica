@@ -47,7 +47,8 @@
       "runs": "Runs",
       "pass_rate": "Pass rate",
       "rejection_rate": "Rejection rate",
-      "avg_duration": "Avg duration"
+      "avg_duration": "Avg duration",
+      "active_runs": "Active runs"
     },
     "detail": {
       "description": "Description",
@@ -73,6 +74,10 @@
       "completed": "Completed",
       "failed": "Failed",
       "terminated": "Terminated"
+    },
+    "run_failure": {
+      "title": "Failure reason",
+      "raw": "Raw data"
     }
   },
   "timeline": {

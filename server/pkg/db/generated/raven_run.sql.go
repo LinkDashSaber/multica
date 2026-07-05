@@ -269,7 +269,12 @@ const updateRavenRun = `-- name: UpdateRavenRun :one
 UPDATE raven_run SET
     trigger_run_id = COALESCE($3, trigger_run_id),
     status = COALESCE($4, status),
-    termination_reason = COALESCE($5, termination_reason),
+    -- Completed runs carry no failure residue: earlier failed attempts may
+    -- have written termination_reason, and a later success must clear it.
+    termination_reason = CASE
+        WHEN COALESCE($4, status) = 'completed' THEN ''
+        ELSE COALESCE($5, termination_reason)
+    END,
     tokens_spent = COALESCE($6, tokens_spent),
     usd_spent = COALESCE($7, usd_spent),
     updated_at = now()
