@@ -1,6 +1,16 @@
 -- name: CreateRavenGateReview :one
-INSERT INTO raven_gate_review (workspace_id, requirement_id, run_id, gate_name, review_package)
-VALUES ($1, $2, sqlc.narg('run_id'), $3, $4)
+-- sample_result: '' under full review, 'selected' when a sampled gate's
+-- spot check hits (still a normal human review).
+INSERT INTO raven_gate_review (workspace_id, requirement_id, run_id, gate_name, review_package, sample_result)
+VALUES ($1, $2, sqlc.narg('run_id'), $3, $4, $5)
+RETURNING *;
+
+-- name: CreateAutoApprovedRavenGateReview :one
+-- Spot check miss under a sampled policy: the gate auto-passes with a
+-- permanent trace (sample_result) and no human in the loop.
+INSERT INTO raven_gate_review (workspace_id, requirement_id, run_id, gate_name, review_package,
+                               status, decision_reason, decided_at, sample_result)
+VALUES ($1, $2, sqlc.narg('run_id'), $3, $4, 'approved', $5, now(), 'auto_approved')
 RETURNING *;
 
 -- name: GetRavenGateReview :one

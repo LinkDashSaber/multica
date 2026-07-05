@@ -23,26 +23,31 @@ func (q *Queries) CountRejectedRavenGateReviews(ctx context.Context, requirement
 	return count, err
 }
 
-const createRavenGateReview = `-- name: CreateRavenGateReview :one
-INSERT INTO raven_gate_review (workspace_id, requirement_id, run_id, gate_name, review_package)
-VALUES ($1, $2, $5, $3, $4)
-RETURNING id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at
+const createAutoApprovedRavenGateReview = `-- name: CreateAutoApprovedRavenGateReview :one
+INSERT INTO raven_gate_review (workspace_id, requirement_id, run_id, gate_name, review_package,
+                               status, decision_reason, decided_at, sample_result)
+VALUES ($1, $2, $6, $3, $4, 'approved', $5, now(), 'auto_approved')
+RETURNING id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at, sample_result
 `
 
-type CreateRavenGateReviewParams struct {
-	WorkspaceID   pgtype.UUID `json:"workspace_id"`
-	RequirementID pgtype.UUID `json:"requirement_id"`
-	GateName      string      `json:"gate_name"`
-	ReviewPackage []byte      `json:"review_package"`
-	RunID         pgtype.UUID `json:"run_id"`
+type CreateAutoApprovedRavenGateReviewParams struct {
+	WorkspaceID    pgtype.UUID `json:"workspace_id"`
+	RequirementID  pgtype.UUID `json:"requirement_id"`
+	GateName       string      `json:"gate_name"`
+	ReviewPackage  []byte      `json:"review_package"`
+	DecisionReason string      `json:"decision_reason"`
+	RunID          pgtype.UUID `json:"run_id"`
 }
 
-func (q *Queries) CreateRavenGateReview(ctx context.Context, arg CreateRavenGateReviewParams) (RavenGateReview, error) {
-	row := q.db.QueryRow(ctx, createRavenGateReview,
+// Spot check miss under a sampled policy: the gate auto-passes with a
+// permanent trace (sample_result) and no human in the loop.
+func (q *Queries) CreateAutoApprovedRavenGateReview(ctx context.Context, arg CreateAutoApprovedRavenGateReviewParams) (RavenGateReview, error) {
+	row := q.db.QueryRow(ctx, createAutoApprovedRavenGateReview,
 		arg.WorkspaceID,
 		arg.RequirementID,
 		arg.GateName,
 		arg.ReviewPackage,
+		arg.DecisionReason,
 		arg.RunID,
 	)
 	var i RavenGateReview
@@ -58,6 +63,51 @@ func (q *Queries) CreateRavenGateReview(ctx context.Context, arg CreateRavenGate
 		&i.DecisionReason,
 		&i.CreatedAt,
 		&i.DecidedAt,
+		&i.SampleResult,
+	)
+	return i, err
+}
+
+const createRavenGateReview = `-- name: CreateRavenGateReview :one
+INSERT INTO raven_gate_review (workspace_id, requirement_id, run_id, gate_name, review_package, sample_result)
+VALUES ($1, $2, $6, $3, $4, $5)
+RETURNING id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at, sample_result
+`
+
+type CreateRavenGateReviewParams struct {
+	WorkspaceID   pgtype.UUID `json:"workspace_id"`
+	RequirementID pgtype.UUID `json:"requirement_id"`
+	GateName      string      `json:"gate_name"`
+	ReviewPackage []byte      `json:"review_package"`
+	SampleResult  string      `json:"sample_result"`
+	RunID         pgtype.UUID `json:"run_id"`
+}
+
+// sample_result: ” under full review, 'selected' when a sampled gate's
+// spot check hits (still a normal human review).
+func (q *Queries) CreateRavenGateReview(ctx context.Context, arg CreateRavenGateReviewParams) (RavenGateReview, error) {
+	row := q.db.QueryRow(ctx, createRavenGateReview,
+		arg.WorkspaceID,
+		arg.RequirementID,
+		arg.GateName,
+		arg.ReviewPackage,
+		arg.SampleResult,
+		arg.RunID,
+	)
+	var i RavenGateReview
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.RequirementID,
+		&i.RunID,
+		&i.GateName,
+		&i.Status,
+		&i.ReviewPackage,
+		&i.DecidedBy,
+		&i.DecisionReason,
+		&i.CreatedAt,
+		&i.DecidedAt,
+		&i.SampleResult,
 	)
 	return i, err
 }
@@ -69,7 +119,7 @@ UPDATE raven_gate_review SET
     decision_reason = $5,
     decided_at = now()
 WHERE id = $1 AND workspace_id = $2 AND status = 'pending'
-RETURNING id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at
+RETURNING id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at, sample_result
 `
 
 type DecideRavenGateReviewParams struct {
@@ -102,12 +152,13 @@ func (q *Queries) DecideRavenGateReview(ctx context.Context, arg DecideRavenGate
 		&i.DecisionReason,
 		&i.CreatedAt,
 		&i.DecidedAt,
+		&i.SampleResult,
 	)
 	return i, err
 }
 
 const getRavenGateReview = `-- name: GetRavenGateReview :one
-SELECT id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at FROM raven_gate_review
+SELECT id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at, sample_result FROM raven_gate_review
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -132,12 +183,13 @@ func (q *Queries) GetRavenGateReview(ctx context.Context, arg GetRavenGateReview
 		&i.DecisionReason,
 		&i.CreatedAt,
 		&i.DecidedAt,
+		&i.SampleResult,
 	)
 	return i, err
 }
 
 const listPendingRavenGateReviews = `-- name: ListPendingRavenGateReviews :many
-SELECT id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at FROM raven_gate_review
+SELECT id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at, sample_result FROM raven_gate_review
 WHERE workspace_id = $1 AND status = 'pending'
 ORDER BY created_at ASC
 `
@@ -163,6 +215,7 @@ func (q *Queries) ListPendingRavenGateReviews(ctx context.Context, workspaceID p
 			&i.DecisionReason,
 			&i.CreatedAt,
 			&i.DecidedAt,
+			&i.SampleResult,
 		); err != nil {
 			return nil, err
 		}
@@ -175,7 +228,7 @@ func (q *Queries) ListPendingRavenGateReviews(ctx context.Context, workspaceID p
 }
 
 const listRavenGateReviewsByRequirement = `-- name: ListRavenGateReviewsByRequirement :many
-SELECT id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at FROM raven_gate_review
+SELECT id, workspace_id, requirement_id, run_id, gate_name, status, review_package, decided_by, decision_reason, created_at, decided_at, sample_result FROM raven_gate_review
 WHERE requirement_id = $1 AND workspace_id = $2
 ORDER BY created_at DESC
 `
@@ -206,6 +259,7 @@ func (q *Queries) ListRavenGateReviewsByRequirement(ctx context.Context, arg Lis
 			&i.DecisionReason,
 			&i.CreatedAt,
 			&i.DecidedAt,
+			&i.SampleResult,
 		); err != nil {
 			return nil, err
 		}
@@ -218,7 +272,7 @@ func (q *Queries) ListRavenGateReviewsByRequirement(ctx context.Context, arg Lis
 }
 
 const listRavenGateReviewsByWorkflow = `-- name: ListRavenGateReviewsByWorkflow :many
-SELECT g.id, g.workspace_id, g.requirement_id, g.run_id, g.gate_name, g.status, g.review_package, g.decided_by, g.decision_reason, g.created_at, g.decided_at FROM raven_gate_review g
+SELECT g.id, g.workspace_id, g.requirement_id, g.run_id, g.gate_name, g.status, g.review_package, g.decided_by, g.decision_reason, g.created_at, g.decided_at, g.sample_result FROM raven_gate_review g
 JOIN raven_run r ON r.id = g.run_id
 WHERE r.workflow_id = $1 AND g.workspace_id = $2
 ORDER BY g.created_at DESC
@@ -251,6 +305,7 @@ func (q *Queries) ListRavenGateReviewsByWorkflow(ctx context.Context, arg ListRa
 			&i.DecisionReason,
 			&i.CreatedAt,
 			&i.DecidedAt,
+			&i.SampleResult,
 		); err != nil {
 			return nil, err
 		}

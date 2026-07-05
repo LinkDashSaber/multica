@@ -4,8 +4,10 @@ import type {
   RavenClarification,
   RavenDecisionPoint,
   RavenEvidence,
+  RavenGatePolicy,
   RavenGateReview,
   RavenLearning,
+  RavenPromotion,
   RavenRequirement,
   RavenRun,
   RavenRunStageEvent,
@@ -19,8 +21,10 @@ export type {
   RavenClarification,
   RavenDecisionPoint,
   RavenEvidence,
+  RavenGatePolicy,
   RavenGateReview,
   RavenLearning,
+  RavenPromotion,
   RavenRequirement,
   RavenRun,
   RavenRunStageEvent,
@@ -64,6 +68,10 @@ export const ravenKeys = {
   learnings: (wsId: string) => [...ravenKeys.all(wsId), "learnings"] as const,
   runLearnings: (wsId: string, runId: string) =>
     [...ravenKeys.learnings(wsId), runId] as const,
+  gatePolicies: (wsId: string, workflowId: string) =>
+    [...ravenKeys.all(wsId), "gate-policies", workflowId] as const,
+  promotion: (wsId: string, promotionId: string) =>
+    [...ravenKeys.all(wsId), "promotion", promotionId] as const,
 };
 
 /** Workflows registered in this workspace (enabled and disabled). */
@@ -225,6 +233,27 @@ export function pendingDecisionPointsOptions(wsId: string) {
     queryFn: async () => (await api.listRavenDecisionPoints()).items,
     staleTime: 10_000,
     refetchInterval: 15_000,
+  });
+}
+
+/**
+ * Per-gate review policy + live zero-reject streak for one workflow
+ * (issue #25): trust section on the detail page, revoke button.
+ */
+export function ravenGatePoliciesOptions(wsId: string, workflowId: string) {
+  return queryOptions<RavenGatePolicy[]>({
+    queryKey: ravenKeys.gatePolicies(wsId, workflowId),
+    queryFn: async () => (await api.listRavenGatePolicies(workflowId)).policies,
+    staleTime: 15_000,
+  });
+}
+
+/** One promotion application letter (decision point detail). */
+export function ravenPromotionOptions(wsId: string, promotionId: string) {
+  return queryOptions<RavenPromotion>({
+    queryKey: ravenKeys.promotion(wsId, promotionId),
+    queryFn: () => api.getRavenPromotion(promotionId),
+    staleTime: 15_000,
   });
 }
 

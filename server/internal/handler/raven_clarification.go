@@ -242,11 +242,12 @@ func (h *Handler) notifyRavenClarification(r *http.Request, requirement db.Raven
 
 // --- Unified pending decision points (issue #19) -----------------------------
 
-// RavenDecisionPointResponse is one pending decision point, gate or clarify,
-// carrying the three essentials: node position (stage), decision context, and
-// response form. Underlying tables stay separate; this is assembly only.
+// RavenDecisionPointResponse is one pending decision point — gate, clarify,
+// or promotion — carrying the three essentials: node position (stage),
+// decision context, and response form. Underlying tables stay separate;
+// this is assembly only.
 type RavenDecisionPointResponse struct {
-	// Kind is "gate" or "clarify".
+	// Kind is "gate", "clarify", or "promotion".
 	Kind          string  `json:"kind"`
 	ID            string  `json:"id"`
 	WorkspaceID   string  `json:"workspace_id"`
@@ -338,7 +339,32 @@ func (h *Handler) ListRavenDecisionPoints(w http.ResponseWriter, r *http.Request
 			CreatedAt:     timestampToString(c.CreatedAt),
 		})
 	}
-	// Oldest first across both kinds; RFC3339 strings sort chronologically.
+	// Trust promotion letters (issue #25): workspace-level governance, no
+	// requirement/run attached.
+	promotions, err := h.Queries.ListPendingRavenPromotions(r.Context(), wsUUID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list pending promotions")
+		return
+	}
+	for _, p := range promotions {
+		context, _ := json.Marshal(map[string]any{
+			"workflow_id": uuidToString(p.WorkflowID),
+			"gate_name":   p.GateName,
+			"reviews":     json.RawMessage(p.Evidence),
+		})
+		items = append(items, RavenDecisionPointResponse{
+			Kind:         "promotion",
+			ID:           uuidToString(p.ID),
+			WorkspaceID:  uuidToString(p.WorkspaceID),
+			Title:        p.GateName,
+			Context:      json.RawMessage(context),
+			ResponseKind: "approve_reject",
+			Status:       p.Status,
+			CreatedAt:    timestampToString(p.CreatedAt),
+		})
+	}
+
+	// Oldest first across all kinds; RFC3339 strings sort chronologically.
 	sort.SliceStable(items, func(i, j int) bool { return items[i].CreatedAt < items[j].CreatedAt })
 
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": len(items)})

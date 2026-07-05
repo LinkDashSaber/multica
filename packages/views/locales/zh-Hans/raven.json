@@ -89,6 +89,17 @@
       "cancel": "取消",
       "failed": "创建建策略需求失败",
       "unavailable": "当前工作区尚未注册内置的 workflow-authoring 策略"
+    },
+    "trust": {
+      "column": "信任额度",
+      "production_line": "生产线",
+      "remaining": "距生产线还差 {{count}} 次零驳回",
+      "title": "信任额度",
+      "mode_full": "全审",
+      "mode_sampled": "抽查 1/5",
+      "streak": "连续零驳回 {{count}} 次",
+      "revoke": "收回全审",
+      "revoke_failed": "收回失败"
     }
   },
   "timeline": {

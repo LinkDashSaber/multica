@@ -89,6 +89,17 @@
       "cancel": "Cancel",
       "failed": "Failed to create the authoring requirement",
       "unavailable": "The built-in workflow-authoring strategy is not registered in this workspace"
+    },
+    "trust": {
+      "column": "Trust",
+      "production_line": "Production line",
+      "remaining": "{{count}} more zero-reject reviews to the production line",
+      "title": "Trust level",
+      "mode_full": "Full review",
+      "mode_sampled": "Spot check 1/5",
+      "streak": "{{count}} consecutive zero-reject reviews",
+      "revoke": "Revert to full review",
+      "revoke_failed": "Failed to revert"
     }
   },
   "timeline": {

@@ -161,7 +161,7 @@ func (q *Queries) ListPendingRavenClarifications(ctx context.Context, workspaceI
 }
 
 const listPendingRavenGateReviewsWithContract = `-- name: ListPendingRavenGateReviewsWithContract :many
-SELECT g.id, g.workspace_id, g.requirement_id, g.run_id, g.gate_name, g.status, g.review_package, g.decided_by, g.decision_reason, g.created_at, g.decided_at, w.contract
+SELECT g.id, g.workspace_id, g.requirement_id, g.run_id, g.gate_name, g.status, g.review_package, g.decided_by, g.decision_reason, g.created_at, g.decided_at, g.sample_result, w.contract
 FROM raven_gate_review g
 JOIN raven_requirement rq ON rq.id = g.requirement_id
 LEFT JOIN raven_workflow w ON w.id = rq.workflow_id
@@ -197,6 +197,7 @@ func (q *Queries) ListPendingRavenGateReviewsWithContract(ctx context.Context, w
 			&i.RavenGateReview.DecisionReason,
 			&i.RavenGateReview.CreatedAt,
 			&i.RavenGateReview.DecidedAt,
+			&i.RavenGateReview.SampleResult,
 			&i.Contract,
 		); err != nil {
 			return nil, err

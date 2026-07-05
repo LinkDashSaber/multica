@@ -142,7 +142,11 @@ type Handler struct {
 	// Raven is the Raven domain service (lifecycle, evidence, dispatch).
 	// Lazily created by ravenService(); tests swap in their own instance.
 	Raven *raven.Service
-	CloudRuntime         cloudRuntimeProxy
+	// RavenSampleIntN returns a uniform int in [0, n) for gate spot-check
+	// sampling (issue #25). Nil falls back to math/rand/v2; tests inject a
+	// deterministic source.
+	RavenSampleIntN func(n int) int
+	CloudRuntime    cloudRuntimeProxy
 	// Lark integration. All three are nil when the Lark master key
 	// (MULTICA_LARK_SECRET_KEY) is unset; the corresponding HTTP
 	// handlers return 503 in that case so a misconfigured self-host

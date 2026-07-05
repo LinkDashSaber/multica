@@ -195,6 +195,12 @@ import {
   type RavenGateReviewListResponse,
   EMPTY_RAVEN_GATE_REVIEW,
   EMPTY_RAVEN_GATE_REVIEW_LIST,
+  RavenGatePolicyListSchema,
+  type RavenGatePolicyListResponse,
+  EMPTY_RAVEN_GATE_POLICY_LIST,
+  RavenPromotionSchema,
+  type RavenPromotion,
+  EMPTY_RAVEN_PROMOTION,
   RavenClarificationSchema,
   type RavenClarification,
   EMPTY_RAVEN_CLARIFICATION,
@@ -1686,6 +1692,40 @@ export class ApiClient {
     });
     return parseWithFallback<RavenGateReview>(raw, RavenGateReviewSchema, EMPTY_RAVEN_GATE_REVIEW, {
       endpoint: "POST /api/raven/gates/{id}/decision",
+    });
+  }
+
+  // Trust promotion (issue #25): per-gate policy + streak for one workflow.
+  async listRavenGatePolicies(workflowId: string): Promise<RavenGatePolicyListResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/workflows/${workflowId}/gate-policies`);
+    return parseWithFallback<RavenGatePolicyListResponse>(raw, RavenGatePolicyListSchema, EMPTY_RAVEN_GATE_POLICY_LIST, {
+      endpoint: "GET /api/raven/workflows/{id}/gate-policies",
+    });
+  }
+
+  // Manually revert a promoted gate to full review.
+  async revokeRavenGatePolicy(workflowId: string, gateName: string): Promise<void> {
+    await this.fetch<unknown>(
+      `/api/raven/workflows/${workflowId}/gate-policies/${encodeURIComponent(gateName)}/revoke`,
+      { method: "POST" },
+    );
+  }
+
+  async getRavenPromotion(id: string): Promise<RavenPromotion> {
+    const raw = await this.fetch<unknown>(`/api/raven/promotions/${id}`);
+    return parseWithFallback<RavenPromotion>(raw, RavenPromotionSchema, EMPTY_RAVEN_PROMOTION, {
+      endpoint: "GET /api/raven/promotions/{id}",
+    });
+  }
+
+  // 400 when rejecting without a reason; 409 when already decided.
+  async decideRavenPromotion(id: string, data: { approve: boolean; reason: string }): Promise<RavenPromotion> {
+    const raw = await this.fetch<unknown>(`/api/raven/promotions/${id}/decision`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback<RavenPromotion>(raw, RavenPromotionSchema, EMPTY_RAVEN_PROMOTION, {
+      endpoint: "POST /api/raven/promotions/{id}/decision",
     });
   }
 

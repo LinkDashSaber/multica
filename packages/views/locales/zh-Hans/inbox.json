@@ -53,6 +53,7 @@
     "quick_create_failed": "通过智能体创建失败",
     "raven_gate_pending": "门禁等待裁决",
     "raven_clarify_pending": "澄清等待拍板",
+    "raven_promotion_pending": "晋升申请等待拍板",
     "raven_uptrack_proposal": "沉淀提议"
   },
   "labels": {

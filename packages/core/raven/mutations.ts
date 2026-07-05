@@ -26,6 +26,45 @@ export function useDecideRavenGate(wsId: string) {
   });
 }
 
+export interface DecidePromotionInput {
+  promotionId: string;
+  approve: boolean;
+  reason: string;
+}
+
+/**
+ * Decide a trust promotion letter (issue #25). Same non-optimistic shape as
+ * gate verdicts: the server arbitrates "already decided" (409).
+ */
+export function useDecideRavenPromotion(wsId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ promotionId, approve, reason }: DecidePromotionInput) =>
+      api.decideRavenPromotion(promotionId, { approve, reason }),
+    onSettled: (data, _err, vars) => {
+      qc.invalidateQueries({ queryKey: ravenKeys.promotion(wsId, vars.promotionId) });
+      qc.invalidateQueries({ queryKey: ravenKeys.pendingDecisionPoints(wsId) });
+      qc.invalidateQueries({ queryKey: ravenKeys.workflowStats(wsId) });
+      if (data?.workflow_id) {
+        qc.invalidateQueries({ queryKey: ravenKeys.gatePolicies(wsId, data.workflow_id) });
+      }
+    },
+  });
+}
+
+/** Manually revert a promoted gate to full review (issue #25). */
+export function useRevokeRavenGatePolicy(wsId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workflowId, gateName }: { workflowId: string; gateName: string }) =>
+      api.revokeRavenGatePolicy(workflowId, gateName),
+    onSettled: (_data, _err, vars) => {
+      qc.invalidateQueries({ queryKey: ravenKeys.gatePolicies(wsId, vars.workflowId) });
+      qc.invalidateQueries({ queryKey: ravenKeys.workflowStats(wsId) });
+    },
+  });
+}
+
 export interface AnswerClarificationInput {
   clarificationId: string;
   /** Free text or a chosen recommended option, verbatim. */

@@ -1017,6 +1017,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/", h.GetRavenWorkflow)
 					r.Put("/", h.UpdateRavenWorkflow)
 					r.Get("/runs", h.ListRavenWorkflowRuns)
+					// Trust promotion (issue #25): per-gate policy + streak,
+					// and manual revocation back to full review.
+					r.Get("/gate-policies", h.ListRavenWorkflowGatePolicies)
+					r.Post("/gate-policies/{gateName}/revoke", h.RevokeRavenGatePolicy)
 				})
 			})
 
@@ -1070,6 +1074,11 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/", h.GetRavenClarification)
 					r.Post("/answer", h.AnswerRavenClarification)
 				})
+			})
+			// Trust promotion letters (issue #25)
+			r.Route("/api/raven/promotions/{id}", func(r chi.Router) {
+				r.Get("/", h.GetRavenPromotion)
+				r.Post("/decision", h.DecideRavenPromotion)
 			})
 			r.Get("/api/raven/decision-points", h.ListRavenDecisionPoints)
 			r.Get("/api/raven/issues/{issueId}/requirement", h.GetRavenRequirementForIssue)

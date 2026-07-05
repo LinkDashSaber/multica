@@ -23,6 +23,10 @@ import {
   RavenEvidenceListSchema,
   RavenGateReviewListSchema,
   RavenGateReviewSchema,
+  RavenGatePolicyListSchema,
+  EMPTY_RAVEN_GATE_POLICY_LIST,
+  RavenPromotionSchema,
+  EMPTY_RAVEN_PROMOTION,
   RavenRunListSchema,
   RavenStageEventListSchema,
   RavenWorkflowStatsListSchema,
@@ -833,6 +837,9 @@ describe("RavenWorkflowStatsListSchema", () => {
     expect(parsed.stats[0]?.active_runs).toBe(2);
     expect(parsed.stats[1]?.active_runs).toBe(0);
     expect(parsed.stats[1]?.avg_run_seconds).toBe(0);
+    // Older backends have no trust promotion fields (issue #25).
+    expect(parsed.stats[1]?.promoted_gates).toBe(0);
+    expect(parsed.stats[1]?.max_gate_streak).toBe(0);
   });
 
   it("returns the empty fallback for a malformed body", () => {
@@ -893,5 +900,46 @@ describe("RavenLearningSchema / RavenLearningListSchema", () => {
     ).toBe(EMPTY_RAVEN_LEARNING);
     const empty = parseWithFallback({}, RavenLearningListSchema, EMPTY_RAVEN_LEARNING_LIST, ENDPOINT);
     expect(empty.learnings).toEqual([]);
+  });
+});
+
+describe("trust promotion schemas (issue #25)", () => {
+  it("parses gate policies and defaults missing fields", () => {
+    const parsed = parseWithFallback(
+      { policies: [{ gate_name: "human-review", mode: "sampled", streak: 3 }, {}] },
+      RavenGatePolicyListSchema,
+      EMPTY_RAVEN_GATE_POLICY_LIST,
+      { endpoint: "GET /api/raven/workflows/{id}/gate-policies" },
+    );
+    expect(parsed.policies[0]?.mode).toBe("sampled");
+    expect(parsed.policies[1]?.mode).toBe("full");
+    expect(parsed.policies[1]?.streak).toBe(0);
+  });
+
+  it("returns the empty fallback for malformed gate policies", () => {
+    expect(
+      parseWithFallback(
+        { policies: [{ streak: "nope" }] },
+        RavenGatePolicyListSchema,
+        EMPTY_RAVEN_GATE_POLICY_LIST,
+        { endpoint: "GET /api/raven/workflows/{id}/gate-policies" },
+      ),
+    ).toBe(EMPTY_RAVEN_GATE_POLICY_LIST);
+  });
+
+  it("parses a promotion letter and falls back on malformed bodies", () => {
+    const parsed = parseWithFallback(
+      { id: "p-1", gate_name: "human-review", status: "pending" },
+      RavenPromotionSchema,
+      EMPTY_RAVEN_PROMOTION,
+      { endpoint: "GET /api/raven/promotions/{id}" },
+    );
+    expect(parsed.gate_name).toBe("human-review");
+    expect(parsed.decided_by).toBeNull();
+    expect(
+      parseWithFallback({ id: 42 }, RavenPromotionSchema, EMPTY_RAVEN_PROMOTION, {
+        endpoint: "GET /api/raven/promotions/{id}",
+      }),
+    ).toBe(EMPTY_RAVEN_PROMOTION);
   });
 });

@@ -5,13 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
 import {
+  RAVEN_PROMOTION_THRESHOLD,
   parseContractGates,
   parseContractStages,
+  ravenGatePoliciesOptions,
   ravenWorkflowOptions,
   ravenWorkflowRunsOptions,
+  useRevokeRavenGatePolicy,
   type RavenWorkflowRun,
 } from "@multica/core/raven";
 import { Badge } from "@multica/ui/components/ui/badge";
+import { Button } from "@multica/ui/components/ui/button";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { cn } from "@multica/ui/lib/utils";
 import { AppLink } from "../navigation";
@@ -99,6 +103,79 @@ const GATE_STATUS_CLASSES: Record<string, string> = {
   approved: "bg-green-500/15 text-green-600 dark:text-green-400",
   rejected: "bg-red-500/15 text-red-600 dark:text-red-400",
 };
+
+/**
+ * Trust section (issue #25): one row per contract gate with its review mode
+ * (full | spot check), the live zero-reject streak, and — for promoted
+ * gates — a manual "revert to full review" button.
+ */
+function WorkflowTrustSection({ wsId, workflowId }: { wsId: string; workflowId: string }) {
+  const { t } = useT("raven");
+  const { data: policies = [] } = useQuery(ravenGatePoliciesOptions(wsId, workflowId));
+  const revokeMutation = useRevokeRavenGatePolicy(wsId);
+
+  if (policies.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="text-sm font-semibold">{t(($) => $.workflows.trust.title)}</h2>
+      <ul className="mt-2 divide-y rounded-md border">
+        {policies.map((policy) => {
+          const sampled = policy.mode === "sampled";
+          return (
+            <li
+              key={policy.gate_name}
+              className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm"
+              data-testid="workflow-gate-policy-row"
+            >
+              <span className="font-medium">{policy.gate_name}</span>
+              <Badge
+                variant="secondary"
+                className={
+                  sampled
+                    ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                    : "bg-muted text-muted-foreground"
+                }
+              >
+                {sampled
+                  ? t(($) => $.workflows.trust.mode_sampled)
+                  : t(($) => $.workflows.trust.mode_full)}
+              </Badge>
+              {!sampled && (
+                <span className="text-xs text-muted-foreground">
+                  {t(($) => $.workflows.trust.streak, { count: policy.streak ?? 0 })}
+                  {" · "}
+                  {t(($) => $.workflows.trust.remaining, {
+                    count: Math.max(0, RAVEN_PROMOTION_THRESHOLD - (policy.streak ?? 0)),
+                  })}
+                </span>
+              )}
+              {sampled && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto"
+                  disabled={revokeMutation.isPending}
+                  onClick={() =>
+                    revokeMutation.mutate({ workflowId, gateName: policy.gate_name })
+                  }
+                  data-testid="revoke-gate-policy"
+                >
+                  {t(($) => $.workflows.trust.revoke)}
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {revokeMutation.isError && (
+        <p className="mt-1 text-xs text-destructive">
+          {t(($) => $.workflows.trust.revoke_failed)}
+        </p>
+      )}
+    </section>
+  );
+}
 
 function RunRow({
   run,
@@ -352,6 +429,8 @@ export function WorkflowDetailPage({ workflowId }: { workflowId: string }) {
               )}
             </div>
           </section>
+
+          <WorkflowTrustSection wsId={wsId} workflowId={workflowId} />
 
           <section>
             <h2 className="text-sm font-semibold">

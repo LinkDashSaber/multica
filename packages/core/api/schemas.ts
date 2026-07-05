@@ -318,6 +318,8 @@ export interface RavenGateReview {
   review_package: unknown;
   decided_by: string | null;
   decision_reason: string;
+  /** "" (full review) | "selected" (spot check hit) | "auto_approved" (spot check miss). */
+  sample_result: string;
   created_at: string;
   decided_at: string | null;
 }
@@ -332,6 +334,7 @@ export const RavenGateReviewSchema = z.object({
   review_package: z.unknown().optional(),
   decided_by: z.string().nullable().default(null),
   decision_reason: z.string().default(""),
+  sample_result: z.string().default(""),
   created_at: z.string().default(""),
   decided_at: z.string().nullable().default(null),
 }).loose();
@@ -356,6 +359,7 @@ export const EMPTY_RAVEN_GATE_REVIEW: RavenGateReview = {
   review_package: undefined,
   decided_by: null,
   decision_reason: "",
+  sample_result: "",
   created_at: "",
   decided_at: null,
 };
@@ -363,6 +367,86 @@ export const EMPTY_RAVEN_GATE_REVIEW: RavenGateReview = {
 export const EMPTY_RAVEN_GATE_REVIEW_LIST: RavenGateReviewListResponse = {
   gates: [],
   total: 0,
+};
+
+// ---------------------------------------------------------------------------
+// Trust promotion (issue #25, ADR-0009): per workflow × gate review policy
+// (full | sampled) with the live zero-reject streak, and the promotion
+// application letter decided like a gate.
+// ---------------------------------------------------------------------------
+
+export interface RavenGatePolicy {
+  gate_name: string;
+  /** "full" | "sampled"; treat unknown values as full review. */
+  mode: string;
+  /** Consecutive human approvals with zero rejections. */
+  streak: number;
+  approved_by: string | null;
+  updated_at: string;
+}
+
+export const RavenGatePolicyListSchema = z.object({
+  policies: z.array(
+    z.object({
+      gate_name: z.string().default(""),
+      mode: z.string().default("full"),
+      streak: z.number().default(0),
+      approved_by: z.string().nullable().default(null),
+      updated_at: z.string().default(""),
+    }).loose(),
+  ).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenGatePolicyListResponse {
+  policies: RavenGatePolicy[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_GATE_POLICY_LIST: RavenGatePolicyListResponse = {
+  policies: [],
+  total: 0,
+};
+
+export interface RavenPromotion {
+  id: string;
+  workspace_id: string;
+  workflow_id: string;
+  gate_name: string;
+  /** "pending" | "approved" | "rejected"; treat unknown values as display-only. */
+  status: string;
+  /** The streak's review records, untyped JSON from the server. */
+  evidence: unknown;
+  decided_by: string | null;
+  decision_reason: string;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export const RavenPromotionSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string().default(""),
+  workflow_id: z.string().default(""),
+  gate_name: z.string().default(""),
+  status: z.string().default("pending"),
+  evidence: z.unknown().optional(),
+  decided_by: z.string().nullable().default(null),
+  decision_reason: z.string().default(""),
+  created_at: z.string().default(""),
+  decided_at: z.string().nullable().default(null),
+}).loose();
+
+export const EMPTY_RAVEN_PROMOTION: RavenPromotion = {
+  id: "",
+  workspace_id: "",
+  workflow_id: "",
+  gate_name: "",
+  status: "pending",
+  evidence: undefined,
+  decided_by: null,
+  decision_reason: "",
+  created_at: "",
+  decided_at: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -508,6 +592,10 @@ export interface RavenWorkflowStats {
   avg_run_seconds: number;
   approved_gates: number;
   rejected_gates: number;
+  /** Gates downgraded to spot checks — > 0 means "production line" (issue #25). */
+  promoted_gates: number;
+  /** Best live zero-reject streak among gates still under full review. */
+  max_gate_streak: number;
 }
 
 export const RavenWorkflowStatsListSchema = z.object({
@@ -519,6 +607,9 @@ export const RavenWorkflowStatsListSchema = z.object({
       avg_run_seconds: z.number().default(0),
       approved_gates: z.number().default(0),
       rejected_gates: z.number().default(0),
+      // Older backends don't send trust fields; default to "no progress".
+      promoted_gates: z.number().default(0),
+      max_gate_streak: z.number().default(0),
     }).loose(),
   ).default([]),
   total: z.number().default(0),

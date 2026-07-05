@@ -89,6 +89,17 @@
       "cancel": "취소",
       "failed": "저작 요구 생성에 실패했습니다",
       "unavailable": "이 워크스페이스에는 내장 workflow-authoring 전략이 등록되어 있지 않습니다"
+    },
+    "trust": {
+      "column": "신뢰도",
+      "production_line": "프로덕션 라인",
+      "remaining": "프로덕션 라인까지 무반려 {{count}}회 남음",
+      "title": "신뢰도",
+      "mode_full": "전수 검토",
+      "mode_sampled": "표본 검사 1/5",
+      "streak": "연속 무반려 {{count}}회",
+      "revoke": "전수 검토로 되돌리기",
+      "revoke_failed": "되돌리기 실패"
     }
   },
   "timeline": {

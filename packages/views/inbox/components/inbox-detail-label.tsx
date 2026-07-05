@@ -34,6 +34,7 @@ export function useTypeLabels(): Record<InboxItemType, string> {
     quick_create_failed: t(($) => $.types.quick_create_failed),
     raven_gate_pending: t(($) => $.types.raven_gate_pending),
     raven_clarify_pending: t(($) => $.types.raven_clarify_pending),
+    raven_promotion_pending: t(($) => $.types.raven_promotion_pending),
     raven_uptrack_proposal: t(($) => $.types.raven_uptrack_proposal),
   };
 }

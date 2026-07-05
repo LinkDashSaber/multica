@@ -53,6 +53,7 @@
     "quick_create_failed": "에이전트 생성 실패",
     "raven_gate_pending": "게이트 리뷰 대기",
     "raven_clarify_pending": "확인 질문 답변 대기",
+    "raven_promotion_pending": "신뢰 승격 승인 대기",
     "raven_uptrack_proposal": "워크플로 전환 제안"
   },
   "labels": {
