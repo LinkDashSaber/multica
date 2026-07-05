@@ -26,6 +26,10 @@ import {
   RavenRunListSchema,
   RavenStageEventListSchema,
   RavenWorkflowStatsListSchema,
+  RavenLearningSchema,
+  RavenLearningListSchema,
+  EMPTY_RAVEN_LEARNING,
+  EMPTY_RAVEN_LEARNING_LIST,
   IssueTriggerPreviewSchema,
   ListIssuesResponseSchema,
   RuntimeHourlyActivityListSchema,
@@ -843,5 +847,51 @@ describe("RavenWorkflowStatsListSchema", () => {
     expect(
       parseWithFallback(null, RavenWorkflowStatsListSchema, EMPTY_RAVEN_WORKFLOW_STATS_LIST, ENDPOINT),
     ).toBe(EMPTY_RAVEN_WORKFLOW_STATS_LIST);
+  });
+});
+
+describe("RavenLearningSchema / RavenLearningListSchema", () => {
+  const ENDPOINT = { endpoint: "GET /api/raven/learnings" };
+
+  it("parses learnings with provenance and defaults omitted fields", () => {
+    const parsed = parseWithFallback(
+      {
+        learnings: [
+          {
+            id: "l-1",
+            run_id: "run-1",
+            stage: "execute",
+            content: "先读现有测试",
+            status: "fresh",
+            promoted_to: "",
+            issue_id: "issue-1",
+            created_at: "2026-07-01T10:00:00Z",
+          },
+          // Older/newer backend drift: minimal row still parses.
+          { id: "l-2" },
+        ],
+        total: 2,
+      },
+      RavenLearningListSchema,
+      EMPTY_RAVEN_LEARNING_LIST,
+      ENDPOINT,
+    );
+    expect(parsed.learnings[0]?.stage).toBe("execute");
+    expect(parsed.learnings[0]?.issue_id).toBe("issue-1");
+    expect(parsed.learnings[1]?.status).toBe("fresh");
+    expect(parsed.learnings[1]?.promoted_to).toBe("");
+  });
+
+  it("returns the fallback for malformed bodies", () => {
+    expect(
+      parseWithFallback([], RavenLearningListSchema, EMPTY_RAVEN_LEARNING_LIST, ENDPOINT),
+    ).toBe(EMPTY_RAVEN_LEARNING_LIST);
+    expect(
+      parseWithFallback(null, RavenLearningSchema, EMPTY_RAVEN_LEARNING, {
+        endpoint: "PATCH /api/raven/learnings/{id}",
+      }),
+    ).toBe(EMPTY_RAVEN_LEARNING);
+    const empty = parseWithFallback({}, RavenLearningListSchema, EMPTY_RAVEN_LEARNING_LIST, ENDPOINT);
+    expect(empty.learnings).toEqual([]);
   });
 });

@@ -174,9 +174,32 @@ export class RunContext {
     await this.client.reportRunStageEvent(this.payload.run_id, name, "entered");
     this.currentStage = name;
     const result = await fn();
+    this.currentStage = "";
     await this.client.reportRunStageEvent(this.payload.run_id, name, "exited");
     this.currentStage = "";
     return result;
+  }
+
+  /** The stage() scope the script is currently inside; "" between stages. */
+  private currentStage = "";
+
+  /**
+   * learning() — execution self-report (issue #22, ADR-0008 主进料口).
+   * Records a compounding-candidate insight with run + stage provenance
+   * (defaults to the enclosing stage() scope). Fire-and-forget by design:
+   * a failed report must never break workflow execution, so errors are
+   * swallowed.
+   */
+  async learning(text: string, stage?: string): Promise<void> {
+    try {
+      await this.client.createLearning({
+        runId: this.payload.run_id,
+        stage: stage ?? this.currentStage,
+        content: text,
+      });
+    } catch {
+      // Best-effort reporting; execution goes on.
+    }
   }
 
   /**

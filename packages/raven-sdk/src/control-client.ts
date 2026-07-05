@@ -153,6 +153,15 @@ export class ControlPlaneClient {
     return this.request("POST", `/api/raven/runs/${runId}/stage-events`, { stage, event });
   }
 
+  /** Execution self-reported learning (issue #22, ADR-0008 主进料口). */
+  createLearning(input: { runId: string; stage?: string; content: string }): Promise<unknown> {
+    return this.request("POST", "/api/raven/learnings", {
+      run_id: input.runId,
+      stage: input.stage,
+      content: input.content,
+    });
+  }
+
   createEvidence(input: CreateEvidenceInput): Promise<unknown> {
     return this.request("POST", "/api/raven/evidence", {
       requirement_id: input.requirementId,

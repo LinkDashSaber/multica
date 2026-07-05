@@ -126,5 +126,26 @@
       "answer": "Answer",
       "unanswered": "Awaiting answer"
     }
+  },
+  "learnings": {
+    "title": "Learning Stream",
+    "empty": "No self-reported learnings yet",
+    "source_run": "run {{run}}",
+    "no_stage": "no stage",
+    "view_issue": "View issue",
+    "status": {
+      "fresh": "Fresh",
+      "promoted": "Promoted",
+      "expired": "Expired"
+    },
+    "promote": "Promote",
+    "promote_to": {
+      "skill_proposal": "Skill proposal",
+      "fact": "Facts & definitions",
+      "uptrack_evidence": "Uptrack evidence"
+    },
+    "promoted_to_label": "Promoted to: {{dest}}",
+    "expire": "Mark expired",
+    "action_failed": "Action failed"
   }
 }

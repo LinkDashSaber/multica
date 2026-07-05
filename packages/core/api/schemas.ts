@@ -679,6 +679,68 @@ export const EMPTY_RAVEN_TRANSITION_LIST: RavenTransitionListResponse = {
 };
 
 // ---------------------------------------------------------------------------
+// Raven execution self-reported learnings (issue #22, ADR-0008 主进料口).
+// ---------------------------------------------------------------------------
+
+export interface RavenLearning {
+  id: string;
+  workspace_id: string;
+  run_id: string;
+  /** Contract stage the report came from; "" when reported between stages. */
+  stage: string;
+  content: string;
+  /** "fresh" | "promoted" | "expired"; treat unknown values as display-only. */
+  status: string;
+  /** "" until promoted; then "skill_proposal" | "fact" | "uptrack_evidence". */
+  promoted_to: string;
+  /** Origin issue of the run's requirement, for linking; "" on create responses. */
+  issue_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const RavenLearningSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string().default(""),
+  run_id: z.string().default(""),
+  stage: z.string().default(""),
+  content: z.string().default(""),
+  status: z.string().default("fresh"),
+  promoted_to: z.string().default(""),
+  issue_id: z.string().default(""),
+  created_at: z.string().default(""),
+  updated_at: z.string().default(""),
+}).loose();
+
+export const RavenLearningListSchema = z.object({
+  learnings: z.array(RavenLearningSchema).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export interface RavenLearningListResponse {
+  learnings: RavenLearning[];
+  total: number;
+}
+
+export const EMPTY_RAVEN_LEARNING: RavenLearning = {
+  id: "",
+  workspace_id: "",
+  run_id: "",
+  stage: "",
+  content: "",
+  status: "fresh",
+  promoted_to: "",
+  issue_id: "",
+  created_at: "",
+  updated_at: "",
+};
+
+export const EMPTY_RAVEN_LEARNING_LIST: RavenLearningListResponse = {
+  learnings: [],
+  total: 0,
+};
+
+// ---------------------------------------------------------------------------
 // Raven workflow recommendation (issue #9). `workflow_id: null` means "no
 // confident match" — the UI offers the Squad fallback instead of a workflow.
 // ---------------------------------------------------------------------------

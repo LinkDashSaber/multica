@@ -126,5 +126,26 @@
       "answer": "답변",
       "unanswered": "답변 대기"
     }
+  },
+  "learnings": {
+    "title": "러닝 스트림",
+    "empty": "아직 자가 보고된 러닝이 없습니다",
+    "source_run": "run {{run}}",
+    "no_stage": "단계 없음",
+    "view_issue": "이슈 보기",
+    "status": {
+      "fresh": "대기",
+      "promoted": "승격됨",
+      "expired": "만료됨"
+    },
+    "promote": "승격",
+    "promote_to": {
+      "skill_proposal": "스킬 제안",
+      "fact": "사실과 기준",
+      "uptrack_evidence": "승격 증거"
+    },
+    "promoted_to_label": "승격 대상: {{dest}}",
+    "expire": "만료 처리",
+    "action_failed": "작업 실패"
   }
 }

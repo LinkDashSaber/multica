@@ -49,6 +49,29 @@ export function useAnswerRavenClarification(wsId: string) {
   });
 }
 
+export interface TriageLearningInput {
+  learningId: string;
+  status: "promoted" | "expired";
+  promotedTo?: "skill_proposal" | "fact" | "uptrack_evidence";
+}
+
+/**
+ * Triage a fresh learning (issue #22): promote it towards one of the three
+ * compounding destinations, or expire it. Not optimistic — the server is
+ * the arbiter of "already triaged" (409), so we settle by invalidating the
+ * learning stream instead of guessing.
+ */
+export function useTriageRavenLearning(wsId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ learningId, status, promotedTo }: TriageLearningInput) =>
+      api.updateRavenLearningStatus(learningId, { status, promoted_to: promotedTo }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ravenKeys.learnings(wsId) });
+    },
+  });
+}
+
 /**
  * Ask for a workflow recommendation from issue-create form text (issue #9).
  * Transient by design — the result drives a one-shot banner, so a mutation

@@ -126,5 +126,26 @@
       "answer": "回答",
       "unanswered": "回答待ち"
     }
+  },
+  "learnings": {
+    "title": "ラーニングストリーム",
+    "empty": "まだ自己報告されたラーニングはありません",
+    "source_run": "run {{run}}",
+    "no_stage": "ステージなし",
+    "view_issue": "Issue を見る",
+    "status": {
+      "fresh": "未整理",
+      "promoted": "昇格済み",
+      "expired": "期限切れ"
+    },
+    "promote": "昇格",
+    "promote_to": {
+      "skill_proposal": "スキル提案",
+      "fact": "事実と基準",
+      "uptrack_evidence": "昇格の証拠"
+    },
+    "promoted_to_label": "昇格先: {{dest}}",
+    "expire": "期限切れにする",
+    "action_failed": "操作に失敗しました"
   }
 }

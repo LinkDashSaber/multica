@@ -126,5 +126,26 @@
       "answer": "回答",
       "unanswered": "待回答"
     }
+  },
+  "learnings": {
+    "title": "沉淀流",
+    "empty": "还没有执行自报",
+    "source_run": "run {{run}}",
+    "no_stage": "无阶段",
+    "view_issue": "查看 issue",
+    "status": {
+      "fresh": "待沉淀",
+      "promoted": "已晋升",
+      "expired": "已过期"
+    },
+    "promote": "晋升",
+    "promote_to": {
+      "skill_proposal": "Skill 提议",
+      "fact": "事实与口径",
+      "uptrack_evidence": "升轨证据"
+    },
+    "promoted_to_label": "去向：{{dest}}",
+    "expire": "标记过期",
+    "action_failed": "操作失败"
   }
 }
