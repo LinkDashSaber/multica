@@ -78,6 +78,17 @@
     "run_failure": {
       "title": "Failure reason",
       "raw": "Raw data"
+    },
+    "create": {
+      "button": "New workflow",
+      "title": "New workflow",
+      "description": "Describe what you want to deliver. The built-in authoring strategy will ask clarifying questions, draft the contract for your confirmation, and open a PR — merging it registers the workflow.",
+      "title_placeholder": "Workflow title, e.g. Hotfix delivery",
+      "intent_placeholder": "One sentence on what kind of requirements this strategy should handle",
+      "submit": "Create",
+      "cancel": "Cancel",
+      "failed": "Failed to create the authoring requirement",
+      "unavailable": "The built-in workflow-authoring strategy is not registered in this workspace"
     }
   },
   "timeline": {

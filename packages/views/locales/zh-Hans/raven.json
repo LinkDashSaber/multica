@@ -78,6 +78,17 @@
     "run_failure": {
       "title": "失败原因",
       "raw": "原始数据"
+    },
+    "create": {
+      "button": "新建交付策略",
+      "title": "新建交付策略",
+      "description": "描述你想交付什么。内置的建策略流程会追问澄清、起草合同供你确认，并提交 PR——合并即注册。",
+      "title_placeholder": "策略标题，例如：紧急修复交付",
+      "intent_placeholder": "一句话说明这个策略要处理哪类需求",
+      "submit": "创建",
+      "cancel": "取消",
+      "failed": "创建建策略需求失败",
+      "unavailable": "当前工作区尚未注册内置的 workflow-authoring 策略"
     }
   },
   "timeline": {

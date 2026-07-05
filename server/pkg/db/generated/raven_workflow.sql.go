@@ -74,6 +74,35 @@ func (q *Queries) GetRavenWorkflow(ctx context.Context, arg GetRavenWorkflowPara
 	return i, err
 }
 
+const getRavenWorkflowByName = `-- name: GetRavenWorkflowByName :one
+SELECT id, workspace_id, name, description, contract, version, enabled, created_at, updated_at FROM raven_workflow
+WHERE workspace_id = $1 AND name = $2
+`
+
+type GetRavenWorkflowByNameParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	Name        string      `json:"name"`
+}
+
+// Name lookup for the merge-registration hook (ADR-0010): decides
+// create-vs-update so re-registering the same name never duplicates.
+func (q *Queries) GetRavenWorkflowByName(ctx context.Context, arg GetRavenWorkflowByNameParams) (RavenWorkflow, error) {
+	row := q.db.QueryRow(ctx, getRavenWorkflowByName, arg.WorkspaceID, arg.Name)
+	var i RavenWorkflow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.Description,
+		&i.Contract,
+		&i.Version,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listRavenWorkflowStats = `-- name: ListRavenWorkflowStats :many
 SELECT
     w.id AS workflow_id,

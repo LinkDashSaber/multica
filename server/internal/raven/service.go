@@ -100,6 +100,13 @@ func (s *Service) ApplyTransition(ctx context.Context, requirement db.RavenRequi
 	}
 
 	s.ProjectStateToIssue(ctx, updated)
+
+	// Merged is the registration event for authoring/uptrack drafts
+	// (ADR-0010). Single choke point: manual API, GitHub webhook and any
+	// future path all funnel through ApplyTransition.
+	if to == StateMerged {
+		s.registerWorkflowFromContractDraft(ctx, updated)
+	}
 	return updated, nil
 }
 

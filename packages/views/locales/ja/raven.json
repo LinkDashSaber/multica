@@ -78,6 +78,17 @@
     "run_failure": {
       "title": "失敗理由",
       "raw": "生データ"
+    },
+    "create": {
+      "button": "新規デリバリー戦略",
+      "title": "新規デリバリー戦略",
+      "description": "何をデリバリーしたいか記述してください。組み込みのオーサリング戦略が確認の質問を行い、契約のドラフトを提示し、PR を作成します。マージすると自動的に登録されます。",
+      "title_placeholder": "戦略のタイトル（例：ホットフィックス）",
+      "intent_placeholder": "この戦略が扱う要求の種類を一文で",
+      "submit": "作成",
+      "cancel": "キャンセル",
+      "failed": "オーサリング要求の作成に失敗しました",
+      "unavailable": "このワークスペースには組み込みの workflow-authoring 戦略が登録されていません"
     }
   },
   "timeline": {

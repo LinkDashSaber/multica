@@ -78,6 +78,17 @@
     "run_failure": {
       "title": "실패 사유",
       "raw": "원본 데이터"
+    },
+    "create": {
+      "button": "새 딜리버리 전략",
+      "title": "새 딜리버리 전략",
+      "description": "무엇을 딜리버리하고 싶은지 설명하세요. 내장 저작 전략이 명확화 질문을 하고, 계약 초안을 확인받은 뒤 PR을 생성합니다. 머지하면 자동으로 등록됩니다.",
+      "title_placeholder": "전략 제목 (예: 핫픽스 딜리버리)",
+      "intent_placeholder": "이 전략이 처리할 요구 유형을 한 문장으로",
+      "submit": "생성",
+      "cancel": "취소",
+      "failed": "저작 요구 생성에 실패했습니다",
+      "unavailable": "이 워크스페이스에는 내장 workflow-authoring 전략이 등록되어 있지 않습니다"
     }
   },
   "timeline": {
