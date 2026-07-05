@@ -209,3 +209,48 @@ func (q *Queries) ListPendingRavenGateReviewsWithContract(ctx context.Context, w
 	}
 	return items, nil
 }
+
+const listRavenClarificationsByRequirement = `-- name: ListRavenClarificationsByRequirement :many
+SELECT id, workspace_id, requirement_id, run_id, stage, questions, status, answer, answered_by, created_at, answered_at FROM raven_clarification
+WHERE requirement_id = $1 AND workspace_id = $2
+ORDER BY created_at ASC
+`
+
+type ListRavenClarificationsByRequirementParams struct {
+	RequirementID pgtype.UUID `json:"requirement_id"`
+	WorkspaceID   pgtype.UUID `json:"workspace_id"`
+}
+
+// All clarifications of a requirement (any status), oldest first — feeds the
+// run room's graph overlay and timeline (issue #18).
+func (q *Queries) ListRavenClarificationsByRequirement(ctx context.Context, arg ListRavenClarificationsByRequirementParams) ([]RavenClarification, error) {
+	rows, err := q.db.Query(ctx, listRavenClarificationsByRequirement, arg.RequirementID, arg.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RavenClarification{}
+	for rows.Next() {
+		var i RavenClarification
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.RequirementID,
+			&i.RunID,
+			&i.Stage,
+			&i.Questions,
+			&i.Status,
+			&i.Answer,
+			&i.AnsweredBy,
+			&i.CreatedAt,
+			&i.AnsweredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -111,6 +111,28 @@ func (h *Handler) CreateRavenRun(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListRavenRuns lists a requirement's runs, newest first.
+// GetRavenRun returns one run — the run room (issue #18) loads by run id.
+func (h *Handler) GetRavenRun(w http.ResponseWriter, r *http.Request) {
+	idUUID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "id"), "run id")
+	if !ok {
+		return
+	}
+	wsUUID, ok := parseUUIDOrBadRequest(w, h.resolveWorkspaceID(r), "workspace id")
+	if !ok {
+		return
+	}
+	run, err := h.Queries.GetRavenRun(r.Context(), db.GetRavenRunParams{ID: idUUID, WorkspaceID: wsUUID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "run not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to get run")
+		return
+	}
+	writeJSON(w, http.StatusOK, ravenRunToResponse(run))
+}
+
 func (h *Handler) ListRavenRuns(w http.ResponseWriter, r *http.Request) {
 	reqUUID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "id"), "requirement id")
 	if !ok {

@@ -40,6 +40,7 @@ function workspaceScoped(slug: string) {
     ravenWorkflows: () => `${ws}/raven/workflows`,
     ravenWorkflowDetail: (id: string) => `${ws}/raven/workflows/${encode(id)}`,
     ravenLearnings: () => `${ws}/raven/learnings`,
+    ravenRunDetail: (id: string) => `${ws}/raven/runs/${encode(id)}`,
     settings: () => `${ws}/settings`,
     attachmentPreview: (id: string) => `${ws}/attachments/${encode(id)}/preview`,
   };

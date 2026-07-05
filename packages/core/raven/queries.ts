@@ -53,6 +53,10 @@ export const ravenKeys = {
     [...ravenKeys.all(wsId), "requirement-runs", requirementId] as const,
   runStageEvents: (wsId: string, runId: string) =>
     [...ravenKeys.all(wsId), "run-stage-events", runId] as const,
+  run: (wsId: string, runId: string) =>
+    [...ravenKeys.all(wsId), "run", runId] as const,
+  requirementClarifications: (wsId: string, requirementId: string) =>
+    [...ravenKeys.all(wsId), "requirement-clarifications", requirementId] as const,
   requirement: (wsId: string, id: string) =>
     [...ravenKeys.all(wsId), "requirement", id] as const,
   requirementEvidence: (wsId: string, requirementId: string) =>
@@ -136,6 +140,33 @@ export function requirementRunsOptions(wsId: string, requirementId: string) {
   return queryOptions<RavenRun[]>({
     queryKey: ravenKeys.requirementRuns(wsId, requirementId),
     queryFn: async () => (await api.listRavenRuns(requirementId)).runs,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+}
+
+/**
+ * One run by id — backs the run room (issue #18). Polls while visible so the
+ * page follows a live run's status, spend, and current stage.
+ */
+export function ravenRunOptions(wsId: string, runId: string) {
+  return queryOptions<RavenRun>({
+    queryKey: ravenKeys.run(wsId, runId),
+    queryFn: () => api.getRavenRun(runId),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+}
+
+/**
+ * A requirement's clarification history (any status), oldest first (issue
+ * #18) — overlaid on the run graph as temporary nodes and merged into the
+ * run room's execution timeline.
+ */
+export function requirementClarificationsOptions(wsId: string, requirementId: string) {
+  return queryOptions<RavenClarification[]>({
+    queryKey: ravenKeys.requirementClarifications(wsId, requirementId),
+    queryFn: async () => (await api.listRavenClarifications(requirementId)).clarifications,
     staleTime: 10_000,
     refetchInterval: 15_000,
   });

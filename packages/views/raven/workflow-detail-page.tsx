@@ -216,10 +216,18 @@ function RunRow({
             )}
           </span>
         )}
+        {/* Entry to the run room (issue #18). */}
+        <AppLink
+          href={wsPaths.ravenRunDetail(run.id)}
+          data-testid="open-run-room"
+          className="ml-auto shrink-0 underline-offset-4 hover:text-foreground hover:underline"
+        >
+          {t(($) => $.run_room.open)}
+        </AppLink>
         {run.issue_id && (
           <AppLink
             href={wsPaths.issueDetail(run.issue_id)}
-            className="ml-auto shrink-0 underline-offset-4 hover:text-foreground hover:underline"
+            className="shrink-0 underline-offset-4 hover:text-foreground hover:underline"
           >
             {t(($) => $.workflows.detail.view_issue)}
           </AppLink>

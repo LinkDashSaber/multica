@@ -273,3 +273,40 @@ func TestRavenContractRetryDeclaration(t *testing.T) {
 		testPool.Exec(t.Context(), `DELETE FROM raven_workflow WHERE id = $1`, wf.ID)
 	})
 }
+
+// TestGetRavenRun: the run room (issue #18) loads a run directly by id.
+func TestGetRavenRun(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	issueID := createTestIssue(t, "raven get run", "backlog", "medium")
+	t.Cleanup(func() { deleteTestIssue(t, issueID) })
+	requirement := createRavenRequirement(t, issueID)
+
+	w := httptest.NewRecorder()
+	testHandler.CreateRavenRun(w, withURLParam(newRequest("POST", "/api/raven/requirements/"+requirement.ID+"/runs", nil), "id", requirement.ID))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("CreateRavenRun: %d %s", w.Code, w.Body.String())
+	}
+	var run RavenRunResponse
+	json.NewDecoder(w.Body).Decode(&run)
+
+	getW := httptest.NewRecorder()
+	testHandler.GetRavenRun(getW, withURLParam(newRequest("GET", "/api/raven/runs/"+run.ID, nil), "id", run.ID))
+	if getW.Code != http.StatusOK {
+		t.Fatalf("GetRavenRun: expected 200, got %d: %s", getW.Code, getW.Body.String())
+	}
+	var got RavenRunResponse
+	json.NewDecoder(getW.Body).Decode(&got)
+	if got.ID != run.ID || got.RequirementID != requirement.ID || got.Status != "pending" {
+		t.Fatalf("GetRavenRun payload: %+v", got)
+	}
+
+	// Unknown id is a 404, not a 500.
+	missW := httptest.NewRecorder()
+	missID := "00000000-0000-0000-0000-000000000001"
+	testHandler.GetRavenRun(missW, withURLParam(newRequest("GET", "/api/raven/runs/"+missID, nil), "id", missID))
+	if missW.Code != http.StatusNotFound {
+		t.Fatalf("GetRavenRun missing: expected 404, got %d", missW.Code)
+	}
+}
