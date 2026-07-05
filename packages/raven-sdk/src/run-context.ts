@@ -174,14 +174,10 @@ export class RunContext {
     await this.client.reportRunStageEvent(this.payload.run_id, name, "entered");
     this.currentStage = name;
     const result = await fn();
-    this.currentStage = "";
     await this.client.reportRunStageEvent(this.payload.run_id, name, "exited");
     this.currentStage = "";
     return result;
   }
-
-  /** The stage() scope the script is currently inside; "" between stages. */
-  private currentStage = "";
 
   /**
    * learning() — execution self-report (issue #22, ADR-0008 主进料口).
