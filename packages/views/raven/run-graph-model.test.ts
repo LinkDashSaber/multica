@@ -52,6 +52,7 @@ function review(overrides: Partial<RavenGateReview> = {}): RavenGateReview {
     review_package: undefined,
     decided_by: null,
     decision_reason: "",
+    sample_result: "",
     created_at: "2026-07-01T10:31:00Z",
     decided_at: null,
     ...overrides,

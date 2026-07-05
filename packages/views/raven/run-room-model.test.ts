@@ -113,7 +113,7 @@ describe("mergeRunTimeline", () => {
         {
           id: "g-1", workspace_id: "ws-1", requirement_id: "req-1", run_id: "run-1",
           gate_name: "spec-confirm", status: "approved", review_package: undefined,
-          decided_by: "u-1", decision_reason: "", created_at: "2026-07-01T10:11:00Z",
+          decided_by: "u-1", decision_reason: "", sample_result: "", created_at: "2026-07-01T10:11:00Z",
           decided_at: "2026-07-01T10:20:00Z",
         },
       ],
@@ -159,7 +159,7 @@ describe("mergeRunTimeline", () => {
         {
           id: "g-2", workspace_id: "ws-1", requirement_id: "req-1", run_id: "run-1",
           gate_name: "human-review", status: "pending", review_package: undefined,
-          decided_by: null, decision_reason: "", created_at: "2026-07-01T10:30:00Z",
+          decided_by: null, decision_reason: "", sample_result: "", created_at: "2026-07-01T10:30:00Z",
           decided_at: null,
         },
       ],
