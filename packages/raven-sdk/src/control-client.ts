@@ -49,15 +49,6 @@ export interface IssueUsage {
   usd: number;
 }
 
-export interface CommentRecord {
-  id: string;
-  author_type: string;
-  author_id: string;
-  content: string;
-  type: string;
-  created_at: string;
-}
-
 function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
@@ -236,16 +227,27 @@ export class ControlPlaneClient {
     }) as Promise<{ id: string }>;
   }
 
-  async listComments(issueId: string): Promise<CommentRecord[]> {
-    const data = await this.request("GET", `/api/issues/${issueId}/comments`);
-    if (Array.isArray(data)) return data as CommentRecord[];
-    if (data && typeof data === "object") {
-      const o = data as Record<string, unknown>;
-      for (const k of ["comments", "items", "entries"]) {
-        if (Array.isArray(o[k])) return o[k] as CommentRecord[];
-      }
-    }
-    return [];
+  // Clarification decision points (issue #19): create + poll.
+  createClarification(input: {
+    requirementId: string;
+    runId?: string;
+    stage?: string;
+    questions: unknown[];
+  }): Promise<{ id: string; status: string }> {
+    return this.request("POST", "/api/raven/clarifications", {
+      requirement_id: input.requirementId,
+      run_id: input.runId,
+      stage: input.stage ?? "",
+      questions: input.questions,
+    }) as Promise<{ id: string; status: string }>;
+  }
+
+  getClarification(id: string): Promise<{ id: string; status: string; answer: string }> {
+    return this.request("GET", `/api/raven/clarifications/${id}`) as Promise<{
+      id: string;
+      status: string;
+      answer: string;
+    }>;
   }
 
   async listTimeline(issueId: string): Promise<Record<string, unknown>[]> {

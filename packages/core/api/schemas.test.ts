@@ -11,6 +11,10 @@ import {
   EMPTY_RAVEN_EVIDENCE_LIST,
   EMPTY_RAVEN_GATE_REVIEW,
   EMPTY_RAVEN_GATE_REVIEW_LIST,
+  RavenClarificationSchema,
+  EMPTY_RAVEN_CLARIFICATION,
+  RavenDecisionPointListSchema,
+  EMPTY_RAVEN_DECISION_POINT_LIST,
   EMPTY_USER,
   InboxUnreadSummarySchema,
   EMPTY_RAVEN_RUN_LIST,
@@ -585,6 +589,111 @@ describe("RavenGateReviewSchema / RavenGateReviewListSchema", () => {
       { endpoint: "GET /api/raven/gates" },
     );
     expect(empty.gates).toEqual([]);
+  });
+});
+
+describe("RavenClarificationSchema / RavenDecisionPointListSchema", () => {
+  const ENDPOINT = { endpoint: "GET /api/raven/clarifications/{id}" };
+
+  const baseClarification = {
+    id: "44444444-4444-4444-4444-444444444444",
+    workspace_id: "ws-1",
+    requirement_id: "33333333-3333-3333-3333-333333333333",
+    run_id: "55555555-5555-5555-5555-555555555555",
+    stage: "clarify",
+    questions: [{ question: "Which auth scheme?", options: ["JWT"], recommended: "JWT" }],
+    status: "pending",
+    answer: "",
+    answered_by: null,
+    created_at: "2026-01-01T00:00:00Z",
+    answered_at: null,
+  };
+
+  it("parses a pending clarification and passes unknown fields through", () => {
+    const parsed = parseWithFallback(
+      { ...baseClarification, future_field: "kept" },
+      RavenClarificationSchema,
+      EMPTY_RAVEN_CLARIFICATION,
+      ENDPOINT,
+    );
+    expect(parsed.id).toBe(baseClarification.id);
+    expect(parsed.stage).toBe("clarify");
+    expect(parsed.questions).toEqual(baseClarification.questions);
+    expect((parsed as unknown as Record<string, unknown>).future_field).toBe("kept");
+  });
+
+  it("defaults omitted optional fields instead of failing the parse", () => {
+    const parsed = parseWithFallback(
+      { id: "c-1" },
+      RavenClarificationSchema,
+      EMPTY_RAVEN_CLARIFICATION,
+      ENDPOINT,
+    );
+    expect(parsed.status).toBe("pending");
+    expect(parsed.answer).toBe("");
+    expect(parsed.answered_by).toBeNull();
+  });
+
+  it("returns the fallback for a malformed body", () => {
+    expect(
+      parseWithFallback(null, RavenClarificationSchema, EMPTY_RAVEN_CLARIFICATION, ENDPOINT),
+    ).toBe(EMPTY_RAVEN_CLARIFICATION);
+  });
+
+  it("parses the mixed decision-point queue with both kinds", () => {
+    const parsed = parseWithFallback(
+      {
+        items: [
+          {
+            kind: "gate",
+            id: "g-1",
+            requirement_id: "r-1",
+            run_id: null,
+            stage: "self-check",
+            title: "human-review",
+            context: { summary: "all green" },
+            response_kind: "approve_reject",
+            status: "pending",
+            created_at: "2026-01-01T00:00:00Z",
+          },
+          {
+            kind: "clarify",
+            id: "c-1",
+            requirement_id: "r-1",
+            run_id: "run-1",
+            stage: "clarify",
+            title: "",
+            context: { questions: baseClarification.questions },
+            response_kind: "answer",
+            status: "pending",
+            created_at: "2026-01-02T00:00:00Z",
+          },
+        ],
+        total: 2,
+      },
+      RavenDecisionPointListSchema,
+      EMPTY_RAVEN_DECISION_POINT_LIST,
+      { endpoint: "GET /api/raven/decision-points" },
+    );
+    expect(parsed.items).toHaveLength(2);
+    expect(parsed.items[0]?.response_kind).toBe("approve_reject");
+    expect(parsed.items[1]?.kind).toBe("clarify");
+  });
+
+  it("returns the fallback for a malformed decision-point body and defaults items to []", () => {
+    expect(
+      parseWithFallback("nope", RavenDecisionPointListSchema, EMPTY_RAVEN_DECISION_POINT_LIST, {
+        endpoint: "GET /api/raven/decision-points",
+      }),
+    ).toBe(EMPTY_RAVEN_DECISION_POINT_LIST);
+
+    const empty = parseWithFallback(
+      {},
+      RavenDecisionPointListSchema,
+      EMPTY_RAVEN_DECISION_POINT_LIST,
+      { endpoint: "GET /api/raven/decision-points" },
+    );
+    expect(empty.items).toEqual([]);
   });
 });
 

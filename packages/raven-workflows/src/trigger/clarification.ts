@@ -1,4 +1,4 @@
-import { defineWorkflow, type RunContext } from "@multica/raven-sdk";
+import { defineWorkflow, parseClarifyQuestions, type RunContext } from "@multica/raven-sdk";
 import { toTriggerTask } from "@multica/raven-sdk/trigger";
 
 // clarification — 交付前澄清策略，沉淀自 RAV-4（issue bdfc4941-dd41-4a5d-a829-fb71c6586b9f
@@ -47,41 +47,35 @@ export const clarification = defineWorkflow({
       prompt: [
         `你在为一条需求做交付前澄清。父需求 issue ID：${ctx.payload.issue_id}。`,
         "先读取该 issue 的标题、描述和已有评论，再检查代码库里相关的模块，做足功课。",
-        "然后输出 2-3 个真正需要人拍板的问题（不是能自己查代码回答的问题），",
-        "每个问题附上你推荐的答案。只输出问题清单本身，不要寒暄。",
+        "然后输出 2-3 个真正需要人拍板的问题（不是能自己查代码回答的问题），每个问题附上你推荐的答案。",
+        '只输出一个 JSON 数组，元素形如 {"question": "...", "options": ["..."], "recommended": "..."}（options 可省略），不要寒暄。',
       ].join("\n"),
     });
-    await ctx.evidence("draft_questions", "拍板问题清单已产出", {
-      questions: clarify.output,
-    });
+    let questions = parseClarifyQuestions(clarify.output);
+    await ctx.evidence("draft_questions", "拍板问题清单已产出", { questions });
 
-    // —— 抛给人 + human-decision 门禁：人回复即拍板；驳回则按理由重拟 ——
-    const question = await ctx.comment(
-      `【澄清】请回答以下拍板问题（直接回复本评论即可）：\n\n${clarify.output}`,
-    );
-    const answer = await ctx.waitForHumanComment(question.id);
+    // —— 澄清拍板点（issue #19）+ human-decision 门禁：人答复即拍板；驳回则按理由重拟 ——
+    let answer = await ctx.clarify({ questions, stage: "draft-questions" });
 
     let decision = await ctx.gate("human-decision", {
-      questions: clarify.output,
-      answer: answer.content,
+      questions,
+      answer: answer.answer,
     });
-    let questions = clarify.output;
     while (!decision.approved) {
       const revised = await ctx.agent({
         agentId,
         title: "按驳回意见重拟拍板问题",
-        prompt: `以下拍板问题清单被驳回，驳回理由：${decision.reason}\n\n原清单：\n${questions}\n\n请按理由重拟并输出完整新清单（仍每题附推荐答案）。`,
+        prompt: `以下拍板问题清单被驳回，驳回理由：${decision.reason}\n\n原清单：\n${JSON.stringify(questions, null, 2)}\n\n请按理由重拟并输出完整新清单（同样的 JSON 数组格式，仍每题附推荐答案）。`,
       });
-      questions = revised.output;
-      const reask = await ctx.comment(`【澄清 · 重拟】\n\n${questions}`);
-      const reanswer = await ctx.waitForHumanComment(reask.id);
+      questions = parseClarifyQuestions(revised.output);
       await ctx.evidence("draft_questions", "拍板问题重拟（门禁驳回后）", {
         questions,
         rejection_reason: decision.reason,
       });
+      answer = await ctx.clarify({ questions, stage: "draft-questions" });
       decision = await ctx.gate("human-decision", {
         questions,
-        answer: reanswer.content,
+        answer: answer.answer,
         revised: true,
       });
     }
@@ -89,7 +83,7 @@ export const clarification = defineWorkflow({
     // 产物：已被人拍板的澄清结论，通常作为 feature-delivery 的输入。
     await ctx.evidence("clarify", "澄清问答完成", {
       questions,
-      answer: answer.content,
+      answer: answer.answer,
     });
     return { ok: true };
   },

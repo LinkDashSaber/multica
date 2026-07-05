@@ -1,5 +1,5 @@
 import { stageName, type Contract, type ContractBudget } from "./contract";
-import type { CommentRecord, ControlPlaneClient, IssueUsage } from "./control-client";
+import type { ControlPlaneClient, IssueUsage } from "./control-client";
 
 export interface RunPayload {
   workspace_id: string;
@@ -39,6 +39,66 @@ export class GateRejectedError extends Error {
   }
 }
 
+export interface ClarifyQuestion {
+  question: string;
+  options?: string[];
+  recommended?: string;
+}
+
+export interface ClarifyInput {
+  questions: ClarifyQuestion[];
+  /** Contract stage the run is suspended at; defaults to the enclosing ctx.stage(). */
+  stage?: string;
+}
+
+export interface ClarifyResult {
+  clarificationId: string;
+  answer: string;
+}
+
+/**
+ * Parse an agent's question-list output into ClarifyQuestion[]. Accepts a
+ * JSON array (optionally inside ```json fences); anything else becomes a
+ * single free-form question so the flow never blocks on format drift.
+ */
+export function parseClarifyQuestions(text: string): ClarifyQuestion[] {
+  const stripped = text.replace(/```(?:json)?/g, "").trim();
+  const start = stripped.indexOf("[");
+  const end = stripped.lastIndexOf("]");
+  if (start >= 0 && end > start) {
+    try {
+      const parsed: unknown = JSON.parse(stripped.slice(start, end + 1));
+      if (Array.isArray(parsed)) {
+        const questions = parsed
+          .filter((q): q is Record<string, unknown> => !!q && typeof q === "object")
+          .filter((q) => typeof q["question"] === "string" && q["question"] !== "")
+          .map((q) => {
+            const item: ClarifyQuestion = { question: q["question"] as string };
+            if (Array.isArray(q["options"])) {
+              item.options = q["options"].filter((o): o is string => typeof o === "string");
+            }
+            if (typeof q["recommended"] === "string") item.recommended = q["recommended"];
+            return item;
+          });
+        if (questions.length > 0) return questions;
+      }
+    } catch {
+      // fall through to the single-question wrapper
+    }
+  }
+  return [{ question: text.trim() }];
+}
+
+function formatClarifyComment(questions: ClarifyQuestion[]): string {
+  const lines = questions.map((q, i) => {
+    const parts = [`${i + 1}. ${q.question}`];
+    if (q.options && q.options.length > 0) parts.push(`   - 选项：${q.options.join(" / ")}`);
+    if (q.recommended) parts.push(`   - 推荐：${q.recommended}`);
+    return parts.join("\n");
+  });
+  return `【澄清】以下问题等待拍板（在拍板点答复即可）：\n\n${lines.join("\n")}`;
+}
+
 export interface AgentCallInput {
   agentId: string;
   title: string;
@@ -61,6 +121,8 @@ export class RunContext {
   readonly client: ControlPlaneClient;
   spentTokens = 0;
   spentUsd = 0;
+  /** Name of the ctx.stage() scope currently executing, "" outside any. */
+  private currentStage = "";
   private readonly intervalMs: number;
   private readonly timeoutMs: number;
 
@@ -110,8 +172,10 @@ export class RunContext {
       throw new Error(`stage "${name}" is not declared in the workflow contract`);
     }
     await this.client.reportRunStageEvent(this.payload.run_id, name, "entered");
+    this.currentStage = name;
     const result = await fn();
     await this.client.reportRunStageEvent(this.payload.run_id, name, "exited");
+    this.currentStage = "";
     return result;
   }
 
@@ -145,26 +209,36 @@ export class RunContext {
     }
   }
 
-  /** Post a comment on the requirement's parent issue (clarify Q&A lives there). */
+  /** Post a comment on the requirement's parent issue (clarify Q&A copies live there). */
   async comment(content: string): Promise<{ id: string }> {
     return this.client.createComment(this.payload.issue_id, content);
   }
 
   /**
-   * Wait until a human (author_type === "member") comments on the parent
-   * issue after `afterCommentId`. Gates and clarification both legitimately
-   * wait on humans — no timeout beyond the contract's, same trade-off as
-   * gate(). Returns the first matching human comment.
+   * clarify() — suspend the run on a clarification decision point (issue #19)
+   * until a human answers via the decision-points API. Writes a Q&A trace to
+   * the issue comments (questions on ask, answer on resolve) but the comment
+   * thread no longer drives the flow. Like gate(), waiting on humans has no
+   * timeout.
    */
-  async waitForHumanComment(afterCommentId: string): Promise<CommentRecord> {
+  async clarify(input: ClarifyInput): Promise<ClarifyResult> {
+    if (!input.questions || input.questions.length === 0) {
+      throw new Error("clarify() needs at least one question");
+    }
+    const stage = input.stage ?? this.currentStage;
+    await this.comment(formatClarifyComment(input.questions));
+    const created = await this.client.createClarification({
+      requirementId: this.payload.requirement_id,
+      runId: this.payload.run_id,
+      stage,
+      questions: input.questions,
+    });
     for (;;) {
-      const comments = await this.client.listComments(this.payload.issue_id);
-      const anchor = comments.findIndex((c) => c.id === afterCommentId);
-      const later = anchor >= 0 ? comments.slice(anchor + 1) : comments;
-      const human = later.find(
-        (c) => c.author_type === "member" && c.type === "comment" && c.content.trim() !== "",
-      );
-      if (human) return human;
+      const c = await this.client.getClarification(created.id);
+      if (c.status === "answered") {
+        await this.comment(`【澄清答复】\n\n${c.answer ?? ""}`);
+        return { clarificationId: created.id, answer: c.answer ?? "" };
+      }
       await new Promise((r) => setTimeout(r, this.intervalMs));
     }
   }

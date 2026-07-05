@@ -1,6 +1,8 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api } from "../api";
 import type {
+  RavenClarification,
+  RavenDecisionPoint,
   RavenEvidence,
   RavenGateReview,
   RavenRequirement,
@@ -13,6 +15,8 @@ import type {
 } from "../api/schemas";
 
 export type {
+  RavenClarification,
+  RavenDecisionPoint,
   RavenEvidence,
   RavenGateReview,
   RavenRequirement,
@@ -51,6 +55,10 @@ export const ravenKeys = {
     [...ravenKeys.all(wsId), "gate", gateId] as const,
   pendingGates: (wsId: string) =>
     [...ravenKeys.all(wsId), "pending-gates"] as const,
+  clarification: (wsId: string, clarificationId: string) =>
+    [...ravenKeys.all(wsId), "clarification", clarificationId] as const,
+  pendingDecisionPoints: (wsId: string) =>
+    [...ravenKeys.all(wsId), "pending-decision-points"] as const,
 };
 
 /** Workflows registered in this workspace (enabled and disabled). */
@@ -163,6 +171,28 @@ export function gateOptions(wsId: string, gateId: string) {
     queryKey: ravenKeys.gate(wsId, gateId),
     queryFn: () => api.getRavenGate(gateId),
     staleTime: 15_000,
+  });
+}
+
+export function clarificationOptions(wsId: string, clarificationId: string) {
+  return queryOptions<RavenClarification>({
+    queryKey: ravenKeys.clarification(wsId, clarificationId),
+    queryFn: () => api.getRavenClarification(clarificationId),
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * The workspace's unified pending decision queue (issue #19): gate reviews
+ * and clarifications merged, each with node position, context, and response
+ * form. Polls while visible — this is the "待我拍板" surface.
+ */
+export function pendingDecisionPointsOptions(wsId: string) {
+  return queryOptions<RavenDecisionPoint[]>({
+    queryKey: ravenKeys.pendingDecisionPoints(wsId),
+    queryFn: async () => (await api.listRavenDecisionPoints()).items,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
   });
 }
 

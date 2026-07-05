@@ -21,6 +21,30 @@ export function useDecideRavenGate(wsId: string) {
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: ravenKeys.gate(wsId, vars.gateId) });
       qc.invalidateQueries({ queryKey: ravenKeys.pendingGates(wsId) });
+      qc.invalidateQueries({ queryKey: ravenKeys.pendingDecisionPoints(wsId) });
+    },
+  });
+}
+
+export interface AnswerClarificationInput {
+  clarificationId: string;
+  /** Free text or a chosen recommended option, verbatim. */
+  answer: string;
+}
+
+/**
+ * Answer a clarification decision point (issue #19). Not optimistic for the
+ * same reason as gate verdicts: the server arbitrates "already answered"
+ * (409), so we settle by invalidating instead of guessing.
+ */
+export function useAnswerRavenClarification(wsId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ clarificationId, answer }: AnswerClarificationInput) =>
+      api.answerRavenClarification(clarificationId, { answer }),
+    onSettled: (_data, _err, vars) => {
+      qc.invalidateQueries({ queryKey: ravenKeys.clarification(wsId, vars.clarificationId) });
+      qc.invalidateQueries({ queryKey: ravenKeys.pendingDecisionPoints(wsId) });
     },
   });
 }

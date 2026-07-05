@@ -1054,6 +1054,15 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Post("/decision", h.DecideRavenGate)
 				})
 			})
+			// Clarification decision points + unified pending queue (issue #19)
+			r.Route("/api/raven/clarifications", func(r chi.Router) {
+				r.Post("/", h.CreateRavenClarification)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetRavenClarification)
+					r.Post("/answer", h.AnswerRavenClarification)
+				})
+			})
+			r.Get("/api/raven/decision-points", h.ListRavenDecisionPoints)
 			r.Get("/api/raven/issues/{issueId}/requirement", h.GetRavenRequirementForIssue)
 
 			// Task messages (user-facing, not daemon auth)

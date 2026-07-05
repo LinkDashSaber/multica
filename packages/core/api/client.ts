@@ -195,6 +195,12 @@ import {
   type RavenGateReviewListResponse,
   EMPTY_RAVEN_GATE_REVIEW,
   EMPTY_RAVEN_GATE_REVIEW_LIST,
+  RavenClarificationSchema,
+  type RavenClarification,
+  EMPTY_RAVEN_CLARIFICATION,
+  RavenDecisionPointListSchema,
+  type RavenDecisionPointListResponse,
+  EMPTY_RAVEN_DECISION_POINT_LIST,
   RavenEvidenceListSchema,
   type RavenEvidenceListResponse,
   EMPTY_RAVEN_EVIDENCE_LIST,
@@ -1674,6 +1680,32 @@ export class ApiClient {
     });
     return parseWithFallback<RavenGateReview>(raw, RavenGateReviewSchema, EMPTY_RAVEN_GATE_REVIEW, {
       endpoint: "POST /api/raven/gates/{id}/decision",
+    });
+  }
+
+  // Raven clarification decision points + unified pending queue (issue #19)
+  async listRavenDecisionPoints(): Promise<RavenDecisionPointListResponse> {
+    const raw = await this.fetch<unknown>(`/api/raven/decision-points?status=pending`);
+    return parseWithFallback<RavenDecisionPointListResponse>(raw, RavenDecisionPointListSchema, EMPTY_RAVEN_DECISION_POINT_LIST, {
+      endpoint: "GET /api/raven/decision-points",
+    });
+  }
+
+  async getRavenClarification(id: string): Promise<RavenClarification> {
+    const raw = await this.fetch<unknown>(`/api/raven/clarifications/${id}`);
+    return parseWithFallback<RavenClarification>(raw, RavenClarificationSchema, EMPTY_RAVEN_CLARIFICATION, {
+      endpoint: "GET /api/raven/clarifications/{id}",
+    });
+  }
+
+  // 400 when the answer is empty; 409 when already answered.
+  async answerRavenClarification(id: string, data: { answer: string }): Promise<RavenClarification> {
+    const raw = await this.fetch<unknown>(`/api/raven/clarifications/${id}/answer`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback<RavenClarification>(raw, RavenClarificationSchema, EMPTY_RAVEN_CLARIFICATION, {
+      endpoint: "POST /api/raven/clarifications/{id}/answer",
     });
   }
 
