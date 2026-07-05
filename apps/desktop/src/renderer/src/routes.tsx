@@ -15,7 +15,7 @@ import { MemberDetailPage } from "./pages/member-detail-page";
 import { RuntimeDetailPage } from "./pages/runtime-detail-page";
 import { AttachmentPreviewRoute } from "./pages/attachment-preview-page";
 import { RavenGatePage } from "./pages/raven-gate-page";
-import { RavenWorkflowsPage, RavenWorkflowDetailPage } from "./pages/raven-workflows-page";
+import { RavenWorkflowsPage, RavenWorkflowDetailPage, RavenLearningsPage } from "./pages/raven-workflows-page";
 import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { DashboardPage } from "@multica/views/dashboard";
@@ -202,6 +202,11 @@ export const appRoutes: RouteObject[] = [
             path: "raven/workflows/:id",
             element: <RavenWorkflowDetailPage />,
             handle: { title: "Workflow" },
+          },
+          {
+            path: "raven/learnings",
+            element: <RavenLearningsPage />,
+            handle: { title: "Learnings" },
           },
           {
             path: "attachments/:id/preview",

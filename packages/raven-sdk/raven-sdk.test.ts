@@ -146,6 +146,47 @@ describe("stage() primitive", () => {
   });
 });
 
+// --- learning() primitive (issue #22) ----------------------------------------
+
+describe("learning() primitive", () => {
+  it("posts with the enclosing stage() scope as provenance, zero config", async () => {
+    const { calls, fetchImpl } = makeMock(() => ({ body: {} }));
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+
+    await ctx.stage("clarify", () => ctx.learning("先读现有测试再动手"));
+
+    const learningCalls = calls.filter((c) => path(c.url) === "/api/raven/learnings");
+    expect(learningCalls.map((c) => c.body)).toEqual([
+      { run_id: "run-1", stage: "clarify", content: "先读现有测试再动手" },
+    ]);
+  });
+
+  it("uses an explicit stage when given, and empty outside any stage", async () => {
+    const { calls, fetchImpl } = makeMock(() => ({ body: {} }));
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+
+    await ctx.learning("insight A", "execute");
+    await ctx.learning("insight B");
+
+    const bodies = calls
+      .filter((c) => path(c.url) === "/api/raven/learnings")
+      .map((c) => c.body);
+    expect(bodies).toEqual([
+      { run_id: "run-1", stage: "execute", content: "insight A" },
+      { run_id: "run-1", stage: "", content: "insight B" },
+    ]);
+  });
+
+  it("swallows reporting failures so the workflow keeps running", async () => {
+    const { fetchImpl } = makeMock((call) =>
+      path(call.url) === "/api/raven/learnings" ? { status: 500, body: { error: "down" } } : { body: {} },
+    );
+    const ctx = makeCtx(baseContract, makeClient(fetchImpl));
+
+    await expect(ctx.learning("won't break the run")).resolves.toBeUndefined();
+  });
+});
+
 // --- 2. happy path ------------------------------------------------------------
 
 describe("workflow handler happy path", () => {

@@ -3,6 +3,7 @@ import { api } from "../api";
 import type {
   RavenEvidence,
   RavenGateReview,
+  RavenLearning,
   RavenRequirement,
   RavenRun,
   RavenRunStageEvent,
@@ -15,6 +16,7 @@ import type {
 export type {
   RavenEvidence,
   RavenGateReview,
+  RavenLearning,
   RavenRequirement,
   RavenRun,
   RavenRunStageEvent,
@@ -51,6 +53,9 @@ export const ravenKeys = {
     [...ravenKeys.all(wsId), "gate", gateId] as const,
   pendingGates: (wsId: string) =>
     [...ravenKeys.all(wsId), "pending-gates"] as const,
+  learnings: (wsId: string) => [...ravenKeys.all(wsId), "learnings"] as const,
+  runLearnings: (wsId: string, runId: string) =>
+    [...ravenKeys.learnings(wsId), runId] as const,
 };
 
 /** Workflows registered in this workspace (enabled and disabled). */
@@ -154,6 +159,33 @@ export function requirementEvidenceOptions(wsId: string, requirementId: string) 
   return queryOptions<RavenEvidence[]>({
     queryKey: ravenKeys.requirementEvidence(wsId, requirementId),
     queryFn: async () => (await api.listRavenEvidence(requirementId)).evidence,
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * Workspace-wide execution self-report stream, newest first (issue #22) —
+ * feeds the learning stream (沉淀流) page.
+ */
+export function ravenLearningsOptions(wsId: string) {
+  return queryOptions<RavenLearning[]>({
+    queryKey: ravenKeys.learnings(wsId),
+    queryFn: async () => (await api.listRavenLearnings()).learnings,
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * Learnings reported by one run, optionally narrowed to one stage — for the
+ * S3 node drawer ("what did this node self-report") and any per-run view.
+ */
+export function runLearningsOptions(wsId: string, runId: string, stage?: string) {
+  return queryOptions<RavenLearning[]>({
+    queryKey: ravenKeys.runLearnings(wsId, runId),
+    queryFn: async () => (await api.listRavenLearnings({ runId })).learnings,
+    // Stage narrowing is client-side: one cache entry per run serves every
+    // stage of the S3 drawer.
+    select: stage === undefined ? undefined : (all) => all.filter((l) => l.stage === stage),
     staleTime: 15_000,
   });
 }

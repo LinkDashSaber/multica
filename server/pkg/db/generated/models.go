@@ -728,6 +728,18 @@ type RavenGateReview struct {
 	DecidedAt      pgtype.Timestamptz `json:"decided_at"`
 }
 
+type RavenLearning struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	RunID       pgtype.UUID        `json:"run_id"`
+	Stage       string             `json:"stage"`
+	Content     string             `json:"content"`
+	Status      string             `json:"status"`
+	PromotedTo  string             `json:"promoted_to"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type RavenRequirement struct {
 	ID          pgtype.UUID        `json:"id"`
 	WorkspaceID pgtype.UUID        `json:"workspace_id"`

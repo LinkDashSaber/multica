@@ -216,6 +216,12 @@ import {
   RavenRecommendationResponseSchema,
   type RavenRecommendationResponse,
   EMPTY_RAVEN_RECOMMENDATION_RESPONSE,
+  RavenLearningSchema,
+  type RavenLearning,
+  EMPTY_RAVEN_LEARNING,
+  RavenLearningListSchema,
+  type RavenLearningListResponse,
+  EMPTY_RAVEN_LEARNING_LIST,
   GroupedIssuesResponseSchema,
   ListAutopilotsResponseSchema,
   EMPTY_LIST_AUTOPILOTS_RESPONSE,
@@ -1697,6 +1703,31 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(`/api/raven/runs/${runId}/stage-events`);
     return parseWithFallback<RavenStageEventListResponse>(raw, RavenStageEventListSchema, EMPTY_RAVEN_STAGE_EVENT_LIST, {
       endpoint: "GET /api/raven/runs/{id}/stage-events",
+    });
+  }
+
+  // Raven execution self-reported learnings (issue #22). Workspace stream,
+  // newest first; pass runId to scope to one run (S3 drawer / stage views).
+  async listRavenLearnings(params?: { runId?: string }): Promise<RavenLearningListResponse> {
+    const qs = params?.runId ? `?run_id=${encodeURIComponent(params.runId)}` : "";
+    const raw = await this.fetch<unknown>(`/api/raven/learnings${qs}`);
+    return parseWithFallback<RavenLearningListResponse>(raw, RavenLearningListSchema, EMPTY_RAVEN_LEARNING_LIST, {
+      endpoint: "GET /api/raven/learnings",
+    });
+  }
+
+  // Triage a fresh learning: promote (with destination) or expire.
+  // 400 on bad destination; 409 when it was already triaged.
+  async updateRavenLearningStatus(
+    id: string,
+    data: { status: "promoted" | "expired"; promoted_to?: "skill_proposal" | "fact" | "uptrack_evidence" },
+  ): Promise<RavenLearning> {
+    const raw = await this.fetch<unknown>(`/api/raven/learnings/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback<RavenLearning>(raw, RavenLearningSchema, EMPTY_RAVEN_LEARNING, {
+      endpoint: "PATCH /api/raven/learnings/{id}",
     });
   }
 

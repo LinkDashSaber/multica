@@ -1046,6 +1046,13 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				r.Get("/stage-events", h.ListRavenRunStageEvents)
 			})
 			r.Post("/api/raven/evidence", h.CreateRavenEvidence)
+			// Execution self-reported learnings (issue #22): SDK writes,
+			// the learning stream page reads and triages.
+			r.Route("/api/raven/learnings", func(r chi.Router) {
+				r.Get("/", h.ListRavenLearnings)
+				r.Post("/", h.CreateRavenLearning)
+				r.Patch("/{id}", h.UpdateRavenLearningStatus)
+			})
 			r.Route("/api/raven/gates", func(r chi.Router) {
 				r.Get("/", h.ListRavenGates)
 				r.Post("/", h.CreateRavenGate)

@@ -158,6 +158,9 @@ export const featureDelivery = defineWorkflow({
         output: rework.output,
         rejection_reason: review.reason,
       });
+      // A human rejection is a strong compounding signal (ADR-0008) —
+      // self-report it so the learning stream sees the rework, fire-and-forget.
+      await ctx.learning(`人审驳回后返工。驳回理由：${review.reason}`, "pr");
       review = await ctx.gate("human-review", { rework: rework.output });
     }
     // —— learn（沉淀钩子 ②，issue #10）：复盘本次 run，对 workflow 本身提改进。
@@ -171,9 +174,17 @@ export const featureDelivery = defineWorkflow({
           "找出本 workflow 定义（仓库 packages/raven-workflows/src/trigger/feature-delivery.ts）中导致摩擦的问题：提示词歧义、阶段缺失/冗余、门禁位置不当等。",
           "若有实质改进：修改该文件，建分支提交并创建 PR，标题注明「workflow 改进：feature-delivery」，正文说明依据的运行事实并引用父 issue；回复 PR 链接。",
           "若无实质改进：不要为改而改，直接回复「无改进意见」加一句原因。",
+          "另外：本次运行中若有值得沉淀的心得（可复用的做法、业务事实、踩过的坑），",
+          "在回复末尾每条单独一行，以「LEARNING: 」开头，一句话一条，没有就不写。",
         ].join("\n"),
       });
       await ctx.evidence("learn", "沉淀阶段完成", { output: learn.output });
+      // Forward the agent's LEARNING: lines into the learning stream
+      // (issue #22) — each becomes a compounding candidate with provenance.
+      for (const line of learn.output.split("\n")) {
+        const m = line.match(/^LEARNING:\s*(.+)$/);
+        if (m?.[1]) await ctx.learning(m[1].trim());
+      }
     });
 
     // 合并后的 Merged 推进由 GitHub webhook 闭环完成。
