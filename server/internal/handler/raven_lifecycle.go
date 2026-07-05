@@ -25,8 +25,12 @@ type RavenRequirementResponse struct {
 	WorkflowID  *string  `json:"workflow_id"`
 	State       string   `json:"state"`
 	NextStates  []string `json:"next_states"`
-	CreatedAt   string   `json:"created_at"`
-	UpdatedAt   string   `json:"updated_at"`
+	// IsomorphCount is how many archived deliveries (including this one)
+	// look isomorphic to this requirement's Learned archive. 0 until the
+	// requirement is archived; populated on the detail endpoint only.
+	IsomorphCount int    `json:"isomorph_count"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 type RavenTransitionResponse struct {
@@ -178,7 +182,17 @@ func (h *Handler) GetRavenRequirement(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get requirement")
 		return
 	}
-	writeJSON(w, http.StatusOK, ravenRequirementToResponse(requirement))
+	resp := ravenRequirementToResponse(requirement)
+	// Isomorphism count is a query over the Learned archive (ADR-0008), not
+	// a separate system. ponytail: O(n) workspace scan; fine at v1 scale.
+	if archive, err := h.Queries.GetRavenArchiveByRequirement(r.Context(), db.GetRavenArchiveByRequirementParams{
+		RequirementID: requirement.ID, WorkspaceID: wsUUID,
+	}); err == nil {
+		if all, err := h.Queries.ListRavenArchives(r.Context(), wsUUID); err == nil {
+			resp.IsomorphCount = len(raven.IsomorphicArchives(archive, all))
+		}
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // GetRavenRequirementForIssue returns the requirement attached to an issue,

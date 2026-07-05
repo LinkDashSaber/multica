@@ -133,6 +133,43 @@ func (q *Queries) InsertRavenTransition(ctx context.Context, arg InsertRavenTran
 	return i, err
 }
 
+const listMergedRavenRequirementsBefore = `-- name: ListMergedRavenRequirementsBefore :many
+SELECT id, workspace_id, issue_id, state, created_at, updated_at, workflow_id FROM raven_requirement
+WHERE state = 'merged' AND updated_at < $1
+ORDER BY updated_at ASC
+LIMIT 100
+`
+
+// Settle sweeper input: requirements that merged and sat past the
+// observation window without a CI signal advancing them.
+func (q *Queries) ListMergedRavenRequirementsBefore(ctx context.Context, updatedAt pgtype.Timestamptz) ([]RavenRequirement, error) {
+	rows, err := q.db.Query(ctx, listMergedRavenRequirementsBefore, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RavenRequirement{}
+	for rows.Next() {
+		var i RavenRequirement
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.IssueID,
+			&i.State,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.WorkflowID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRavenRequirements = `-- name: ListRavenRequirements :many
 SELECT id, workspace_id, issue_id, state, created_at, updated_at, workflow_id FROM raven_requirement
 WHERE workspace_id = $1

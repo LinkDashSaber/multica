@@ -26,3 +26,8 @@ UPDATE raven_learning SET
     updated_at = now()
 WHERE id = $1 AND workspace_id = $2 AND status = 'fresh'
 RETURNING *;
+
+-- name: CountRavenLearningsByRequirement :one
+SELECT count(*) FROM raven_learning l
+JOIN raven_run r ON r.id = l.run_id
+WHERE r.requirement_id = $1;

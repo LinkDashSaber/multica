@@ -34,3 +34,11 @@ SELECT t.* FROM raven_requirement_transition t
 JOIN raven_requirement r ON r.id = t.requirement_id
 WHERE t.requirement_id = $1 AND r.workspace_id = $2
 ORDER BY t.created_at ASC;
+
+-- name: ListMergedRavenRequirementsBefore :many
+-- Settle sweeper input: requirements that merged and sat past the
+-- observation window without a CI signal advancing them.
+SELECT * FROM raven_requirement
+WHERE state = 'merged' AND updated_at < $1
+ORDER BY updated_at ASC
+LIMIT 100;

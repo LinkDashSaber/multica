@@ -34,3 +34,7 @@ UPDATE raven_gate_review SET
     decided_at = now()
 WHERE id = $1 AND workspace_id = $2 AND status = 'pending'
 RETURNING *;
+
+-- name: CountRejectedRavenGateReviews :one
+SELECT count(*) FROM raven_gate_review
+WHERE requirement_id = $1 AND status = 'rejected';

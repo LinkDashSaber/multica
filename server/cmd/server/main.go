@@ -391,6 +391,9 @@ func main() {
 
 	// Start background sweeper to mark stale runtimes as offline.
 	go runRuntimeSweeper(sweepCtx, queries, liveness, taskSvc, bus)
+	// Raven Learned-stage settle sweeper (issue #23): advances merged
+	// requirements whose observation window elapsed without a CI signal.
+	go runRavenSettleSweeper(sweepCtx, queries)
 	go heartbeatScheduler.Run(sweepCtx)
 	go runAutopilotFailureMonitor(autopilotCtx, queries, bus, envFailureMonitorConfig())
 	go runDBStatsLogger(sweepCtx, pool)

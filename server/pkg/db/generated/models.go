@@ -764,6 +764,21 @@ type RavenRequirement struct {
 	WorkflowID  pgtype.UUID        `json:"workflow_id"`
 }
 
+type RavenRequirementArchive struct {
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	RequirementID   pgtype.UUID        `json:"requirement_id"`
+	IssueID         pgtype.UUID        `json:"issue_id"`
+	IssueTitle      string             `json:"issue_title"`
+	StageSequence   string             `json:"stage_sequence"`
+	ReworkCount     int32              `json:"rework_count"`
+	GateRejectCount int32              `json:"gate_reject_count"`
+	LearningCount   int32              `json:"learning_count"`
+	TokensSpent     int64              `json:"tokens_spent"`
+	Keywords        []string           `json:"keywords"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
 type RavenRequirementTransition struct {
 	ID            pgtype.UUID        `json:"id"`
 	RequirementID pgtype.UUID        `json:"requirement_id"`

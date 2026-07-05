@@ -1037,6 +1037,8 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/runs", h.ListRavenRuns)
 					r.Post("/runs", h.CreateRavenRun)
 					r.Get("/evidence", h.ListRavenEvidence)
+					// Manual 沉淀这条 trigger (issue #23)
+					r.Post("/deep-dive", h.DeepDiveRavenRequirement)
 				})
 			})
 			r.Route("/api/raven/runs/{id}", func(r chi.Router) {
