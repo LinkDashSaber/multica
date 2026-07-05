@@ -109,6 +109,37 @@
     "ignore": "Ignore",
     "fallback_squad": "Pick a squad"
   },
+  "letter": {
+    "not_found": "Decision point not found",
+    "pending_for": "Pending for {{duration}}",
+    "why_gate": "The workflow is waiting for your verdict at gate {{gate}}",
+    "why_clarify": "The running agent has {{num}} question(s) needing clarification",
+    "open_detail": "Open review package",
+    "consequence": {
+      "title": "Consequence preview",
+      "approve_next": "Approve → continue to stage {{stage}}",
+      "approve_done": "Approve → delivery complete",
+      "reject_redo": "Reject → sent back for rework",
+      "answer_resume": "Answer → stage {{stage}} resumes",
+      "avg_duration": "Historical average full run: {{duration}}",
+      "tokens_spent": "This run has used {{tokens}} tokens",
+      "usd_spent": "Cost so far: ~${{usd}}"
+    },
+    "clarify": {
+      "title": "Clarification questions",
+      "stage_context": "Execution is paused at stage {{stage}}",
+      "recommended": "Recommended",
+      "apply_all_recommended": "Apply all recommended",
+      "answer_placeholder": "Type your answer…",
+      "answer_label": "Answer to question {{index}}",
+      "answer_prefix": "A: ",
+      "answer_required": "Some questions are still unanswered",
+      "submit": "Submit answers",
+      "submit_failed": "Failed to submit answers",
+      "answered_title": "Answered",
+      "answered_by": "Answered by {{name}}"
+    }
+  },
   "stage_strip": {
     "title": "Delivery progress",
     "done": "Done",

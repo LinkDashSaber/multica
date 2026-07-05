@@ -62,14 +62,14 @@ export function deriveStageStates(
   return states;
 }
 
-const DOT_CLASSES: Record<StageNodeState, string> = {
+export const DOT_CLASSES: Record<StageNodeState, string> = {
   done: "bg-green-500",
   active: "bg-blue-500 animate-pulse",
   waiting: "bg-amber-500",
   pending: "bg-muted-foreground/30",
 };
 
-const LABEL_CLASSES: Record<StageNodeState, string> = {
+export const LABEL_CLASSES: Record<StageNodeState, string> = {
   done: "text-muted-foreground",
   active: "text-foreground font-medium",
   waiting: "text-amber-600 dark:text-amber-400 font-medium",
