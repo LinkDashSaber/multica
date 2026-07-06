@@ -177,6 +177,14 @@
     "why_promotion": "게이트 {{gate}}가 표본 검사로의 승격을 신청합니다",
     "promotion": {
       "evidence_count": "증거로 연속 무반려 {{count}}회"
+    },
+    "composition": {
+      "title": "전략 구성",
+      "creator": "생성자 에이전트",
+      "agents": "에이전트",
+      "skills": "스킬",
+      "auto_skills": "실행 중 생성자 에이전트가 선택",
+      "none": "지정 안 됨"
     }
   },
   "stage_strip": {

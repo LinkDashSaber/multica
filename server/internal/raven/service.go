@@ -229,6 +229,15 @@ func (s *Service) DispatchRun(ctx context.Context, requirement db.RavenRequireme
 		slog.Warn("raven: dispatch: load workflow failed", "error", err)
 		return
 	}
+	// Load the requirement's issue so the run can ground its work in the real
+	// requirement text (issue #30). Best-effort: a load failure just omits the
+	// text — the worker still has issue_id to fetch it itself.
+	issue, err := s.Q.GetIssueInWorkspace(ctx, db.GetIssueInWorkspaceParams{
+		ID: requirement.IssueID, WorkspaceID: requirement.WorkspaceID,
+	})
+	if err != nil {
+		slog.Warn("raven: dispatch: load issue failed", "error", err)
+	}
 	run, err := s.Q.CreateRavenRun(ctx, db.CreateRavenRunParams{
 		WorkspaceID:   requirement.WorkspaceID,
 		RequirementID: requirement.ID,
@@ -251,7 +260,7 @@ func (s *Service) DispatchRun(ctx context.Context, requirement db.RavenRequireme
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		triggerRunID, err := s.Dispatcher.TriggerRun(ctx, workflow.Name, buildDispatchPayload(requirement, workflow, run, comp))
+		triggerRunID, err := s.Dispatcher.TriggerRun(ctx, workflow.Name, buildDispatchPayload(requirement, workflow, run, issue, comp))
 		if err != nil {
 			slog.Warn("raven: trigger.dev dispatch failed", "error", err, "run_id", util.UUIDToString(run.ID), "workflow", workflow.Name)
 			reason := "dispatch failed: " + err.Error()
@@ -277,7 +286,7 @@ func (s *Service) DispatchRun(ctx context.Context, requirement db.RavenRequireme
 // composition is present (issue #26), agent_id carries the chosen agent so the
 // worker dispatches to it instead of a global env agent, and composition rides
 // along for the worker to bake into the drafted contract / show in the letter.
-func buildDispatchPayload(requirement db.RavenRequirement, workflow db.RavenWorkflow, run db.RavenRun, comp *WorkflowComposition) map[string]any {
+func buildDispatchPayload(requirement db.RavenRequirement, workflow db.RavenWorkflow, run db.RavenRun, issue db.Issue, comp *WorkflowComposition) map[string]any {
 	payload := map[string]any{
 		"workspace_id":   util.UUIDToString(requirement.WorkspaceID),
 		"issue_id":       util.UUIDToString(requirement.IssueID),
@@ -285,6 +294,14 @@ func buildDispatchPayload(requirement db.RavenRequirement, workflow db.RavenWork
 		"run_id":         util.UUIDToString(run.ID),
 		"workflow_name":  workflow.Name,
 		"contract":       json.RawMessage(workflow.Contract),
+	}
+	// The real requirement text (issue #30) grounds the authoring clarify step
+	// so it asks questions specific to this requirement instead of a template.
+	if issue.Title != "" {
+		payload["requirement_title"] = issue.Title
+	}
+	if issue.Description.Valid && issue.Description.String != "" {
+		payload["requirement_text"] = issue.Description.String
 	}
 	if agentID := comp.AuthoringAgentID(); agentID != "" {
 		payload["agent_id"] = agentID

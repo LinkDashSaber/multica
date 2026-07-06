@@ -5,23 +5,34 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useActorName } from "@multica/core/workspace/hooks";
+import { skillListOptions } from "@multica/core/workspace/queries";
 import {
   clarificationOptions,
+  findComposition,
   gateOptions,
+  parseClarifyQuestions,
   parseContractGates,
   parseContractStages,
   ravenPromotionOptions,
   ravenRequirementOptions,
   ravenWorkflowOptions,
   ravenWorkflowStatsOptions,
+  requirementEvidenceOptions,
   requirementRunsOptions,
   useAnswerRavenClarification,
   useDecideRavenGate,
   useDecideRavenPromotion,
+  type ClarifyQuestionView,
   type ContractStageView,
   type RavenClarification,
   type RavenGateReview,
 } from "@multica/core/raven";
+
+// parseClarifyQuestions + ClarifyQuestionView now live in @multica/core (zod-
+// validated, issue #30); re-exported so the views index and existing tests
+// keep importing them from here.
+export { parseClarifyQuestions };
+export type { ClarifyQuestionView };
 import { Badge } from "@multica/ui/components/ui/badge";
 import { Button } from "@multica/ui/components/ui/button";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
@@ -61,45 +72,6 @@ function usePendingDuration(createdAt: string): string {
     return () => clearInterval(timer);
   }, []);
   return formatPendingDuration(createdAt, now);
-}
-
-export interface ClarifyQuestionView {
-  question: string;
-  options: string[];
-  recommended?: string;
-}
-
-/**
- * Defensive reader for the untyped clarification `questions` JSON. Accepts a
- * bare array or a `{questions: [...]}` wrapper; items may be bare strings or
- * `{question, options?, recommended?}` objects. Malformed items are skipped.
- */
-export function parseClarifyQuestions(raw: unknown): ClarifyQuestionView[] {
-  let arr: unknown[] = [];
-  if (Array.isArray(raw)) {
-    arr = raw;
-  } else if (raw && typeof raw === "object") {
-    const wrapped = (raw as Record<string, unknown>).questions;
-    if (Array.isArray(wrapped)) arr = wrapped;
-  }
-  const out: ClarifyQuestionView[] = [];
-  for (const item of arr) {
-    if (typeof item === "string" && item !== "") {
-      out.push({ question: item, options: [] });
-    } else if (item && typeof item === "object") {
-      const obj = item as Record<string, unknown>;
-      if (typeof obj.question !== "string" || obj.question === "") continue;
-      const options = Array.isArray(obj.options)
-        ? obj.options.filter((o): o is string => typeof o === "string" && o !== "")
-        : [];
-      out.push({
-        question: obj.question,
-        options,
-        recommended: typeof obj.recommended === "string" && obj.recommended !== "" ? obj.recommended : undefined,
-      });
-    }
-  }
-  return out;
 }
 
 /**
@@ -383,6 +355,56 @@ export function DecisionSection({
           </Button>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * The 交付策略's chosen agent + skill composition (issue #30), read from the
+ * `workflow_composition` evidence recorded when the strategy was created. Shown
+ * on the authoring clarify letter so the human sees who will run this strategy
+ * (the manual selection, or the 智能-mode creator agent). Renders nothing for
+ * non-authoring clarifications, which have no composition evidence.
+ */
+function CompositionSection({ wsId, requirementId }: { wsId: string; requirementId: string }) {
+  const { t } = useT("raven");
+  const { getActorName } = useActorName();
+  const { data: evidence = [] } = useQuery({
+    ...requirementEvidenceOptions(wsId, requirementId),
+    enabled: requirementId !== "",
+  });
+  const { data: skills = [] } = useQuery({
+    ...skillListOptions(wsId),
+    enabled: requirementId !== "",
+  });
+  const composition = useMemo(() => findComposition(evidence), [evidence]);
+  if (!composition) return null;
+
+  const isAuto = composition.mode === "auto";
+  const agentNames = composition.agent_ids.map((id) => getActorName("agent", id));
+  const skillNames = composition.skill_ids
+    .map((id) => skills.find((s) => s.id === id)?.name)
+    .filter((n): n is string => Boolean(n));
+
+  return (
+    <section data-testid="letter-composition">
+      <h2 className="text-sm font-semibold">{t(($) => $.letter.composition.title)}</h2>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt className="text-muted-foreground">
+          {isAuto ? t(($) => $.letter.composition.creator) : t(($) => $.letter.composition.agents)}
+        </dt>
+        <dd className="min-w-0 break-words">
+          {agentNames.length > 0 ? agentNames.join("、") : t(($) => $.letter.composition.none)}
+        </dd>
+        <dt className="text-muted-foreground">{t(($) => $.letter.composition.skills)}</dt>
+        <dd className="min-w-0 break-words">
+          {isAuto
+            ? t(($) => $.letter.composition.auto_skills)
+            : skillNames.length > 0
+              ? skillNames.join("、")
+              : t(($) => $.letter.composition.none)}
+        </dd>
+      </dl>
     </section>
   );
 }
@@ -893,6 +915,11 @@ function GateOrClarifyLetterCard({
             {t(($) => $.letter.clarify.stage_context, { stage: currentStage })}
           </p>
         )
+      )}
+
+      {/* 3b. Strategy composition (issue #30) — authoring clarify letters only. */}
+      {!isGate && requirementId !== "" && (
+        <CompositionSection wsId={wsId} requirementId={requirementId} />
       )}
 
       {/* 4. Consequence preview (pending only). */}

@@ -1,4 +1,10 @@
-import { defineWorkflow, type Contract, type RunContext } from "@multica/raven-sdk";
+import {
+  defineWorkflow,
+  parseClarifyQuestions,
+  type Contract,
+  type RunContext,
+  type RunPayload,
+} from "@multica/raven-sdk";
 import { toTriggerTask } from "@multica/raven-sdk/trigger";
 
 // workflow-authoring — 内置的「新建交付策略」策略（issue #24 / ADR-0010）。
@@ -27,6 +33,30 @@ const authoringAgentId = (ctx: RunContext): string => {
   }
   return id;
 };
+
+/**
+ * Build the prompt that asks the agent to produce clarification questions for
+ * THIS requirement (issue #30). The real title + body are inlined so the
+ * questions are grounded in the actual requirement instead of a fixed template
+ * — different requirements yield different questions. Falls back to telling the
+ * agent to read the issue itself when the text wasn't threaded through.
+ */
+export function buildClarifyPrompt(payload: RunPayload): string {
+  const title = payload.requirement_title?.trim() ?? "";
+  const text = payload.requirement_text?.trim() ?? "";
+  return [
+    `你在为一条「新建交付策略（workflow）」的需求做澄清。父需求 issue ID：${payload.issue_id}。`,
+    title ? `## 需求标题\n${title}` : "",
+    text ? `## 需求描述\n${text}` : "",
+    !title && !text ? "先读取该 issue 的标题与描述，弄清这条策略要处理什么。" : "",
+    "基于这条真实需求，提出 2-4 个只有人能拍板、且直接决定这条生产线该如何设计的澄清问题" +
+      "（例如：该策略覆盖的交付范围与阶段划分、必须的人工门禁位置、预算/风控红线等），每个问题附一个你推荐的答案。",
+    "问题必须针对上面这条具体需求，不要问与它无关的通用模板问题。",
+    '只输出一个 JSON 数组，元素形如 {"question": "...", "options": ["..."], "recommended": "..."}（options 可省略），不要寒暄。',
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
 
 interface WorkflowDraft {
   name: string;
@@ -107,29 +137,19 @@ export const workflowAuthoring = defineWorkflow({
   run: async (ctx: RunContext) => {
     const agentId = authoringAgentId(ctx);
 
-    // —— clarify：固定的四个拍板问题，人答完才起草 ——
-    const answered = await ctx.stage("clarify", () =>
-      ctx.clarify({
-        questions: [
-          {
-            question: "这个交付策略要解决什么类型的需求？（例如：功能开发、缺陷修复、文档、数据任务）",
-          },
-          {
-            question: "交付应划分为哪些阶段？",
-            recommended: "澄清 → 计划 → 执行 → 自验 → PR",
-          },
-          {
-            question: "哪些阶段之后需要人拍板（门禁位置）？",
-            recommended: "澄清产出确认一次，PR 提交后人审一次",
-          },
-          {
-            question: "单次运行的预算上限？",
-            options: ["300 万 tokens", "1000 万 tokens", "自定义"],
-            recommended: "1000 万 tokens",
-          },
-        ],
-      }),
-    );
+    // —— clarify：agent 读真实需求后拟澄清问题，人答完才起草 ——
+    // issue #30：不再套用与输入无关的固定四问。agent 读需求标题+正文，产出
+    // 与这条需求直接相关的澄清点；不同需求得到不同的问题。
+    const answered = await ctx.stage("clarify", async () => {
+      const asked = await ctx.agent({
+        agentId,
+        title: "澄清：基于需求拟拍板问题",
+        prompt: buildClarifyPrompt(ctx.payload),
+      });
+      const questions = parseClarifyQuestions(asked.output);
+      await ctx.evidence("clarify_questions", "澄清问题清单已产出（基于真实需求）", { questions });
+      return ctx.clarify({ questions });
+    });
 
     // —— draft：agent 起草 defineWorkflow 文件 + 合同，草稿以证据留在控制面 ——
     const draftPrompt = (extra: string): string =>

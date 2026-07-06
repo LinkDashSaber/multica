@@ -177,6 +177,14 @@
     "why_promotion": "ゲート {{gate}} が抜き取り検査への昇格を申請しています",
     "promotion": {
       "evidence_count": "証拠として連続ゼロ差し戻し {{count}} 回"
+    },
+    "composition": {
+      "title": "戦略の構成",
+      "creator": "作成者エージェント",
+      "agents": "エージェント",
+      "skills": "スキル",
+      "auto_skills": "実行中に作成者エージェントが選択",
+      "none": "未指定"
     }
   },
   "stage_strip": {

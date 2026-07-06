@@ -19,6 +19,8 @@ const mockListStats = vi.hoisted(() => vi.fn());
 const mockListRuns = vi.hoisted(() => vi.fn());
 const mockDecide = vi.hoisted(() => vi.fn());
 const mockAnswer = vi.hoisted(() => vi.fn());
+const mockListEvidence = vi.hoisted(() => vi.fn());
+const mockListSkills = vi.hoisted(() => vi.fn());
 
 vi.mock("@multica/core/api", () => ({
   api: {
@@ -28,6 +30,8 @@ vi.mock("@multica/core/api", () => ({
     getRavenWorkflow: mockGetWorkflow,
     listRavenWorkflowStats: mockListStats,
     listRavenRuns: mockListRuns,
+    listRavenEvidence: mockListEvidence,
+    listSkills: mockListSkills,
     decideRavenGate: mockDecide,
     answerRavenClarification: mockAnswer,
   },
@@ -175,6 +179,8 @@ beforeEach(() => {
   mockListRuns.mockResolvedValue(RUNS);
   mockDecide.mockResolvedValue({ ...GATE, status: "approved" });
   mockAnswer.mockResolvedValue({ ...CLARIFICATION, status: "answered" });
+  mockListEvidence.mockResolvedValue({ evidence: [], total: 0 });
+  mockListSkills.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -381,5 +387,42 @@ describe("DecisionLetterCard (clarify)", () => {
     ).not.toBeInTheDocument();
     // Consequence preview is pending-only.
     expect(screen.queryByTestId("letter-consequence")).not.toBeInTheDocument();
+  });
+});
+
+describe("DecisionLetterCard (clarify composition, issue #30)", () => {
+  it("shows the strategy's chosen agent and skill composition", async () => {
+    mockListEvidence.mockResolvedValue({
+      evidence: [
+        {
+          id: "ev-1",
+          requirement_id: "req-1",
+          run_id: null,
+          kind: "workflow_composition",
+          source: "composition()",
+          summary: "",
+          payload: { mode: "manual", agent_ids: ["a1"], skill_ids: ["s1"] },
+          created_at: "",
+        },
+      ],
+      total: 1,
+    });
+    mockListSkills.mockResolvedValue([{ id: "s1", name: "Refactor" }]);
+
+    render(<DecisionLetterCard wsId="ws-1" kind="clarify" id="clar-1" />, { wrapper: Wrapper });
+
+    const section = await screen.findByTestId("letter-composition");
+    // Skill name resolved from the workspace skills list.
+    expect(section).toHaveTextContent("Refactor");
+    // Agent name resolved via useActorName (mocked to "Alice").
+    expect(section).toHaveTextContent("Alice");
+  });
+
+  it("renders no composition section for a non-authoring clarification", async () => {
+    // beforeEach leaves the evidence list empty.
+    render(<DecisionLetterCard wsId="ws-1" kind="clarify" id="clar-1" />, { wrapper: Wrapper });
+
+    await screen.findByTestId("clarify-response");
+    expect(screen.queryByTestId("letter-composition")).not.toBeInTheDocument();
   });
 });

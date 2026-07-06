@@ -177,6 +177,14 @@
     "why_promotion": "Gate {{gate}} is applying for promotion to spot checks",
     "promotion": {
       "evidence_count": "{{count}} consecutive zero-reject reviews as evidence"
+    },
+    "composition": {
+      "title": "Strategy composition",
+      "creator": "Creator agent",
+      "agents": "Agents",
+      "skills": "Skills",
+      "auto_skills": "Chosen by the creator agent during the run",
+      "none": "Not specified"
     }
   },
   "stage_strip": {

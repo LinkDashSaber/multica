@@ -16,6 +16,13 @@ export interface RunPayload {
   agent_id?: string;
   /** The strategy's agent/skill composition (issue #26). */
   composition?: WorkflowComposition;
+  /**
+   * The parent requirement's title and body (issue #30). Threaded so the
+   * authoring clarify step can ask questions grounded in the real requirement
+   * instead of a fixed template.
+   */
+  requirement_title?: string;
+  requirement_text?: string;
 }
 
 export class BudgetExceededError extends Error {

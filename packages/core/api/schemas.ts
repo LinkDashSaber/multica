@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseWithFallback } from "./schema";
 import type {
   Agent,
   AgentTemplate,
@@ -622,6 +623,83 @@ export const EMPTY_RAVEN_COMPOSITION: RavenComposition = {
   agent_ids: [],
   skill_ids: [],
 };
+
+/** Evidence kind carrying a strategy's composition (mirrors the Go const). */
+export const COMPOSITION_EVIDENCE_KIND = "workflow_composition";
+
+/**
+ * Read the 交付策略 composition (issue #26/#30) from a requirement's evidence
+ * list, or null when it has none (non-authoring requirement, or not recorded).
+ * The payload is validated via parseWithFallback so malformed drift degrades to
+ * "no composition" rather than throwing in the clarify letter.
+ */
+export function findComposition(evidence: RavenEvidence[] | undefined): RavenComposition | null {
+  const record = (evidence ?? []).find((e) => e.kind === COMPOSITION_EVIDENCE_KIND);
+  if (!record) return null;
+  const parsed = parseWithFallback(record.payload, RavenCompositionSchema, EMPTY_RAVEN_COMPOSITION, {
+    endpoint: "raven.composition",
+  });
+  // An all-empty parse means the payload was unusable — treat it as absent.
+  return parsed.mode !== "" || parsed.agent_ids.length > 0 ? parsed : null;
+}
+
+// --- Clarify questions (issue #30) -------------------------------------------
+
+export interface ClarifyQuestionView {
+  question: string;
+  options: string[];
+  recommended?: string;
+}
+
+function normalizeClarifyItems(items: unknown[]): ClarifyQuestionView[] {
+  const out: ClarifyQuestionView[] = [];
+  for (const item of items) {
+    if (typeof item === "string" && item !== "") {
+      out.push({ question: item, options: [] });
+    } else if (item && typeof item === "object") {
+      const obj = item as Record<string, unknown>;
+      if (typeof obj.question !== "string" || obj.question === "") continue;
+      const options = Array.isArray(obj.options)
+        ? obj.options.filter((o): o is string => typeof o === "string" && o !== "")
+        : [];
+      out.push({
+        question: obj.question,
+        options,
+        recommended:
+          typeof obj.recommended === "string" && obj.recommended !== ""
+            ? obj.recommended
+            : undefined,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Clarify questions payload (issue #30). Accepts a bare array or a
+ * `{questions:[...]}` wrapper; items may be bare strings or
+ * `{question, options?, recommended?}` objects. Malformed items are dropped and
+ * a malformed top-level payload degrades to [] — the clarify letter never
+ * throws on drift.
+ */
+export const RavenClarifyQuestionsSchema = z
+  .preprocess((raw) => {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).questions)) {
+      return (raw as Record<string, unknown>).questions;
+    }
+    return [];
+  }, z.array(z.unknown()).transform(normalizeClarifyItems))
+  .catch([]);
+
+export const EMPTY_RAVEN_CLARIFY_QUESTIONS: ClarifyQuestionView[] = [];
+
+/** Validate + normalize the clarify questions payload via zod. */
+export function parseClarifyQuestions(raw: unknown): ClarifyQuestionView[] {
+  return parseWithFallback(raw, RavenClarifyQuestionsSchema, EMPTY_RAVEN_CLARIFY_QUESTIONS, {
+    endpoint: "raven.clarify.questions",
+  });
+}
 
 // Per-workflow aggregates for the workflow list page. Rates are derived
 // client-side from the gate counts.
