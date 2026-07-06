@@ -29,12 +29,26 @@ export interface ContractRetry {
   timeout_seconds?: number;
 }
 
+/**
+ * Who runs a 交付策略 and with what (issue #26). Mirrors the Go
+ * raven.WorkflowComposition / ContractComposition. Mode "manual": the user
+ * picked agents + skills directly. Mode "auto" (智能): a single creator agent
+ * (agent_ids[0]) picks skills + squad during the run, so skill_ids is empty.
+ */
+export interface WorkflowComposition {
+  mode: string;
+  agent_ids: string[];
+  skill_ids: string[];
+}
+
 export interface Contract {
   stages: ContractStageInput[];
   gates: ContractGate[];
   budget: ContractBudget;
   retry?: ContractRetry;
   permissions?: Record<string, unknown>;
+  /** Present when a strategy was authored with a manual composition (issue #26). */
+  composition?: WorkflowComposition;
 }
 
 export function validateContract(c: Contract): void {

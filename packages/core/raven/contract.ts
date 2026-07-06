@@ -2,6 +2,18 @@
 // Stages accept both the object form {name, description} and the legacy
 // bare-string form; anything malformed is simply skipped.
 
+// Raven payload parsers that go through zod (issues #26/#30) live with the
+// other schemas; re-exported here so consumers import them from the raven
+// domain module alongside the contract readers.
+export {
+  COMPOSITION_EVIDENCE_KIND,
+  EMPTY_RAVEN_CLARIFY_QUESTIONS,
+  RavenClarifyQuestionsSchema,
+  findComposition,
+  parseClarifyQuestions,
+  type ClarifyQuestionView,
+} from "../api/schemas";
+
 /**
  * Registry name of the built-in authoring strategy (ADR-0010). The "新建交付
  * 策略" entry creates a requirement assigned to this workflow.

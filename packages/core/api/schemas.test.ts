@@ -9,6 +9,12 @@ import {
   EMPTY_CREATE_FEEDBACK_RESPONSE,
   EMPTY_INBOX_UNREAD_SUMMARY,
   EMPTY_RAVEN_EVIDENCE_LIST,
+  EMPTY_RAVEN_COMPOSITION,
+  RavenCompositionSchema,
+  EMPTY_RAVEN_CLARIFY_QUESTIONS,
+  RavenClarifyQuestionsSchema,
+  parseClarifyQuestions,
+  findComposition,
   EMPTY_RAVEN_GATE_REVIEW,
   EMPTY_RAVEN_GATE_REVIEW_LIST,
   EMPTY_RAVEN_WORKFLOW_STATS_LIST,
@@ -1015,5 +1021,90 @@ describe("RavenRunSchema / RavenClarificationListSchema (run room, issue #18)", 
     expect(
       parseWithFallback({ clarifications: "nope" }, RavenClarificationListSchema, EMPTY_RAVEN_CLARIFICATION_LIST, listEndpoint),
     ).toBe(EMPTY_RAVEN_CLARIFICATION_LIST);
+  });
+});
+
+describe("RavenCompositionSchema (issue #26)", () => {
+  const endpoint = "raven.composition";
+
+  it("parses a well-formed composition", () => {
+    const parsed = parseWithFallback(
+      { mode: "manual", agent_ids: ["a-1", "a-2"], skill_ids: ["s-1"] },
+      RavenCompositionSchema,
+      EMPTY_RAVEN_COMPOSITION,
+      { endpoint },
+    );
+    expect(parsed.mode).toBe("manual");
+    expect(parsed.agent_ids).toEqual(["a-1", "a-2"]);
+    expect(parsed.skill_ids).toEqual(["s-1"]);
+  });
+
+  it("defaults missing fields so a partial payload still parses", () => {
+    const parsed = parseWithFallback(
+      { mode: "auto" },
+      RavenCompositionSchema,
+      EMPTY_RAVEN_COMPOSITION,
+      { endpoint },
+    );
+    expect(parsed.mode).toBe("auto");
+    expect(parsed.agent_ids).toEqual([]);
+    expect(parsed.skill_ids).toEqual([]);
+  });
+
+  it("returns the fallback for malformed composition bodies", () => {
+    expect(
+      parseWithFallback({ agent_ids: "nope" }, RavenCompositionSchema, EMPTY_RAVEN_COMPOSITION, { endpoint }),
+    ).toBe(EMPTY_RAVEN_COMPOSITION);
+    expect(
+      parseWithFallback(null, RavenCompositionSchema, EMPTY_RAVEN_COMPOSITION, { endpoint }),
+    ).toBe(EMPTY_RAVEN_COMPOSITION);
+    expect(
+      parseWithFallback("oops", RavenCompositionSchema, EMPTY_RAVEN_COMPOSITION, { endpoint }),
+    ).toBe(EMPTY_RAVEN_COMPOSITION);
+  });
+
+  it("findComposition reads the workflow_composition evidence, or null when absent", () => {
+    const evidence = [
+      { id: "e1", requirement_id: "r", run_id: null, kind: "agent_output", source: "", summary: "", payload: {}, created_at: "" },
+      {
+        id: "e2", requirement_id: "r", run_id: null, kind: "workflow_composition", source: "", summary: "",
+        payload: { mode: "manual", agent_ids: ["a-1"], skill_ids: ["s-1"] }, created_at: "",
+      },
+    ];
+    expect(findComposition(evidence)?.agent_ids).toEqual(["a-1"]);
+    expect(findComposition([])).toBeNull();
+    expect(findComposition(undefined)).toBeNull();
+  });
+});
+
+describe("RavenClarifyQuestionsSchema (issue #30)", () => {
+  const endpoint = "raven.clarify.questions";
+
+  it("normalizes bare strings, objects, and the {questions:[...]} wrapper", () => {
+    expect(
+      parseWithFallback(
+        { questions: ["A?", { question: "B?", options: ["x"], recommended: "x" }, 42, {}] },
+        RavenClarifyQuestionsSchema,
+        EMPTY_RAVEN_CLARIFY_QUESTIONS,
+        { endpoint },
+      ),
+    ).toEqual([
+      { question: "A?", options: [] },
+      { question: "B?", options: ["x"], recommended: "x" },
+    ]);
+    // Bare array form works too, and drops malformed items.
+    expect(parseClarifyQuestions([{ question: "Only?" }, "Loose?"])).toEqual([
+      { question: "Only?", options: [] },
+      { question: "Loose?", options: [] },
+    ]);
+  });
+
+  it("degrades a malformed top-level payload to []", () => {
+    expect(parseClarifyQuestions(null)).toEqual([]);
+    expect(parseClarifyQuestions("oops")).toEqual([]);
+    expect(parseClarifyQuestions(42)).toEqual([]);
+    expect(
+      parseWithFallback("nope", RavenClarifyQuestionsSchema, EMPTY_RAVEN_CLARIFY_QUESTIONS, { endpoint }),
+    ).toEqual([]);
   });
 });

@@ -88,7 +88,22 @@
       "submit": "Create",
       "cancel": "Cancel",
       "failed": "Failed to create the authoring requirement",
-      "unavailable": "The built-in workflow-authoring strategy is not registered in this workspace"
+      "unavailable": "The built-in workflow-authoring strategy is not registered in this workspace",
+      "mode_label": "Creation mode",
+      "mode_smart": "Smart",
+      "mode_manual": "Manual",
+      "mode_smart_hint": "Name one creator agent; it picks the skills and squad while drafting.",
+      "mode_manual_hint": "Pick the agents and skills that run this strategy directly.",
+      "creator_label": "Creator",
+      "pick_agent": "Pick an agent",
+      "search_agents": "Search agents",
+      "no_agents": "No agents available in this workspace",
+      "agents_group": "Agents",
+      "squads_group": "Squads",
+      "agents_label": "Agents (multi-select)",
+      "agents_placeholder": "Choose the agents that run this strategy",
+      "agents_selected": "{{count}} agent(s) selected",
+      "need_agent": "Pick at least one agent"
     },
     "trust": {
       "column": "Trust",
@@ -164,6 +179,14 @@
     "promotion": {
       "reviews_title": "Zero-reject review history",
       "evidence_count": "{{count}} consecutive zero-reject reviews as evidence"
+    },
+    "composition": {
+      "title": "Strategy composition",
+      "creator": "Creator agent",
+      "agents": "Agents",
+      "skills": "Skills",
+      "auto_skills": "Chosen by the creator agent during the run",
+      "none": "Not specified"
     }
   },
   "stage_strip": {

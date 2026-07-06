@@ -22,6 +22,32 @@ var SystemActor = Actor{Type: "system"}
 
 var ErrIllegalTransition = errors.New("illegal raven transition")
 
+// EvidenceKindComposition records a 交付策略's chosen agent/skill composition
+// (issue #26). Written when the strategy is created so dispatch and the
+// clarify letter can read who runs it, without re-deriving it later.
+const EvidenceKindComposition = "workflow_composition"
+
+// WorkflowComposition is who runs a 交付策略 and with what, chosen when the
+// strategy is created (issue #26). Mode "manual": the user picked AgentIDs
+// (one or more) and SkillIDs directly. Mode "auto" (智能): the user named a
+// single creator agent in AgentIDs; it picks skills + squad during the run,
+// so SkillIDs is empty. Either way AgentIDs[0] is the agent the authoring run
+// dispatches to — there is no global fallback agent anymore.
+type WorkflowComposition struct {
+	Mode     string   `json:"mode"`
+	AgentIDs []string `json:"agent_ids"`
+	SkillIDs []string `json:"skill_ids"`
+}
+
+// AuthoringAgentID is the agent the run dispatches to, or "" when no agent was
+// chosen (non-authoring assignments carry no composition).
+func (c *WorkflowComposition) AuthoringAgentID() string {
+	if c == nil || len(c.AgentIDs) == 0 {
+		return ""
+	}
+	return c.AgentIDs[0]
+}
+
 // Service is the Raven domain service shared by the HTTP handlers, the
 // GitHub webhook pipeline, and the autopilot dispatcher — every path that
 // can move a requirement through the lifecycle.
@@ -39,7 +65,12 @@ func NewService(q *db.Queries, d *Dispatcher) *Service {
 // Creates the lifecycle record in Idea bound to that workflow, records the
 // creation transition, projects the board column, and dispatches a run.
 // Idempotent and best-effort: failures are logged, never propagated.
-func (s *Service) EnsureRequirementForWorkflowAssign(ctx context.Context, issue db.Issue, actor Actor) {
+//
+// comp carries the 交付策略 agent/skill composition when this assignment came
+// from the create-strategy modal (issue #26); nil for plain delivery
+// assignments (reassign, autopilot). When present it is persisted as evidence
+// and threaded into the dispatch payload so the run uses the chosen agent.
+func (s *Service) EnsureRequirementForWorkflowAssign(ctx context.Context, issue db.Issue, actor Actor, comp *WorkflowComposition) {
 	if issue.AssigneeType.String != "workflow" || !issue.AssigneeID.Valid {
 		return
 	}
@@ -69,8 +100,13 @@ func (s *Service) EnsureRequirementForWorkflowAssign(ctx context.Context, issue 
 	}); err != nil {
 		slog.Warn("raven: opt-in creation transition failed", "error", err)
 	}
+	// Persist the composition before dispatch so the clarify letter (issue
+	// #30) and any later view can read who runs this strategy.
+	if comp.AuthoringAgentID() != "" {
+		s.RecordEvidence(ctx, requirement, EvidenceKindComposition, "composition()", "交付策略组成", comp)
+	}
 	s.ProjectStateToIssue(ctx, requirement)
-	s.DispatchRun(ctx, requirement)
+	s.DispatchRun(ctx, requirement, comp)
 }
 
 // ApplyTransition performs one legality-checked state change: update state,
@@ -182,7 +218,7 @@ func (s *Service) RecordEvidence(ctx context.Context, requirement db.RavenRequir
 // DispatchRun creates a run row and fires the workflow's trigger.dev task.
 // Unconfigured dispatcher leaves the run pending (local dev without
 // trigger.dev).
-func (s *Service) DispatchRun(ctx context.Context, requirement db.RavenRequirement) {
+func (s *Service) DispatchRun(ctx context.Context, requirement db.RavenRequirement, comp *WorkflowComposition) {
 	if !requirement.WorkflowID.Valid {
 		return
 	}
@@ -192,6 +228,15 @@ func (s *Service) DispatchRun(ctx context.Context, requirement db.RavenRequireme
 	if err != nil {
 		slog.Warn("raven: dispatch: load workflow failed", "error", err)
 		return
+	}
+	// Load the requirement's issue so the run can ground its work in the real
+	// requirement text (issue #30). Best-effort: a load failure just omits the
+	// text — the worker still has issue_id to fetch it itself.
+	issue, err := s.Q.GetIssueInWorkspace(ctx, db.GetIssueInWorkspaceParams{
+		ID: requirement.IssueID, WorkspaceID: requirement.WorkspaceID,
+	})
+	if err != nil {
+		slog.Warn("raven: dispatch: load issue failed", "error", err)
 	}
 	run, err := s.Q.CreateRavenRun(ctx, db.CreateRavenRunParams{
 		WorkspaceID:   requirement.WorkspaceID,
@@ -215,14 +260,7 @@ func (s *Service) DispatchRun(ctx context.Context, requirement db.RavenRequireme
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		triggerRunID, err := s.Dispatcher.TriggerRun(ctx, workflow.Name, map[string]any{
-			"workspace_id":   util.UUIDToString(requirement.WorkspaceID),
-			"issue_id":       util.UUIDToString(requirement.IssueID),
-			"requirement_id": util.UUIDToString(requirement.ID),
-			"run_id":         util.UUIDToString(run.ID),
-			"workflow_name":  workflow.Name,
-			"contract":       json.RawMessage(workflow.Contract),
-		})
+		triggerRunID, err := s.Dispatcher.TriggerRun(ctx, workflow.Name, buildDispatchPayload(requirement, workflow, run, issue, comp))
 		if err != nil {
 			slog.Warn("raven: trigger.dev dispatch failed", "error", err, "run_id", util.UUIDToString(run.ID), "workflow", workflow.Name)
 			reason := "dispatch failed: " + err.Error()
@@ -242,4 +280,32 @@ func (s *Service) DispatchRun(ctx context.Context, requirement db.RavenRequireme
 			slog.Warn("raven: record trigger run id failed", "error", err)
 		}
 	}()
+}
+
+// buildDispatchPayload assembles the trigger.dev task payload. When a
+// composition is present (issue #26), agent_id carries the chosen agent so the
+// worker dispatches to it instead of a global env agent, and composition rides
+// along for the worker to bake into the drafted contract / show in the letter.
+func buildDispatchPayload(requirement db.RavenRequirement, workflow db.RavenWorkflow, run db.RavenRun, issue db.Issue, comp *WorkflowComposition) map[string]any {
+	payload := map[string]any{
+		"workspace_id":   util.UUIDToString(requirement.WorkspaceID),
+		"issue_id":       util.UUIDToString(requirement.IssueID),
+		"requirement_id": util.UUIDToString(requirement.ID),
+		"run_id":         util.UUIDToString(run.ID),
+		"workflow_name":  workflow.Name,
+		"contract":       json.RawMessage(workflow.Contract),
+	}
+	// The real requirement text (issue #30) grounds the authoring clarify step
+	// so it asks questions specific to this requirement instead of a template.
+	if issue.Title != "" {
+		payload["requirement_title"] = issue.Title
+	}
+	if issue.Description.Valid && issue.Description.String != "" {
+		payload["requirement_text"] = issue.Description.String
+	}
+	if agentID := comp.AuthoringAgentID(); agentID != "" {
+		payload["agent_id"] = agentID
+		payload["composition"] = comp
+	}
+	return payload
 }

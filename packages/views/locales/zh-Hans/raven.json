@@ -88,7 +88,22 @@
       "submit": "创建",
       "cancel": "取消",
       "failed": "创建建策略需求失败",
-      "unavailable": "当前工作区尚未注册内置的 workflow-authoring 策略"
+      "unavailable": "当前工作区尚未注册内置的 workflow-authoring 策略",
+      "mode_label": "创建模式",
+      "mode_smart": "智能",
+      "mode_manual": "手动",
+      "mode_smart_hint": "指定一位创建者智能体，由它在起草时挑选技能与小队",
+      "mode_manual_hint": "直接为这条生产线选择运行的智能体与技能",
+      "creator_label": "创建者",
+      "pick_agent": "选择智能体",
+      "search_agents": "搜索智能体",
+      "no_agents": "工作区暂无可用智能体",
+      "agents_group": "智能体",
+      "squads_group": "小队",
+      "agents_label": "智能体（可多选）",
+      "agents_placeholder": "选择运行这条策略的智能体",
+      "agents_selected": "已选 {{count}} 个智能体",
+      "need_agent": "至少选择一个智能体"
     },
     "trust": {
       "column": "信任额度",
@@ -164,6 +179,14 @@
     "promotion": {
       "reviews_title": "零驳回审查记录",
       "evidence_count": "已积累 {{count}} 次连续零驳回作为证据"
+    },
+    "composition": {
+      "title": "策略组成",
+      "creator": "创建者智能体",
+      "agents": "智能体",
+      "skills": "技能",
+      "auto_skills": "由创建者智能体在运行中代选",
+      "none": "未指定"
     }
   },
   "stage_strip": {
