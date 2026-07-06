@@ -32,6 +32,21 @@ const SEMVER_RE = /v?(\d+)\.(\d+)\.(\d+)/;
 // the gate for staging or production users running stale stable releases.
 const DEV_DESCRIBE_RE = /^v?\d+\.\d+\.\d+-\d+-g[0-9a-fA-F]+/;
 
+// Matches the `git describe --tags --always` fallback in a tagless clone: a
+// bare abbreviated commit SHA, optionally `-dirty`, e.g. `4b020cb5`. Source
+// builds without tags report this instead of the `-N-g<sha>` describe shape,
+// so they must be exempted too. Real releases report dotted semver (no dots
+// here), so the stable-release gate is unaffected.
+const DEV_ALWAYS_RE = /^[0-9a-fA-F]{7,40}(-dirty)?$/;
+
+/**
+ * Source-built daemon (git-describe string, bare `--always` commit SHA, or the
+ * literal `dev` fallback) — always exempt, matching server `agent.isDevBuild`.
+ */
+function isDevBuild(current: string): boolean {
+  return DEV_DESCRIBE_RE.test(current) || DEV_ALWAYS_RE.test(current) || current === "dev";
+}
+
 function parseSemver(raw: string): [number, number, number] | null {
   const m = SEMVER_RE.exec(raw.trim());
   if (!m) return null;
@@ -53,7 +68,7 @@ function lessThan(a: [number, number, number], b: [number, number, number]) {
  */
 export function checkQuickCreateCliVersion(detected: string | undefined | null): CliVersionCheck {
   const current = (detected ?? "").trim();
-  if (DEV_DESCRIBE_RE.test(current)) {
+  if (isDevBuild(current)) {
     return { state: "ok", current, min: MIN_QUICK_CREATE_CLI_VERSION };
   }
   const parsed = current ? parseSemver(current) : null;
@@ -97,7 +112,7 @@ export const MIN_HANDOFF_CLI_VERSION = "0.3.28";
 export function handoffSupported(detected: string | undefined | null): boolean {
   const current = (detected ?? "").trim();
   if (!current) return false;
-  if (DEV_DESCRIBE_RE.test(current)) return true;
+  if (isDevBuild(current)) return true;
   const parsed = parseSemver(current);
   if (!parsed) return false;
   return !lessThan(parsed, parseSemver(MIN_HANDOFF_CLI_VERSION)!);

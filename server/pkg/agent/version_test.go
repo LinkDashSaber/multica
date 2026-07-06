@@ -67,6 +67,9 @@ func TestCheckMinCLIVersion(t *testing.T) {
 		{"git-describe dev build past old tag", "v0.2.15-235-gdaf0e935", nil},
 		{"git-describe dirty dev build", "v0.2.15-235-gdaf0e935-dirty", nil},
 		{"git-describe dev build past current tag", "v0.2.21-3-gabc1234", nil},
+		{"always-fallback bare sha (tagless clone)", "4b020cb5", nil},
+		{"always-fallback bare sha dirty", "4b020cb5-dirty", nil},
+		{"no-git dev fallback", "dev", nil},
 	}
 	for _, tt := range tests {
 		err := CheckMinCLIVersion(tt.input)

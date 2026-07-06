@@ -27,6 +27,14 @@ describe("checkQuickCreateCliVersion", () => {
     expect(checkQuickCreateCliVersion("v0.2.15-235-gdaf0e935-dirty").state).toBe("ok");
     expect(checkQuickCreateCliVersion("0.1.0-1-gabc1234").state).toBe("ok");
   });
+
+  it("treats the tagless --always bare-sha fallback (and dev) as ok", () => {
+    expect(checkQuickCreateCliVersion("4b020cb5").state).toBe("ok");
+    expect(checkQuickCreateCliVersion("4b020cb5-dirty").state).toBe("ok");
+    expect(checkQuickCreateCliVersion("dev").state).toBe("ok");
+    // A non-hex unparsable string still fails closed.
+    expect(checkQuickCreateCliVersion("not-a-version").state).toBe("missing");
+  });
 });
 
 // Mirrors server/pkg/agent/handoff_version_test.go so the frontend soft-gate

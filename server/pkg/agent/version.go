@@ -44,7 +44,7 @@ func HandoffSupported(cliVersion string) bool {
 	if d == "" {
 		return false
 	}
-	if devDescribeRe.MatchString(d) {
+	if isDevBuild(d) {
 		return true
 	}
 	parsed, err := parseSemver(d)
@@ -73,6 +73,24 @@ var (
 // gate for staging or production users running stale stable releases.
 var devDescribeRe = regexp.MustCompile(`^v?\d+\.\d+\.\d+-\d+-g[0-9a-fA-F]+`)
 
+// devAlwaysRe matches the `git describe --tags --always` fallback used when the
+// clone has no tags: a bare abbreviated commit SHA, optionally `-dirty`, e.g.
+// `4b020cb5` or `4b020cb5-dirty`. A source build in a tagless checkout reports
+// this instead of the `-N-g<sha>` describe shape, so it must be exempted too —
+// otherwise `make daemon` from a fresh clone is wrongly gated as "no version".
+// Real releases report dotted semver, which never matches (no dots here), so
+// the stable-release gate is unaffected.
+var devAlwaysRe = regexp.MustCompile(`^[0-9a-fA-F]{7,40}(-dirty)?$`)
+
+// isDevBuild reports whether a reported CLI version came from a source build
+// (`make daemon` / `make build`) rather than a tagged release: a git-describe
+// string, a bare `--always` commit SHA, or the literal `dev` fallback (git
+// absent). Such builds always carry the latest CLI behavior, so the version
+// gates exempt them.
+func isDevBuild(d string) bool {
+	return devDescribeRe.MatchString(d) || devAlwaysRe.MatchString(d) || d == "dev"
+}
+
 // CheckMinCLIVersion returns nil when `detected` parses as ≥ minimum. Returns
 // ErrCLIVersionMissing for empty or unparsable input, and ErrCLIVersionTooOld
 // when parsable but below the minimum. The caller can check for these
@@ -86,7 +104,7 @@ func CheckMinCLIVersion(detected string) error {
 	if d == "" {
 		return ErrCLIVersionMissing
 	}
-	if devDescribeRe.MatchString(d) {
+	if isDevBuild(d) {
 		return nil
 	}
 	parsed, err := parseSemver(d)
