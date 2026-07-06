@@ -216,6 +216,22 @@
     "asset": {
       "view_skill": "View skill draft",
       "view_workflow": "View workflow trust"
+    },
+    "about": {
+      "body": "When an agent notes something worth reusing mid-run, that's a self-report. Here you triage each one into a reusable asset — assets improve execution, execution feeds compounding, closing a self-evolution loop. Compound only what truly earns it.",
+      "destinations_title": "Three destinations"
+    },
+    "purpose": {
+      "skill_proposal": "Abstract into a reusable skill draft an agent can call later.",
+      "fact": "Pin as a workspace fact & definition to align everyone's baseline.",
+      "uptrack_evidence": "Keep as uptrack evidence backing this workflow gate's trust promotion."
+    },
+    "evidence": {
+      "report": "Self-report",
+      "source_run": "Source run",
+      "stage": "Stage",
+      "requirement": "Requirement",
+      "recorded_at": "Recorded"
     }
   },
   "run_room": {

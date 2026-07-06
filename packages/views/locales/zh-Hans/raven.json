@@ -216,6 +216,22 @@
     "asset": {
       "view_skill": "查看 Skill 草稿",
       "view_workflow": "查看交付策略信任"
+    },
+    "about": {
+      "body": "执行中的 agent 随手记下值得复用的心得，就是一条执行自报。你在这里三选一，把它沉淀成可复用资产——资产反过来改善执行，执行再喂养沉淀，形成自进化回路。宁缺毋滥，只沉淀真正值得的。",
+      "destinations_title": "三类去向"
+    },
+    "purpose": {
+      "skill_proposal": "抽象成可复用的 Skill 草稿，agent 以后可直接调用。",
+      "fact": "固化为工作区的事实与口径，统一认知基线。",
+      "uptrack_evidence": "作为升轨证据，支撑该交付策略门禁的信任晋升。"
+    },
+    "evidence": {
+      "report": "执行自报",
+      "source_run": "来源运行",
+      "stage": "阶段",
+      "requirement": "关联需求",
+      "recorded_at": "记录于"
     }
   },
   "run_room": {

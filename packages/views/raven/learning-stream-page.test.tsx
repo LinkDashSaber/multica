@@ -108,8 +108,14 @@ describe("LearningStreamPage", () => {
 
     expect(await screen.findByText("先读现有测试再动手")).toBeTruthy();
     expect(screen.getAllByTestId("learning-item")).toHaveLength(3);
-    // Provenance: stage + issue link.
-    expect(screen.getByText("· execute")).toBeTruthy();
+    // Structured evidence (#29): labeled real fields, not a raw string.
+    expect(screen.getAllByText("Source run").length).toBe(3);
+    expect(screen.getAllByText("Self-report").length).toBe(3);
+    expect(screen.getByText("execute")).toBeTruthy(); // stage value
+    const runLinks = screen.getAllByText("run 12345678") as HTMLAnchorElement[];
+    expect(runLinks[0]?.getAttribute("href")).toBe(
+      "/acme/raven/runs/12345678-aaaa-bbbb-cccc-000000000001",
+    );
     const links = screen.getAllByText("View issue") as HTMLAnchorElement[];
     expect(links[0]?.getAttribute("href")).toBe("/acme/issues/issue-1");
     // Promoted entry shows its destination, and no triage actions.
@@ -160,5 +166,29 @@ describe("LearningStreamPage", () => {
     render(<LearningStreamPage />, { wrapper: Wrapper });
 
     expect(await screen.findByText("No self-reported learnings yet")).toBeTruthy();
+  });
+
+  it("explains the mechanism and each destination inline, even on first run (#29)", async () => {
+    mockListLearnings.mockResolvedValue({ learnings: [], total: 0 });
+    render(<LearningStreamPage />, { wrapper: Wrapper });
+
+    // Mechanism guidance is present on the empty first-run.
+    const about = await screen.findByTestId("learnings-about");
+    expect(about.textContent).toContain("self-evolution loop");
+    // Each of the three destinations names its one-line purpose.
+    const legend = screen.getByTestId("learnings-destinations");
+    expect(legend.textContent).toContain("Abstract into a reusable skill draft");
+    expect(legend.textContent).toContain("Pin as a workspace fact & definition");
+    expect(legend.textContent).toContain("uptrack evidence backing this workflow gate");
+  });
+
+  it("shows each promote destination's purpose in the menu (#29)", async () => {
+    const user = userEvent.setup();
+    render(<LearningStreamPage />, { wrapper: Wrapper });
+
+    await user.click(await screen.findByTestId("learning-promote"));
+    const skillItem = await screen.findByTestId("learning-promote-skill_proposal");
+    expect(skillItem.textContent).toContain("Skill proposal");
+    expect(skillItem.textContent).toContain("Abstract into a reusable skill draft");
   });
 });

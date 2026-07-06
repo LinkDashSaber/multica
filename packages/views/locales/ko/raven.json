@@ -216,6 +216,22 @@
     "asset": {
       "view_skill": "스킬 초안 보기",
       "view_workflow": "워크플로 신뢰 보기"
+    },
+    "about": {
+      "body": "실행 중 agent가 재사용할 만한 통찰을 메모한 것이 자가 보고입니다. 여기서 각 보고를 재사용 가능한 자산으로 분류합니다——자산이 실행을 개선하고, 실행이 축적을 키워 자기 진화 루프를 닫습니다. 정말 가치 있는 것만 축적하세요.",
+      "destinations_title": "세 가지 대상"
+    },
+    "purpose": {
+      "skill_proposal": "재사용 가능한 스킬 초안으로 추상화하여 나중에 agent가 바로 호출할 수 있습니다.",
+      "fact": "워크스페이스의 사실과 기준으로 고정해 인식 기준을 맞춥니다.",
+      "uptrack_evidence": "승격 증거로서 이 워크플로 게이트의 신뢰 승격을 뒷받침합니다."
+    },
+    "evidence": {
+      "report": "자가 보고",
+      "source_run": "원본 실행",
+      "stage": "단계",
+      "requirement": "관련 요건",
+      "recorded_at": "기록"
     }
   },
   "run_room": {
