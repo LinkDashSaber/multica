@@ -3,11 +3,18 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { AlertTriangle } from "lucide-react";
 import { useCreateIssue } from "@multica/core/issues/mutations";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
 import { agentListOptions } from "@multica/core/workspace/queries";
 import type { Agent } from "@multica/core/types";
+import {
+  ApiError,
+  DuplicateIssueErrorBodySchema,
+  type DuplicateIssueErrorBody,
+  parseWithFallback,
+} from "@multica/core/api";
 import { Button } from "@multica/ui/components/ui/button";
 import { Input } from "@multica/ui/components/ui/input";
 import { Textarea } from "@multica/ui/components/ui/textarea";
@@ -106,14 +113,14 @@ export function CreateStrategyModal({
   const canSubmit =
     title.trim() !== "" && composedAgentIds.length > 0 && !createIssue.isPending;
 
-  const submit = () => {
-    if (!canSubmit) return;
+  const runCreate = (allowDuplicate: boolean) => {
     createIssue.mutate(
       {
         title: title.trim(),
         description: intent.trim(),
         assignee_type: "workflow",
         assignee_id: authoringWorkflowId,
+        allow_duplicate: allowDuplicate,
         raven_composition: {
           mode,
           agent_ids: composedAgentIds,
@@ -126,11 +133,74 @@ export function CreateStrategyModal({
           reset();
           push(wsPaths.issueDetail(issue.id));
         },
-        onError: () => {
+        onError: (err) => {
+          // The only structured 409 this endpoint returns is an active issue
+          // with the same title. Surface the real reason — with a jump to the
+          // existing strategy and a "create anyway" escape — instead of an
+          // opaque failure toast. Schema-guard the body so a server-side rename
+          // degrades to the generic toast rather than throwing in the renderer.
+          if (err instanceof ApiError && err.status === 409) {
+            const dup = parseWithFallback<DuplicateIssueErrorBody | null>(
+              err.body,
+              DuplicateIssueErrorBodySchema,
+              null,
+              { endpoint: "POST /api/issues (active_duplicate_issue)" },
+            );
+            if (dup) {
+              toast.custom(
+                (toastId) => (
+                  <div className="w-[360px] rounded-lg border bg-popover p-4 text-popover-foreground shadow-lg">
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="flex size-5 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
+                        <AlertTriangle className="size-3" />
+                      </div>
+                      <span className="text-sm font-medium">
+                        {t(($) => $.workflows.create.duplicate_title)}
+                      </span>
+                    </div>
+                    <p className="ml-7 truncate text-sm text-muted-foreground">
+                      {dup.issue.identifier} – {dup.issue.title}
+                    </p>
+                    <div className="ml-7 mt-2 flex items-center gap-4">
+                      <button
+                        type="button"
+                        className="cursor-pointer text-sm text-primary hover:underline"
+                        onClick={() => {
+                          toast.dismiss(toastId);
+                          onOpenChange(false);
+                          reset();
+                          push(wsPaths.issueDetail(dup.issue.id));
+                        }}
+                      >
+                        {t(($) => $.workflows.create.duplicate_view)}
+                      </button>
+                      <button
+                        type="button"
+                        className="cursor-pointer text-sm text-muted-foreground hover:text-foreground hover:underline"
+                        onClick={() => {
+                          toast.dismiss(toastId);
+                          runCreate(true);
+                        }}
+                      >
+                        {t(($) => $.workflows.create.duplicate_anyway)}
+                      </button>
+                    </div>
+                  </div>
+                ),
+                { duration: 8000 },
+              );
+              return;
+            }
+          }
           toast.error(t(($) => $.workflows.create.failed));
         },
       },
     );
+  };
+
+  const submit = () => {
+    if (!canSubmit) return;
+    runCreate(false);
   };
 
   return (

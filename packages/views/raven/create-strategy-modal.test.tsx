@@ -10,23 +10,33 @@ import { WorkspaceSlugProvider } from "@multica/core/paths";
 import { NavigationProvider } from "../navigation";
 import type { NavigationAdapter } from "../navigation";
 import enRaven from "../locales/en/raven.json";
+import { ApiError } from "@multica/core/api";
 
 const mockListWorkflows = vi.hoisted(() => vi.fn());
 const mockListStats = vi.hoisted(() => vi.fn());
 const mockListAgents = vi.hoisted(() => vi.fn());
 const mockMutate = vi.hoisted(() => vi.fn());
+const toastCustom = vi.hoisted(() => vi.fn());
+const toastError = vi.hoisted(() => vi.fn());
 
 const AGENTS = [
   { id: "agent-1", name: "Bohan", archived_at: null },
   { id: "agent-2", name: "Mira", archived_at: null },
 ];
 
-vi.mock("@multica/core/api", () => ({
+vi.mock("@multica/core/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@multica/core/api")>()),
   api: {
     listRavenWorkflows: mockListWorkflows,
     listRavenWorkflowStats: mockListStats,
     listAgents: mockListAgents,
   },
+}));
+
+// Capture sonner toasts so the duplicate branch is assertable in jsdom, where
+// no <Toaster> is mounted to render toast.custom content on its own.
+vi.mock("sonner", () => ({
+  toast: { custom: toastCustom, error: toastError, dismiss: vi.fn() },
 }));
 
 vi.mock("@multica/core/hooks", () => ({ useWorkspaceId: () => "ws-1" }));
@@ -233,5 +243,36 @@ describe("CreateStrategyModal dual-mode (issue #26)", () => {
 
     await userEvent.click(await screen.findByTestId("pick-creator-agent-2"));
     expect(screen.getByTestId("create-strategy-submit")).not.toBeDisabled();
+  });
+
+  it("on a duplicate title, surfaces the existing strategy and a create-anyway escape", async () => {
+    const dupErr = new ApiError("conflict", 409, "Conflict", {
+      code: "active_duplicate_issue",
+      error: "Active duplicate issue exists",
+      issue: { id: "issue-14", identifier: "RAV-14", title: "原型研究" },
+    });
+    // First attempt rejects with the structured 409.
+    mockMutate.mockImplementationOnce((_data, opts) => opts?.onError?.(dupErr));
+    renderModal();
+
+    await userEvent.type(screen.getByTestId("create-strategy-title"), "原型研究");
+    await userEvent.click(await screen.findByTestId("pick-creator-agent-1"));
+    await userEvent.click(screen.getByTestId("create-strategy-submit"));
+
+    // First attempt did not bypass the guard; no opaque failure toast — the
+    // structured duplicate toast was shown instead.
+    expect(mockMutate.mock.calls[0]![0].allow_duplicate).toBe(false);
+    expect(toastError).not.toHaveBeenCalled();
+    expect(toastCustom).toHaveBeenCalledTimes(1);
+
+    // Render the custom toast content; it names the existing strategy.
+    const renderToast = toastCustom.mock.calls[0]![0] as (id: string) => ReactNode;
+    render(<>{renderToast("t-1")}</>, { wrapper: Wrapper });
+    expect(screen.getByText(/RAV-14/)).toBeInTheDocument();
+
+    // "Create anyway" re-submits with allow_duplicate: true.
+    mockMutate.mockImplementationOnce((_data, opts) => opts?.onSuccess?.({ id: "issue-99" }));
+    await userEvent.click(screen.getByText(enRaven.workflows.create.duplicate_anyway));
+    expect(mockMutate.mock.calls[1]![0].allow_duplicate).toBe(true);
   });
 });

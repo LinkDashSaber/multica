@@ -18,6 +18,11 @@ export interface CreateIssueRequest {
   due_date?: string;
   attachment_ids?: string[];
   /**
+   * When true, bypass the active-duplicate-title guard and create anyway.
+   * Set by the "仍要创建" escape after a 409 active_duplicate_issue.
+   */
+  allow_duplicate?: boolean;
+  /**
    * 交付策略 composition (issue #26), set only by the create-strategy modal.
    * The server records it and threads the chosen agent into the authoring
    * run's dispatch. Ignored for non-workflow assignees.
