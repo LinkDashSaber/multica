@@ -333,7 +333,7 @@ func (h *Handler) ListRavenWorkflowRuns(w http.ResponseWriter, r *http.Request) 
 // ensureRavenRequirementForWorkflowAssign is the opt-in hook (ADR-0006) —
 // thin wrapper deriving the actor from the request; logic lives in
 // raven.Service so the GitHub webhook and autopilot paths share it.
-func (h *Handler) ensureRavenRequirementForWorkflowAssign(r *http.Request, issue db.Issue) {
+func (h *Handler) ensureRavenRequirementForWorkflowAssign(r *http.Request, issue db.Issue, comp *raven.WorkflowComposition) {
 	actorType, actorID := ravenActor(r)
-	h.ravenService().EnsureRequirementForWorkflowAssign(r.Context(), issue, raven.Actor{Type: actorType, ID: actorID})
+	h.ravenService().EnsureRequirementForWorkflowAssign(r.Context(), issue, raven.Actor{Type: actorType, ID: actorID}, comp)
 }

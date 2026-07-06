@@ -17,6 +17,16 @@ export interface CreateIssueRequest {
   start_date?: string;
   due_date?: string;
   attachment_ids?: string[];
+  /**
+   * 交付策略 composition (issue #26), set only by the create-strategy modal.
+   * The server records it and threads the chosen agent into the authoring
+   * run's dispatch. Ignored for non-workflow assignees.
+   */
+  raven_composition?: {
+    mode: string;
+    agent_ids: string[];
+    skill_ids: string[];
+  };
 }
 
 export interface UpdateIssueRequest {

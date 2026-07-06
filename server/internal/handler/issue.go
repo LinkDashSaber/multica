@@ -20,6 +20,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/issueguard"
 	"github.com/multica-ai/multica/server/internal/logger"
 	"github.com/multica-ai/multica/server/internal/middleware"
+	"github.com/multica-ai/multica/server/internal/raven"
 	"github.com/multica-ai/multica/server/internal/service"
 	"github.com/multica-ai/multica/server/internal/util"
 	"github.com/multica-ai/multica/server/pkg/agent"
@@ -2084,6 +2085,31 @@ type CreateIssueRequest struct {
 	OriginID   *string `json:"origin_id,omitempty"`
 
 	AllowDuplicate bool `json:"allow_duplicate,omitempty"`
+
+	// RavenComposition is set only by the create-strategy modal (issue #26):
+	// the agent(s)/skill(s) that make up the 交付策略. Consumed by the Raven
+	// opt-in hook when the issue is assigned to a workflow; ignored otherwise.
+	RavenComposition *RavenCompositionInput `json:"raven_composition,omitempty"`
+}
+
+// RavenCompositionInput mirrors raven.WorkflowComposition on the wire.
+type RavenCompositionInput struct {
+	Mode     string   `json:"mode"`
+	AgentIDs []string `json:"agent_ids"`
+	SkillIDs []string `json:"skill_ids"`
+}
+
+// toWorkflowComposition converts the wire shape to the domain type, or nil
+// when no agent was chosen (nothing to thread into dispatch).
+func toWorkflowComposition(in *RavenCompositionInput) *raven.WorkflowComposition {
+	if in == nil || len(in.AgentIDs) == 0 {
+		return nil
+	}
+	return &raven.WorkflowComposition{
+		Mode:     in.Mode,
+		AgentIDs: in.AgentIDs,
+		SkillIDs: in.SkillIDs,
+	}
 }
 
 func duplicateIssueMessage(issue IssueResponse) string {
@@ -2310,8 +2336,9 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 	slog.Info("issue created", append(logger.RequestAttrs(r), "issue_id", uuidToString(issue.ID), "title", issue.Title, "status", issue.Status, "workspace_id", workspaceID)...)
 
 	// Raven opt-in (ADR-0006): issues born assigned to a workflow enter the
-	// lifecycle immediately.
-	h.ensureRavenRequirementForWorkflowAssign(r, issue)
+	// lifecycle immediately. The create-strategy modal (issue #26) carries the
+	// chosen agent/skill composition so the authoring run dispatches to it.
+	h.ensureRavenRequirementForWorkflowAssign(r, issue, toWorkflowComposition(req.RavenComposition))
 
 	resp := issueToResponse(issue, prefix)
 	resp.Attachments = buildAttachmentResponses(res.Attachments)
@@ -2597,8 +2624,9 @@ func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {
 	if assigneeChanged {
 		h.TaskService.CancelTasksForIssue(r.Context(), issue.ID)
 		// Raven opt-in (ADR-0006): reassignment to a workflow puts the issue
-		// on the lifecycle track. No-op for every other assignee type.
-		h.ensureRavenRequirementForWorkflowAssign(r, issue)
+		// on the lifecycle track. No-op for every other assignee type. Plain
+		// reassignment carries no composition (that is a create-strategy affair).
+		h.ensureRavenRequirementForWorkflowAssign(r, issue, nil)
 	}
 	if trigger, ok := h.IssueService.WillEnqueueRun(r.Context(),
 		service.IssueTriggerInput{

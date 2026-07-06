@@ -438,7 +438,7 @@ func (s *AutopilotService) dispatchCreateIssue(ctx context.Context, ap db.Autopi
 	// Workflow autopilots: enter the Raven lifecycle instead of the agent
 	// task queue — the workflow's trigger.dev run owns execution from here.
 	if isWorkflow {
-		s.Raven.EnsureRequirementForWorkflowAssign(ctx, issue, raven.SystemActor)
+		s.Raven.EnsureRequirementForWorkflowAssign(ctx, issue, raven.SystemActor, nil)
 		slog.Info("autopilot dispatched (create_issue → raven workflow)",
 			"autopilot_id", util.UUIDToString(ap.ID),
 			"issue_id", util.UUIDToString(issue.ID),

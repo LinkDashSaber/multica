@@ -13,12 +13,19 @@ import enRaven from "../locales/en/raven.json";
 
 const mockListWorkflows = vi.hoisted(() => vi.fn());
 const mockListStats = vi.hoisted(() => vi.fn());
+const mockListAgents = vi.hoisted(() => vi.fn());
 const mockMutate = vi.hoisted(() => vi.fn());
+
+const AGENTS = [
+  { id: "agent-1", name: "Bohan", archived_at: null },
+  { id: "agent-2", name: "Mira", archived_at: null },
+];
 
 vi.mock("@multica/core/api", () => ({
   api: {
     listRavenWorkflows: mockListWorkflows,
     listRavenWorkflowStats: mockListStats,
+    listAgents: mockListAgents,
   },
 }));
 
@@ -26,6 +33,77 @@ vi.mock("@multica/core/hooks", () => ({ useWorkspaceId: () => "ws-1" }));
 
 vi.mock("@multica/core/issues/mutations", () => ({
   useCreateIssue: () => ({ mutate: mockMutate, isPending: false }),
+}));
+
+// Mock the searchable actor picker to a flat set of pick buttons — the popover
+// UX is covered on its own surface; here we only need selection behaviour.
+vi.mock("../issues/components/pickers/actor-picker", () => ({
+  ActorPicker: ({
+    visibleAgents,
+    selectedAgent,
+    onPick,
+  }: {
+    visibleAgents: Array<{ id: string; name: string }>;
+    selectedAgent?: { name: string };
+    onPick: (a: { type: "agent"; id: string }) => void;
+  }) => (
+    <div>
+      {selectedAgent ? <span data-testid="creator-selected">{selectedAgent.name}</span> : null}
+      {visibleAgents.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          data-testid={`pick-creator-${a.id}`}
+          onClick={() => onPick({ type: "agent", id: a.id })}
+        >
+          {a.name}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
+// Render the multi-select popover contents inline so agent rows are clickable.
+vi.mock("../issues/components/pickers/property-picker", () => ({
+  PropertyPicker: ({ trigger, children }: { trigger: ReactNode; children: ReactNode }) => (
+    <div>
+      {trigger}
+      {children}
+    </div>
+  ),
+  PickerItem: ({ onClick, children }: { onClick: () => void; children: ReactNode }) => (
+    <button type="button" onClick={onClick}>
+      {children}
+    </button>
+  ),
+  PickerEmpty: () => <div>empty</div>,
+}));
+
+vi.mock("../common/actor-avatar", () => ({
+  ActorAvatar: () => <span data-testid="actor-avatar" />,
+}));
+
+vi.mock("../agents/components/skill-multi-select", () => ({
+  SkillMultiSelect: ({
+    selectedIds,
+    onChange,
+  }: {
+    selectedIds: Set<string>;
+    onChange: (next: Set<string>) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="toggle-skill"
+      onClick={() => {
+        const next = new Set(selectedIds);
+        if (next.has("skill-1")) next.delete("skill-1");
+        else next.add("skill-1");
+        onChange(next);
+      }}
+    >
+      toggle skill
+    </button>
+  ),
 }));
 
 import { WorkflowListPage } from "./workflow-list-page";
@@ -69,6 +147,7 @@ function Wrapper({ children }: { children: ReactNode }) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockListStats.mockResolvedValue({ stats: [], total: 0 });
+  mockListAgents.mockResolvedValue(AGENTS);
 });
 
 describe("workflow list create-strategy entry", () => {
@@ -95,51 +174,64 @@ describe("workflow list create-strategy entry", () => {
   });
 });
 
-describe("CreateStrategyModal", () => {
-  it("creates an issue assigned to the authoring workflow and navigates to it", async () => {
-    mockMutate.mockImplementation((_data, opts) => {
-      opts?.onSuccess?.({ id: "issue-9" });
-    });
+describe("CreateStrategyModal dual-mode (issue #26)", () => {
+  function renderModal() {
     render(
-      <CreateStrategyModal
-        open
-        onOpenChange={vi.fn()}
-        authoringWorkflowId="wf-authoring"
-      />,
+      <CreateStrategyModal open onOpenChange={vi.fn()} authoringWorkflowId="wf-authoring" />,
       { wrapper: Wrapper },
     );
+  }
 
-    await userEvent.type(
-      screen.getByTestId("create-strategy-title"),
-      "紧急修复交付策略",
-    );
-    await userEvent.type(
-      screen.getByTestId("create-strategy-intent"),
-      "处理线上紧急缺陷的小步快跑交付",
-    );
+  it("smart mode designates a single creator agent and dispatches to it (mode=auto)", async () => {
+    mockMutate.mockImplementation((_data, opts) => opts?.onSuccess?.({ id: "issue-9" }));
+    renderModal();
+
+    await userEvent.type(screen.getByTestId("create-strategy-title"), "紧急修复交付策略");
+    await userEvent.type(screen.getByTestId("create-strategy-intent"), "处理线上紧急缺陷");
+    // Default mode is 智能/auto — designate one creator agent.
+    await userEvent.click(await screen.findByTestId("pick-creator-agent-1"));
     await userEvent.click(screen.getByTestId("create-strategy-submit"));
 
-    expect(mockMutate).toHaveBeenCalledWith(
-      {
-        title: "紧急修复交付策略",
-        description: "处理线上紧急缺陷的小步快跑交付",
-        assignee_type: "workflow",
-        assignee_id: "wf-authoring",
-      },
-      expect.anything(),
-    );
+    expect(mockMutate).toHaveBeenCalledTimes(1);
+    const [payload] = mockMutate.mock.calls[0]!;
+    expect(payload.assignee_type).toBe("workflow");
+    expect(payload.assignee_id).toBe("wf-authoring");
+    expect(payload.raven_composition).toEqual({
+      mode: "auto",
+      agent_ids: ["agent-1"],
+      skill_ids: [],
+    });
     expect(pushMock).toHaveBeenCalledWith("/acme/issues/issue-9");
   });
 
-  it("keeps submit disabled without a title", () => {
-    render(
-      <CreateStrategyModal
-        open
-        onOpenChange={vi.fn()}
-        authoringWorkflowId="wf-authoring"
-      />,
-      { wrapper: Wrapper },
-    );
+  it("manual mode persists the selected agents and skills (mode=manual)", async () => {
+    renderModal();
+
+    await userEvent.click(screen.getByTestId("create-strategy-mode-manual"));
+    await userEvent.type(screen.getByTestId("create-strategy-title"), "文档交付策略");
+    // Pick two agents from the multi-select and one skill.
+    await userEvent.click((await screen.findByText("Bohan")).closest("button")!);
+    await userEvent.click(screen.getByText("Mira").closest("button")!);
+    await userEvent.click(screen.getByTestId("toggle-skill"));
+    await userEvent.click(screen.getByTestId("create-strategy-submit"));
+
+    expect(mockMutate).toHaveBeenCalledTimes(1);
+    const [payload] = mockMutate.mock.calls[0]!;
+    expect(payload.raven_composition.mode).toBe("manual");
+    expect(payload.raven_composition.agent_ids).toEqual(["agent-1", "agent-2"]);
+    expect(payload.raven_composition.skill_ids).toEqual(["skill-1"]);
+  });
+
+  it("keeps submit disabled without a title, and (with a title) until an agent is chosen", async () => {
+    renderModal();
+    // No title yet → disabled.
     expect(screen.getByTestId("create-strategy-submit")).toBeDisabled();
+
+    await userEvent.type(screen.getByTestId("create-strategy-title"), "策略");
+    // Title present but no agent → still disabled.
+    expect(screen.getByTestId("create-strategy-submit")).toBeDisabled();
+
+    await userEvent.click(await screen.findByTestId("pick-creator-agent-2"));
+    expect(screen.getByTestId("create-strategy-submit")).not.toBeDisabled();
   });
 });

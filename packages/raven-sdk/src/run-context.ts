@@ -1,4 +1,4 @@
-import { stageName, type Contract, type ContractBudget } from "./contract";
+import { stageName, type Contract, type ContractBudget, type WorkflowComposition } from "./contract";
 import type { ControlPlaneClient, IssueUsage } from "./control-client";
 
 export interface RunPayload {
@@ -8,6 +8,14 @@ export interface RunPayload {
   run_id: string;
   workflow_name: string;
   contract: Contract;
+  /**
+   * The chosen authoring agent (issue #26). Dispatch threads it so the run
+   * uses the strategy's selected/designated agent instead of a global env
+   * agent. Absent for non-authoring workflows that resolve their own agent.
+   */
+  agent_id?: string;
+  /** The strategy's agent/skill composition (issue #26). */
+  composition?: WorkflowComposition;
 }
 
 export class BudgetExceededError extends Error {

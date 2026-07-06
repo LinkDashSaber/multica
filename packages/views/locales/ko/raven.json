@@ -88,7 +88,22 @@
       "submit": "생성",
       "cancel": "취소",
       "failed": "저작 요구 생성에 실패했습니다",
-      "unavailable": "이 워크스페이스에는 내장 workflow-authoring 전략이 등록되어 있지 않습니다"
+      "unavailable": "이 워크스페이스에는 내장 workflow-authoring 전략이 등록되어 있지 않습니다",
+      "mode_label": "생성 모드",
+      "mode_smart": "스마트",
+      "mode_manual": "수동",
+      "mode_smart_hint": "생성자 에이전트 한 명을 지정하면 초안 작성 중 스킬과 스쿼드를 선택합니다.",
+      "mode_manual_hint": "이 전략을 실행할 에이전트와 스킬을 직접 선택합니다.",
+      "creator_label": "생성자",
+      "pick_agent": "에이전트 선택",
+      "search_agents": "에이전트 검색",
+      "no_agents": "이 워크스페이스에 사용 가능한 에이전트가 없습니다",
+      "agents_group": "에이전트",
+      "squads_group": "스쿼드",
+      "agents_label": "에이전트 (다중 선택)",
+      "agents_placeholder": "이 전략을 실행할 에이전트를 선택하세요",
+      "agents_selected": "{{count}}개 에이전트 선택됨",
+      "need_agent": "에이전트를 하나 이상 선택하세요"
     },
     "trust": {
       "column": "신뢰도",

@@ -23,6 +23,19 @@ type Contract struct {
 	// Permissions is free-form in v1 (harness-level enforcement comes later);
 	// kept in the schema so contracts declare intent from day one.
 	Permissions map[string]any `json:"permissions,omitempty"`
+	// Composition records who runs this 交付策略 (issue #26): the agent(s) and
+	// skill(s) chosen when it was authored. Optional — legacy contracts and
+	// non-authored workflows omit it. Declared here so a composed contract
+	// survives ParseContract's DisallowUnknownFields.
+	Composition *ContractComposition `json:"composition,omitempty"`
+}
+
+// ContractComposition mirrors WorkflowComposition, embedded in a registered
+// workflow's contract when a 交付策略 was authored with a manual composition.
+type ContractComposition struct {
+	Mode     string   `json:"mode,omitempty"`
+	AgentIDs []string `json:"agent_ids,omitempty"`
+	SkillIDs []string `json:"skill_ids,omitempty"`
 }
 
 type ContractRetry struct {

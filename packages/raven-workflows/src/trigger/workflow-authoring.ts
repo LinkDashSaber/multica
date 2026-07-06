@@ -12,9 +12,19 @@ import { toTriggerTask } from "@multica/raven-sdk/trigger";
 /** Evidence kind the merge-registration hook consumes; mirrors Go const. */
 export const CONTRACT_DRAFT_EVIDENCE_KIND = "workflow_contract_draft";
 
-const authoringAgentId = (): string => {
-  const id = process.env.RAVEN_DELIVERY_AGENT_ID ?? "";
-  if (!id) throw new Error("RAVEN_DELIVERY_AGENT_ID is not set");
+/**
+ * The agent that runs this authoring pass (issue #26). It comes from the
+ * create-strategy composition threaded through the dispatch payload — the
+ * strategy's selected (manual) or designated (智能) agent — so each workspace
+ * uses its own agent. There is no global RAVEN_DELIVERY_AGENT_ID fallback:
+ * a strategy is always created with an agent, and silently falling back to a
+ * shared smoke agent is exactly the bug this fixes.
+ */
+const authoringAgentId = (ctx: RunContext): string => {
+  const id = ctx.payload.agent_id ?? "";
+  if (!id) {
+    throw new Error("workflow-authoring dispatched without an agent_id — a 交付策略 must name its creator agent");
+  }
   return id;
 };
 
@@ -95,7 +105,7 @@ export const workflowAuthoring = defineWorkflow({
     retry: { max_attempts: 1, timeout_seconds: 3600 },
   },
   run: async (ctx: RunContext) => {
-    const agentId = authoringAgentId();
+    const agentId = authoringAgentId(ctx);
 
     // —— clarify：固定的四个拍板问题，人答完才起草 ——
     const answered = await ctx.stage("clarify", () =>
@@ -217,6 +227,14 @@ export const workflowAuthoring = defineWorkflow({
 
 /** Record the contract draft as the evidence the merge hook reads. */
 async function recordDraft(ctx: RunContext, draft: WorkflowDraft): Promise<void> {
+  // In manual mode the user's agent/skill picks are authoritative — bake them
+  // into the contract so the registered workflow records who runs it (issue
+  // #26). In 智能 mode the creator agent decides the team during the run, so we
+  // leave whatever composition it drafted (usually none) untouched.
+  const composition = ctx.payload.composition;
+  if (composition?.mode === "manual") {
+    draft.contract.composition = composition;
+  }
   await ctx.evidence(
     CONTRACT_DRAFT_EVIDENCE_KIND,
     `交付策略合同草稿：${draft.name}`,

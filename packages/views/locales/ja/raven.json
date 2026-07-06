@@ -88,7 +88,22 @@
       "submit": "作成",
       "cancel": "キャンセル",
       "failed": "オーサリング要求の作成に失敗しました",
-      "unavailable": "このワークスペースには組み込みの workflow-authoring 戦略が登録されていません"
+      "unavailable": "このワークスペースには組み込みの workflow-authoring 戦略が登録されていません",
+      "mode_label": "作成モード",
+      "mode_smart": "スマート",
+      "mode_manual": "手動",
+      "mode_smart_hint": "作成者エージェントを1体指定すると、起草時にスキルとスクワッドを選びます。",
+      "mode_manual_hint": "この戦略を実行するエージェントとスキルを直接選びます。",
+      "creator_label": "作成者",
+      "pick_agent": "エージェントを選択",
+      "search_agents": "エージェントを検索",
+      "no_agents": "このワークスペースに利用可能なエージェントがありません",
+      "agents_group": "エージェント",
+      "squads_group": "スクワッド",
+      "agents_label": "エージェント（複数選択可）",
+      "agents_placeholder": "この戦略を実行するエージェントを選択",
+      "agents_selected": "{{count}} 体のエージェントを選択中",
+      "need_agent": "エージェントを1体以上選択してください"
     },
     "trust": {
       "column": "信頼度",

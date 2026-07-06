@@ -27,16 +27,13 @@ import {
 import { useFileUpload } from "@multica/core/hooks/use-file-upload";
 import { formatShortcut, modKey, enterKey } from "@multica/core/platform";
 import { contentReferencesAttachment, type Agent, type Attachment, type Squad } from "@multica/core/types";
-import { ActorAvatar } from "../common/actor-avatar";
 import { PillButton } from "../common/pill-button";
 import { ProjectPicker } from "../projects/components/project-picker";
 import { canAssignAgent } from "../issues/components/pickers/assignee-picker";
 import {
-  PropertyPicker,
-  PickerItem,
-  PickerSection,
-  PickerEmpty,
-} from "../issues/components/pickers/property-picker";
+  ActorPicker,
+  type ActorSelection,
+} from "../issues/components/pickers/actor-picker";
 import { useAuthStore } from "@multica/core/auth";
 import { memberListOptions } from "@multica/core/workspace/queries";
 import {
@@ -47,11 +44,6 @@ import {
 } from "../editor";
 import { FileUploadButton } from "@multica/ui/components/common/file-upload-button";
 import { useT } from "../i18n";
-import { matchesPinyin } from "../editor/extensions/pinyin-match";
-
-type ActorSelection =
-  | { type: "agent"; id: string }
-  | { type: "squad"; id: string };
 
 // AgentCreatePanel — agent-mode body of the create-issue dialog. Renders
 // only the inner content; the surrounding `<Dialog>` AND `<DialogContent>`
@@ -453,7 +445,14 @@ export function AgentCreatePanel({
               setActor(next);
               setError(null);
             }}
-            t={t}
+            labels={{
+              createdBy: t(($) => $.create_issue.agent.created_by),
+              pickAnAgent: t(($) => $.create_issue.agent.pick_an_agent),
+              searchPlaceholder: t(($) => $.create_issue.agent.search_placeholder),
+              noAgents: t(($) => $.create_issue.agent.no_agents),
+              agentsGroup: t(($) => $.create_issue.agent.agents_group),
+              squadsGroup: t(($) => $.create_issue.agent.squads_group),
+            }}
           />
         </div>
 
@@ -584,127 +583,5 @@ export function AgentCreatePanel({
           </div>
         </div>
     </>
-  );
-}
-
-// ActorPicker — the "Created by" trigger + searchable popover listing
-// agents and squads. Lives in this file (not under issues/components/pickers)
-// because it composes the generic PropertyPicker with a quick-create-shaped
-// trigger styled to match the modal header row — promoting it would invite
-// reuse pressure on a UI that's deliberately tuned for this one surface.
-function ActorPicker({
-  actor,
-  visibleAgents,
-  visibleSquads,
-  selectedAgent,
-  selectedSquad,
-  onPick,
-  t,
-}: {
-  actor: ActorSelection | null;
-  visibleAgents: Agent[];
-  visibleSquads: Squad[];
-  selectedAgent: Agent | undefined;
-  selectedSquad: Squad | undefined;
-  onPick: (next: ActorSelection) => void;
-  t: ReturnType<typeof useT<"modals">>["t"];
-}) {
-  const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState("");
-  const query = filter.trim().toLowerCase();
-
-  const filteredAgents = useMemo(
-    () => visibleAgents.filter((a) => a.name.toLowerCase().includes(query) || matchesPinyin(a.name, query)),
-    [visibleAgents, query],
-  );
-  const filteredSquads = useMemo(
-    () => visibleSquads.filter((s) => s.name.toLowerCase().includes(query) || matchesPinyin(s.name, query)),
-    [visibleSquads, query],
-  );
-
-  const displayLabel = selectedSquad?.name ?? selectedAgent?.name;
-  const displayActor: ActorSelection | null = selectedSquad
-    ? { type: "squad", id: selectedSquad.id }
-    : selectedAgent
-      ? { type: "agent", id: selectedAgent.id }
-      : null;
-
-  return (
-    <PropertyPicker
-      open={open}
-      onOpenChange={(v: boolean) => {
-        setOpen(v);
-        if (!v) setFilter("");
-      }}
-      width="w-64"
-      align="start"
-      searchable
-      searchPlaceholder={t(($) => $.create_issue.agent.search_placeholder)}
-      onSearchChange={setFilter}
-      trigger={
-        <span className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-          <span>{t(($) => $.create_issue.agent.created_by)}</span>
-          {displayActor && displayLabel ? (
-            <span className="flex items-center gap-1.5 text-foreground">
-              <ActorAvatar
-                actorType={displayActor.type}
-                actorId={displayActor.id}
-                size={16}
-              />
-              {displayLabel}
-            </span>
-          ) : (
-            <span>{t(($) => $.create_issue.agent.pick_an_agent)}</span>
-          )}
-        </span>
-      }
-    >
-      {filteredAgents.length === 0 && filteredSquads.length === 0 ? (
-        query ? (
-          <PickerEmpty />
-        ) : (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-            {t(($) => $.create_issue.agent.no_agents)}
-          </div>
-        )
-      ) : (
-        <>
-          {filteredAgents.length > 0 && (
-            <PickerSection label={t(($) => $.create_issue.agent.agents_group)}>
-              {filteredAgents.map((a) => (
-                <PickerItem
-                  key={a.id}
-                  selected={actor?.type === "agent" && actor.id === a.id}
-                  onClick={() => {
-                    onPick({ type: "agent", id: a.id });
-                    setOpen(false);
-                  }}
-                >
-                  <ActorAvatar actorType="agent" actorId={a.id} size={18} />
-                  <span className="truncate">{a.name}</span>
-                </PickerItem>
-              ))}
-            </PickerSection>
-          )}
-          {filteredSquads.length > 0 && (
-            <PickerSection label={t(($) => $.create_issue.agent.squads_group)}>
-              {filteredSquads.map((s) => (
-                <PickerItem
-                  key={s.id}
-                  selected={actor?.type === "squad" && actor.id === s.id}
-                  onClick={() => {
-                    onPick({ type: "squad", id: s.id });
-                    setOpen(false);
-                  }}
-                >
-                  <ActorAvatar actorType="squad" actorId={s.id} size={18} />
-                  <span className="truncate">{s.name}</span>
-                </PickerItem>
-              ))}
-            </PickerSection>
-          )}
-        </>
-      )}
-    </PropertyPicker>
   );
 }

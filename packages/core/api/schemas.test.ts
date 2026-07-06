@@ -9,6 +9,8 @@ import {
   EMPTY_CREATE_FEEDBACK_RESPONSE,
   EMPTY_INBOX_UNREAD_SUMMARY,
   EMPTY_RAVEN_EVIDENCE_LIST,
+  EMPTY_RAVEN_COMPOSITION,
+  RavenCompositionSchema,
   EMPTY_RAVEN_GATE_REVIEW,
   EMPTY_RAVEN_GATE_REVIEW_LIST,
   EMPTY_RAVEN_WORKFLOW_STATS_LIST,
@@ -989,5 +991,45 @@ describe("RavenRunSchema / RavenClarificationListSchema (run room, issue #18)", 
     expect(
       parseWithFallback({ clarifications: "nope" }, RavenClarificationListSchema, EMPTY_RAVEN_CLARIFICATION_LIST, listEndpoint),
     ).toBe(EMPTY_RAVEN_CLARIFICATION_LIST);
+  });
+});
+
+describe("RavenCompositionSchema (issue #26)", () => {
+  const endpoint = "raven.composition";
+
+  it("parses a well-formed composition", () => {
+    const parsed = parseWithFallback(
+      { mode: "manual", agent_ids: ["a-1", "a-2"], skill_ids: ["s-1"] },
+      RavenCompositionSchema,
+      EMPTY_RAVEN_COMPOSITION,
+      { endpoint },
+    );
+    expect(parsed.mode).toBe("manual");
+    expect(parsed.agent_ids).toEqual(["a-1", "a-2"]);
+    expect(parsed.skill_ids).toEqual(["s-1"]);
+  });
+
+  it("defaults missing fields so a partial payload still parses", () => {
+    const parsed = parseWithFallback(
+      { mode: "auto" },
+      RavenCompositionSchema,
+      EMPTY_RAVEN_COMPOSITION,
+      { endpoint },
+    );
+    expect(parsed.mode).toBe("auto");
+    expect(parsed.agent_ids).toEqual([]);
+    expect(parsed.skill_ids).toEqual([]);
+  });
+
+  it("returns the fallback for malformed composition bodies", () => {
+    expect(
+      parseWithFallback({ agent_ids: "nope" }, RavenCompositionSchema, EMPTY_RAVEN_COMPOSITION, { endpoint }),
+    ).toBe(EMPTY_RAVEN_COMPOSITION);
+    expect(
+      parseWithFallback(null, RavenCompositionSchema, EMPTY_RAVEN_COMPOSITION, { endpoint }),
+    ).toBe(EMPTY_RAVEN_COMPOSITION);
+    expect(
+      parseWithFallback("oops", RavenCompositionSchema, EMPTY_RAVEN_COMPOSITION, { endpoint }),
+    ).toBe(EMPTY_RAVEN_COMPOSITION);
   });
 });

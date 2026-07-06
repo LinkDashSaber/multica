@@ -106,6 +106,109 @@ func loadWorkflowByName(t *testing.T, wsID, name string) (db.RavenWorkflow, bool
 	return wf, true
 }
 
+// TestCreateStrategyPersistsComposition (issue #26): creating an issue
+// assigned to a workflow with a raven_composition records the chosen
+// agent/skill composition as evidence, so dispatch and the clarify letter can
+// read who runs the strategy.
+func TestCreateStrategyPersistsComposition(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	wf := createRavenWorkflow(t, "compose-wf-"+t.Name())
+
+	w := httptest.NewRecorder()
+	req := newRequest("POST", "/api/issues", map[string]any{
+		"title": "compose strategy " + t.Name(), "status": "backlog", "priority": "medium",
+		"assignee_type": "workflow", "assignee_id": wf.ID,
+		"raven_composition": map[string]any{
+			"mode":      "manual",
+			"agent_ids": []string{"11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"},
+			"skill_ids": []string{"33333333-3333-3333-3333-333333333333"},
+		},
+	})
+	testHandler.CreateIssue(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create issue: %d %s", w.Code, w.Body.String())
+	}
+	var issue IssueResponse
+	json.NewDecoder(w.Body).Decode(&issue)
+	t.Cleanup(func() { deleteTestIssue(t, issue.ID) })
+
+	getW := httptest.NewRecorder()
+	testHandler.GetRavenRequirementForIssue(getW, withURLParam(newRequest("GET", "/api/raven/issues/"+issue.ID+"/requirement", nil), "issueId", issue.ID))
+	var requirement RavenRequirementResponse
+	json.NewDecoder(getW.Body).Decode(&requirement)
+
+	evidence, err := testHandler.Queries.ListRavenEvidenceByRequirement(t.Context(), db.ListRavenEvidenceByRequirementParams{
+		RequirementID: parseUUID(requirement.ID), WorkspaceID: parseUUID(requirement.WorkspaceID),
+	})
+	if err != nil {
+		t.Fatalf("list evidence: %v", err)
+	}
+	var found *raven.WorkflowComposition
+	for _, e := range evidence {
+		if e.Kind != raven.EvidenceKindComposition {
+			continue
+		}
+		var comp raven.WorkflowComposition
+		if err := json.Unmarshal(e.Payload, &comp); err != nil {
+			t.Fatalf("unmarshal composition evidence: %v", err)
+		}
+		found = &comp
+	}
+	if found == nil {
+		t.Fatal("workflow_composition evidence was not recorded")
+	}
+	if found.Mode != "manual" {
+		t.Fatalf("mode: got %q", found.Mode)
+	}
+	if len(found.AgentIDs) != 2 || found.AgentIDs[0] != "11111111-1111-1111-1111-111111111111" {
+		t.Fatalf("agent_ids not persisted: %+v", found.AgentIDs)
+	}
+	if len(found.SkillIDs) != 1 {
+		t.Fatalf("skill_ids not persisted: %+v", found.SkillIDs)
+	}
+}
+
+// TestCreateIssueWithoutCompositionRecordsNone: a plain workflow assignment (no
+// raven_composition) records no composition evidence — the field is opt-in.
+func TestCreateIssueWithoutCompositionRecordsNone(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	wf := createRavenWorkflow(t, "nocompose-wf-"+t.Name())
+
+	w := httptest.NewRecorder()
+	req := newRequest("POST", "/api/issues", map[string]any{
+		"title": "plain workflow " + t.Name(), "status": "backlog", "priority": "medium",
+		"assignee_type": "workflow", "assignee_id": wf.ID,
+	})
+	testHandler.CreateIssue(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create issue: %d %s", w.Code, w.Body.String())
+	}
+	var issue IssueResponse
+	json.NewDecoder(w.Body).Decode(&issue)
+	t.Cleanup(func() { deleteTestIssue(t, issue.ID) })
+
+	getW := httptest.NewRecorder()
+	testHandler.GetRavenRequirementForIssue(getW, withURLParam(newRequest("GET", "/api/raven/issues/"+issue.ID+"/requirement", nil), "issueId", issue.ID))
+	var requirement RavenRequirementResponse
+	json.NewDecoder(getW.Body).Decode(&requirement)
+
+	evidence, err := testHandler.Queries.ListRavenEvidenceByRequirement(t.Context(), db.ListRavenEvidenceByRequirementParams{
+		RequirementID: parseUUID(requirement.ID), WorkspaceID: parseUUID(requirement.WorkspaceID),
+	})
+	if err != nil {
+		t.Fatalf("list evidence: %v", err)
+	}
+	for _, e := range evidence {
+		if e.Kind == raven.EvidenceKindComposition {
+			t.Fatal("composition evidence recorded without a raven_composition")
+		}
+	}
+}
+
 // TestRavenMergedRegistersAuthoredWorkflow: authoring requirement with a
 // contract draft reaches Merged → the workflow appears in the registry.
 func TestRavenMergedRegistersAuthoredWorkflow(t *testing.T) {

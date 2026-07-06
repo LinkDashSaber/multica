@@ -600,6 +600,29 @@ export const EMPTY_RAVEN_EVIDENCE_LIST: RavenEvidenceListResponse = {
   total: 0,
 };
 
+// A 交付策略's agent/skill composition (issue #26). Persisted as
+// `workflow_composition` evidence when the strategy is created and (in manual
+// mode) baked into the registered contract. `mode` is "manual" | "auto" but
+// kept a string so an unknown value degrades to display-only rather than
+// throwing. agent_ids[0] is the agent the authoring run dispatched to.
+export interface RavenComposition {
+  mode: string;
+  agent_ids: string[];
+  skill_ids: string[];
+}
+
+export const RavenCompositionSchema = z.object({
+  mode: z.string().default(""),
+  agent_ids: z.array(z.string()).default([]),
+  skill_ids: z.array(z.string()).default([]),
+}).loose();
+
+export const EMPTY_RAVEN_COMPOSITION: RavenComposition = {
+  mode: "",
+  agent_ids: [],
+  skill_ids: [],
+};
+
 // Per-workflow aggregates for the workflow list page. Rates are derived
 // client-side from the gate counts.
 export interface RavenWorkflowStats {
