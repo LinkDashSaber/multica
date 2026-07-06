@@ -27,6 +27,7 @@
     "edit_advanced": "詳細フォームで編集",
     "archive": "アーカイブ",
     "review_gate": "ゲートをレビュー",
+    "view_in_decision_queue": "対応待ちキューで開く",
     "uptrack_body": "このデリバリーをワークフローとして保存できます。レビュー用のドラフト PR を生成しますか",
     "uptrack_accept": "ドラフト PR を生成",
     "uptrack_dismiss": "閉じる",

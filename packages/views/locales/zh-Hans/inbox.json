@@ -27,6 +27,7 @@
     "edit_advanced": "在完整表单中编辑",
     "archive": "归档",
     "review_gate": "审查门禁",
+    "view_in_decision_queue": "在待我处理中打开",
     "uptrack_body": "这次交付可以沉淀为交付策略，生成草稿 PR 供审阅",
     "uptrack_accept": "生成草稿 PR",
     "uptrack_dismiss": "关闭",

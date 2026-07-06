@@ -27,6 +27,7 @@
     "edit_advanced": "고급 양식으로 수정",
     "archive": "보관",
     "review_gate": "게이트 리뷰",
+    "view_in_decision_queue": "처리 대기 목록에서 열기",
     "uptrack_body": "이 딜리버리를 워크플로로 저장할 수 있습니다. 검토용 초안 PR을 생성하시겠어요",
     "uptrack_accept": "초안 PR 생성",
     "uptrack_dismiss": "닫기",
