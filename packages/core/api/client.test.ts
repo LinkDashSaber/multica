@@ -734,4 +734,54 @@ describe("ApiClient", () => {
       expect(JSON.parse(fetchMock.mock.calls[1]![1]?.body as string)).toEqual({ content: "again" });
     });
   });
+
+  describe("cancelRavenRequirement (issue #32)", () => {
+    it("POSTs to the cancel endpoint with the reason and parses the requirement", async () => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: "req-1",
+            workspace_id: "ws-1",
+            issue_id: "issue-1",
+            workflow_id: null,
+            state: "cancelled",
+            next_states: [],
+            created_at: "",
+            updated_at: "",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const client = new ApiClient("https://api.example.test");
+      const result = await client.cancelRavenRequirement("req-1", { reason: "wrong ask" });
+
+      expect(fetchMock.mock.calls[0]![0]).toBe(
+        "https://api.example.test/api/raven/requirements/req-1/cancel",
+      );
+      expect(fetchMock.mock.calls[0]![1]).toMatchObject({ method: "POST" });
+      expect(JSON.parse(fetchMock.mock.calls[0]![1]?.body as string)).toEqual({ reason: "wrong ask" });
+      expect(result.state).toBe("cancelled");
+    });
+
+    it("falls back to an empty requirement on a malformed response", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(JSON.stringify({ nonsense: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        ),
+      );
+
+      const client = new ApiClient("https://api.example.test");
+      const result = await client.cancelRavenRequirement("req-1");
+
+      // parseWithFallback keeps the app alive on drift instead of throwing.
+      expect(result.id).toBe("");
+      expect(result.state).toBe("idea");
+    });
+  });
 });

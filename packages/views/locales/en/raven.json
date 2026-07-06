@@ -154,6 +154,18 @@
     "why_clarify": "The running agent has {{num}} question(s) needing clarification",
     "open_detail": "Open review package",
     "view_run_room": "Open run room",
+    "abort": {
+      "button": "Abort creation",
+      "hint": "Requirement wrong? Abandon it entirely.",
+      "confirm_title": "Abort this requirement?",
+      "confirm_description": "This abandons the requirement and its run — the letter leaves your queue and cannot be resumed. Delivered work is unaffected.",
+      "reason_placeholder": "Why are you aborting? (optional)",
+      "reason_label": "Abort reason",
+      "confirm_cancel": "Keep it",
+      "confirm_action": "Abort creation",
+      "success": "Requirement aborted",
+      "failed": "Failed to abort requirement"
+    },
     "consequence": {
       "title": "Consequence preview",
       "approve_next": "Approve → continue to stage {{stage}}",

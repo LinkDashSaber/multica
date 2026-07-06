@@ -143,7 +143,39 @@ func (s *Service) ApplyTransition(ctx context.Context, requirement db.RavenRequi
 	if to == StateMerged {
 		s.registerWorkflowFromContractDraft(ctx, updated)
 	}
+	// Cancelled is the abort event (ADR-0011, issue #32): tear down everything
+	// still in flight at the same choke point.
+	if to == StateCancelled {
+		s.abortRequirementWork(ctx, updated, reason)
+	}
 	return updated, nil
+}
+
+// abortRequirementWork stops everything a cancelled requirement still has in
+// flight (issue #32): terminate its pending/running run, and cancel its pending
+// gate reviews + clarifications so they drop out of the decision queue. Runs on
+// the cancelled transition; best-effort — the state move itself already
+// succeeded, and none of these should block the abort.
+func (s *Service) abortRequirementWork(ctx context.Context, requirement db.RavenRequirement, reason string) {
+	termReason := reason
+	if termReason == "" {
+		termReason = "requirement cancelled"
+	}
+	if _, err := s.Q.TerminateRavenRunsByRequirement(ctx, db.TerminateRavenRunsByRequirementParams{
+		RequirementID: requirement.ID, WorkspaceID: requirement.WorkspaceID, TerminationReason: termReason,
+	}); err != nil {
+		slog.Warn("raven: abort: terminate runs failed", "error", err)
+	}
+	if _, err := s.Q.CancelPendingRavenGateReviewsByRequirement(ctx, db.CancelPendingRavenGateReviewsByRequirementParams{
+		RequirementID: requirement.ID, WorkspaceID: requirement.WorkspaceID,
+	}); err != nil {
+		slog.Warn("raven: abort: cancel gate reviews failed", "error", err)
+	}
+	if _, err := s.Q.CancelPendingRavenClarificationsByRequirement(ctx, db.CancelPendingRavenClarificationsByRequirementParams{
+		RequirementID: requirement.ID, WorkspaceID: requirement.WorkspaceID,
+	}); err != nil {
+		slog.Warn("raven: abort: cancel clarifications failed", "error", err)
+	}
 }
 
 // AdvanceTo walks the requirement toward `target` through legal single

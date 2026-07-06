@@ -22,6 +22,7 @@ import {
   requirementEvidenceOptions,
   requirementRunsOptions,
   useAnswerRavenClarification,
+  useCancelRavenRequirement,
   useDecideRavenGate,
   useDecideRavenPromotion,
   type ClarifyQuestionView,
@@ -35,6 +36,16 @@ import {
 // keep importing them from here.
 export { parseClarifyQuestions };
 export type { ClarifyQuestionView };
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@multica/ui/components/ui/alert-dialog";
 import { Badge } from "@multica/ui/components/ui/badge";
 import { Button } from "@multica/ui/components/ui/button";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
@@ -962,6 +973,99 @@ export function DecisionLetterCard(props: DecisionLetterCardProps) {
   return <GateOrClarifyLetterCard {...props} />;
 }
 
+/**
+ * 中断创建 (issue #32): the requirement-level bail-out. When the human realizes
+ * the original requirement was wrong, this abandons the requirement and its run
+ * instead of forcing an answer/verdict — the letter then leaves 待我处理. A
+ * destructive, confirmed action; only on gate/clarify letters (never promotion,
+ * which is workspace governance, not a requirement).
+ */
+function AbortRequirementSection({
+  wsId,
+  requirementId,
+}: {
+  wsId: string;
+  requirementId: string;
+}) {
+  const { t } = useT("raven");
+  const cancelMutation = useCancelRavenRequirement(wsId);
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+
+  const confirm = () => {
+    cancelMutation.mutate(
+      { requirementId, reason: reason.trim() || undefined },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          toast.success(t(($) => $.letter.abort.success));
+        },
+        onError: (err) =>
+          toast.error(
+            err instanceof Error && err.message
+              ? err.message
+              : t(($) => $.letter.abort.failed),
+          ),
+      },
+    );
+  };
+
+  return (
+    <section
+      data-testid="letter-abort"
+      className="flex flex-wrap items-center justify-between gap-2 border-t pt-3"
+    >
+      <p className="text-xs text-muted-foreground">{t(($) => $.letter.abort.hint)}</p>
+      <Button
+        size="sm"
+        variant="ghost"
+        data-testid="letter-abort-open"
+        className="text-destructive hover:text-destructive"
+        onClick={() => setOpen(true)}
+      >
+        {t(($) => $.letter.abort.button)}
+      </Button>
+      <AlertDialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!cancelMutation.isPending) setOpen(v);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t(($) => $.letter.abort.confirm_title)}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(($) => $.letter.abort.confirm_description)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={t(($) => $.letter.abort.reason_placeholder)}
+            aria-label={t(($) => $.letter.abort.reason_label)}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelMutation.isPending}>
+              {t(($) => $.letter.abort.confirm_cancel)}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="letter-abort-confirm"
+              disabled={cancelMutation.isPending}
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => confirm()}
+            >
+              {cancelMutation.isPending && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              )}
+              {t(($) => $.letter.abort.confirm_action)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  );
+}
+
 function GateOrClarifyLetterCard({
   wsId,
   kind,
@@ -1159,6 +1263,11 @@ function GateOrClarifyLetterCard({
         : clarification && (
             <ClarifyResponseSection clarification={clarification} wsId={wsId} />
           )}
+
+      {/* 8. Requirement-level abort (issue #32) — only while still pending. */}
+      {isPending && requirementId !== "" && (
+        <AbortRequirementSection wsId={wsId} requirementId={requirementId} />
+      )}
     </section>
   );
 }

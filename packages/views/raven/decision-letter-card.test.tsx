@@ -24,6 +24,7 @@ const mockGetPromotion = vi.hoisted(() => vi.fn());
 const mockDecidePromotion = vi.hoisted(() => vi.fn());
 const mockDecide = vi.hoisted(() => vi.fn());
 const mockAnswer = vi.hoisted(() => vi.fn());
+const mockCancel = vi.hoisted(() => vi.fn());
 const mockListSkills = vi.hoisted(() => vi.fn());
 
 vi.mock("@multica/core/api", () => ({
@@ -41,6 +42,7 @@ vi.mock("@multica/core/api", () => ({
     listSkills: mockListSkills,
     decideRavenGate: mockDecide,
     answerRavenClarification: mockAnswer,
+    cancelRavenRequirement: mockCancel,
   },
 }));
 
@@ -247,6 +249,7 @@ beforeEach(() => {
   mockDecidePromotion.mockResolvedValue({ ...PROMOTION, status: "approved" });
   mockDecide.mockResolvedValue({ ...GATE, status: "approved" });
   mockAnswer.mockResolvedValue({ ...CLARIFICATION, status: "answered" });
+  mockCancel.mockResolvedValue({ ...REQUIREMENT, state: "cancelled", next_states: [] });
   mockListSkills.mockResolvedValue([]);
 });
 
@@ -601,5 +604,39 @@ describe("DecisionLetterCard (clarify composition, issue #30)", () => {
 
     await screen.findByTestId("clarify-response");
     expect(screen.queryByTestId("letter-composition")).not.toBeInTheDocument();
+  });
+});
+
+describe("DecisionLetterCard 中断创建 (issue #32)", () => {
+  it("aborts the requirement from a gate letter through the confirm dialog", async () => {
+    const user = userEvent.setup();
+    render(<DecisionLetterCard wsId="ws-1" kind="gate" id="gate-1" />, { wrapper: Wrapper });
+
+    // The bail-out is offered next to the verdict controls.
+    await user.click(await screen.findByTestId("letter-abort-open"));
+
+    // Confirming calls the requirement-cancel mutation with the requirement id.
+    await user.click(await screen.findByTestId("letter-abort-confirm"));
+    await waitFor(() =>
+      expect(mockCancel).toHaveBeenCalledWith("req-1", { reason: undefined }),
+    );
+  });
+
+  it("offers the abort on a clarify letter too", async () => {
+    render(<DecisionLetterCard wsId="ws-1" kind="clarify" id="clar-1" />, { wrapper: Wrapper });
+    expect(await screen.findByTestId("letter-abort-open")).toBeInTheDocument();
+  });
+
+  it("does not offer the abort on a promotion letter", async () => {
+    render(<DecisionLetterCard wsId="ws-1" kind="promotion" id="promo-1" />, { wrapper: Wrapper });
+    await screen.findByTestId("promotion-letter-card");
+    expect(screen.queryByTestId("letter-abort-open")).not.toBeInTheDocument();
+  });
+
+  it("hides the abort once the decision is no longer pending", async () => {
+    mockGetGate.mockResolvedValue({ ...GATE, status: "approved" });
+    render(<DecisionLetterCard wsId="ws-1" kind="gate" id="gate-1" />, { wrapper: Wrapper });
+    await screen.findByTestId("gate-decided");
+    expect(screen.queryByTestId("letter-abort-open")).not.toBeInTheDocument();
   });
 });

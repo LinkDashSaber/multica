@@ -3,7 +3,7 @@
 // code so a future split remains possible.
 package raven
 
-// State is one of the nine requirement lifecycle states (see CONTEXT.md).
+// State is one of the ten requirement lifecycle states (see CONTEXT.md).
 type State string
 
 const (
@@ -16,29 +16,36 @@ const (
 	StateMerged      State = "merged"
 	StateObserved    State = "observed"
 	StateLearned     State = "learned"
+	// StateCancelled (已中断) is the terminal abort state (ADR-0011, issue #32):
+	// reachable from any in-progress state when a human 中断创建 on the decision
+	// letter, unreachable from delivered/settled states, and has no successors.
+	StateCancelled State = "cancelled"
 )
 
 // transitions defines every legal state change. v1 active path runs
 // Idea → … → Merged; Observed/Learned exist in the schema with manual
-// advancement only (产品定义 §3).
+// advancement only (产品定义 §3). Every in-progress state also allows an abort
+// to Cancelled (issue #32); delivered/settled states (merged/observed/learned)
+// do not — a delivered requirement cannot be un-delivered.
 var transitions = map[State][]State{
-	StateIdea:  {StateSpec},
-	StateSpec:  {StateReady},
-	StateReady: {StateRunning},
+	StateIdea:  {StateSpec, StateCancelled},
+	StateSpec:  {StateReady, StateCancelled},
+	StateReady: {StateRunning, StateCancelled},
 	// A run either reaches a gate (needs_review) or gets stuck on a
 	// question only a human can answer (needs_human).
-	StateRunning: {StateNeedsReview, StateNeedsHuman},
+	StateRunning: {StateNeedsReview, StateNeedsHuman, StateCancelled},
 	// Gate verdict: approve → merged, reject → back to running (same run,
 	// carries the rejection reason), or escalate to a human decision.
-	StateNeedsReview: {StateMerged, StateRunning, StateNeedsHuman},
+	StateNeedsReview: {StateMerged, StateRunning, StateNeedsHuman, StateCancelled},
 	// Human unblocks the run.
-	StateNeedsHuman: {StateRunning},
+	StateNeedsHuman: {StateRunning, StateCancelled},
 	StateMerged:     {StateObserved},
 	StateObserved:   {StateLearned},
 	StateLearned:    {},
+	StateCancelled:  {},
 }
 
-// ValidState reports whether s is one of the nine lifecycle states.
+// ValidState reports whether s is one of the ten lifecycle states.
 func ValidState(s State) bool {
 	_, ok := transitions[s]
 	return ok
@@ -75,6 +82,8 @@ func IssueStatusFor(s State) string {
 		return "blocked"
 	case StateMerged, StateObserved, StateLearned:
 		return "done"
+	case StateCancelled:
+		return "cancelled"
 	default:
 		return "backlog"
 	}

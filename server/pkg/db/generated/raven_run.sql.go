@@ -340,6 +340,30 @@ func (q *Queries) ListRavenRunsByWorkflow(ctx context.Context, arg ListRavenRuns
 	return items, nil
 }
 
+const terminateRavenRunsByRequirement = `-- name: TerminateRavenRunsByRequirement :execrows
+UPDATE raven_run SET
+    status = 'terminated',
+    termination_reason = $3,
+    updated_at = now()
+WHERE requirement_id = $1 AND workspace_id = $2 AND status IN ('pending', 'running')
+`
+
+type TerminateRavenRunsByRequirementParams struct {
+	RequirementID     pgtype.UUID `json:"requirement_id"`
+	WorkspaceID       pgtype.UUID `json:"workspace_id"`
+	TerminationReason string      `json:"termination_reason"`
+}
+
+// Abort (issue #32): stop the requirement's in-flight run(s) when it is
+// cancelled. Completed/failed/already-terminated runs are left untouched.
+func (q *Queries) TerminateRavenRunsByRequirement(ctx context.Context, arg TerminateRavenRunsByRequirementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, terminateRavenRunsByRequirement, arg.RequirementID, arg.WorkspaceID, arg.TerminationReason)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateRavenRun = `-- name: UpdateRavenRun :one
 UPDATE raven_run SET
     trigger_run_id = COALESCE($3, trigger_run_id),

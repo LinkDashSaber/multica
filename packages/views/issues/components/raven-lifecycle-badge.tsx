@@ -22,6 +22,7 @@ export const STATE_LABELS: Record<string, string> = {
   merged: "Merged",
   observed: "Observed",
   learned: "Learned",
+  cancelled: "Cancelled",
 };
 
 export const STATE_CLASSES: Record<string, string> = {
@@ -29,6 +30,7 @@ export const STATE_CLASSES: Record<string, string> = {
   needs_review: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   needs_human: "bg-red-500/15 text-red-600 dark:text-red-400",
   merged: "bg-green-500/15 text-green-600 dark:text-green-400",
+  cancelled: "bg-muted text-muted-foreground",
 };
 
 /**

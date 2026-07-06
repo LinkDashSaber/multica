@@ -154,6 +154,18 @@
     "why_clarify": "실행 중인 에이전트에 확인이 필요한 질문이 {{num}}개 있습니다",
     "open_detail": "리뷰 패키지 열기",
     "view_run_room": "실행 룸 열기",
+    "abort": {
+      "button": "생성 중단",
+      "hint": "요구사항 자체가 잘못됐나요? 통째로 포기할 수 있습니다.",
+      "confirm_title": "이 요구사항을 중단할까요?",
+      "confirm_description": "요구사항과 실행을 폐기합니다. 결재 레터가 대기열에서 사라지며 되돌릴 수 없습니다. 이미 완료된 작업은 영향받지 않습니다.",
+      "reason_placeholder": "왜 중단하나요? (선택)",
+      "reason_label": "중단 사유",
+      "confirm_cancel": "유지하기",
+      "confirm_action": "생성 중단",
+      "success": "요구사항을 중단했습니다",
+      "failed": "요구사항 중단에 실패했습니다"
+    },
     "consequence": {
       "title": "결과 미리보기",
       "approve_next": "승인 → {{stage}} 단계로 진행",

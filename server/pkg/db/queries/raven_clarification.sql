@@ -30,6 +30,12 @@ UPDATE raven_clarification SET
 WHERE id = $1 AND workspace_id = $2 AND status = 'pending'
 RETURNING *;
 
+-- name: CancelPendingRavenClarificationsByRequirement :execrows
+-- Abort (issue #32): drop this requirement's pending clarifications out of the
+-- decision queue when it is cancelled. Answered ones are immutable history.
+UPDATE raven_clarification SET status = 'cancelled'
+WHERE requirement_id = $1 AND workspace_id = $2 AND status = 'pending';
+
 -- name: ListPendingRavenGateReviewsWithContract :many
 -- Pending gates joined to their workflow contract so the decision-points API
 -- can resolve each gate's after_stage (node position) in one query.

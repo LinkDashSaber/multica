@@ -53,6 +53,26 @@ func (q *Queries) AnswerRavenClarification(ctx context.Context, arg AnswerRavenC
 	return i, err
 }
 
+const cancelPendingRavenClarificationsByRequirement = `-- name: CancelPendingRavenClarificationsByRequirement :execrows
+UPDATE raven_clarification SET status = 'cancelled'
+WHERE requirement_id = $1 AND workspace_id = $2 AND status = 'pending'
+`
+
+type CancelPendingRavenClarificationsByRequirementParams struct {
+	RequirementID pgtype.UUID `json:"requirement_id"`
+	WorkspaceID   pgtype.UUID `json:"workspace_id"`
+}
+
+// Abort (issue #32): drop this requirement's pending clarifications out of the
+// decision queue when it is cancelled. Answered ones are immutable history.
+func (q *Queries) CancelPendingRavenClarificationsByRequirement(ctx context.Context, arg CancelPendingRavenClarificationsByRequirementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelPendingRavenClarificationsByRequirement, arg.RequirementID, arg.WorkspaceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createRavenClarification = `-- name: CreateRavenClarification :one
 INSERT INTO raven_clarification (workspace_id, requirement_id, run_id, stage, questions)
 VALUES ($1, $2, $5, $3, $4)

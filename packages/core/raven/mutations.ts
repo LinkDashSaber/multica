@@ -88,6 +88,30 @@ export function useAnswerRavenClarification(wsId: string) {
   });
 }
 
+export interface CancelRequirementInput {
+  requirementId: string;
+  /** Optional 中断 reason, recorded on the cancelled transition. */
+  reason?: string;
+}
+
+/**
+ * Abort a requirement (issue #32, 中断创建): the whole requirement and its run
+ * are abandoned, so its clarify/gate letter leaves 待我处理. Not optimistic —
+ * the server arbitrates "already delivered" (409); we settle by invalidating
+ * the pending decision queue and the requirement.
+ */
+export function useCancelRavenRequirement(wsId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requirementId, reason }: CancelRequirementInput) =>
+      api.cancelRavenRequirement(requirementId, { reason }),
+    onSettled: (_data, _err, vars) => {
+      qc.invalidateQueries({ queryKey: ravenKeys.pendingDecisionPoints(wsId) });
+      qc.invalidateQueries({ queryKey: ravenKeys.requirement(wsId, vars.requirementId) });
+    },
+  });
+}
+
 export interface TriageLearningInput {
   learningId: string;
   status: "promoted" | "expired";

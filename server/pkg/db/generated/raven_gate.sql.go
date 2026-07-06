@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelPendingRavenGateReviewsByRequirement = `-- name: CancelPendingRavenGateReviewsByRequirement :execrows
+UPDATE raven_gate_review SET status = 'cancelled'
+WHERE requirement_id = $1 AND workspace_id = $2 AND status = 'pending'
+`
+
+type CancelPendingRavenGateReviewsByRequirementParams struct {
+	RequirementID pgtype.UUID `json:"requirement_id"`
+	WorkspaceID   pgtype.UUID `json:"workspace_id"`
+}
+
+// Abort (issue #32): drop this requirement's pending gate reviews out of the
+// decision queue when it is cancelled. Decided reviews are immutable history.
+func (q *Queries) CancelPendingRavenGateReviewsByRequirement(ctx context.Context, arg CancelPendingRavenGateReviewsByRequirementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelPendingRavenGateReviewsByRequirement, arg.RequirementID, arg.WorkspaceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countRejectedRavenGateReviews = `-- name: CountRejectedRavenGateReviews :one
 SELECT count(*) FROM raven_gate_review
 WHERE requirement_id = $1 AND status = 'rejected'

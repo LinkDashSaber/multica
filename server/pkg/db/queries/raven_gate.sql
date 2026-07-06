@@ -45,6 +45,12 @@ UPDATE raven_gate_review SET
 WHERE id = $1 AND workspace_id = $2 AND status = 'pending'
 RETURNING *;
 
+-- name: CancelPendingRavenGateReviewsByRequirement :execrows
+-- Abort (issue #32): drop this requirement's pending gate reviews out of the
+-- decision queue when it is cancelled. Decided reviews are immutable history.
+UPDATE raven_gate_review SET status = 'cancelled'
+WHERE requirement_id = $1 AND workspace_id = $2 AND status = 'pending';
+
 -- name: CountRejectedRavenGateReviews :one
 SELECT count(*) FROM raven_gate_review
 WHERE requirement_id = $1 AND status = 'rejected';

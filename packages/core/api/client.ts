@@ -1768,6 +1768,18 @@ export class ApiClient {
     });
   }
 
+  // Requirement-level abort (issue #32): 中断创建. Optional reason; returns the
+  // now-cancelled requirement. 409 when the requirement is already delivered.
+  async cancelRavenRequirement(id: string, data: { reason?: string } = {}): Promise<RavenRequirement> {
+    const raw = await this.fetch<unknown>(`/api/raven/requirements/${id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback<RavenRequirement>(raw, RavenRequirementSchema, EMPTY_RAVEN_REQUIREMENT, {
+      endpoint: "POST /api/raven/requirements/{id}/cancel",
+    });
+  }
+
   // A requirement's runs, newest first (each carries current_stage).
   async listRavenRuns(requirementId: string): Promise<RavenRunListResponse> {
     const raw = await this.fetch<unknown>(`/api/raven/requirements/${requirementId}/runs`);

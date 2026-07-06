@@ -154,6 +154,18 @@
     "why_clarify": "実行中のエージェントに確認したい質問が {{num}} 件あります",
     "open_detail": "レビューパッケージを開く",
     "view_run_room": "実行ルームを開く",
+    "abort": {
+      "button": "作成を中断",
+      "hint": "要件自体が誤り？まるごと破棄できます。",
+      "confirm_title": "この要件を中断しますか？",
+      "confirm_description": "要件とその実行を破棄します。レターはキューから消え、元に戻せません。納品済みの成果には影響しません。",
+      "reason_placeholder": "中断する理由は？（任意）",
+      "reason_label": "中断理由",
+      "confirm_cancel": "やめておく",
+      "confirm_action": "作成を中断",
+      "success": "要件を中断しました",
+      "failed": "要件の中断に失敗しました"
+    },
     "consequence": {
       "title": "結果プレビュー",
       "approve_next": "承認 → {{stage}} ステージへ進む",

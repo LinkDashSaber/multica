@@ -12,6 +12,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/logger"
 	"github.com/multica-ai/multica/server/internal/raven"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
+	"github.com/multica-ai/multica/server/pkg/protocol"
 )
 
 // Raven requirement lifecycle endpoints (ADR-0006). A requirement is the
@@ -318,6 +319,90 @@ func (h *Handler) TransitionRavenRequirement(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, http.StatusOK, ravenRequirementToResponse(updated))
+}
+
+// CancelRavenRequirement aborts a requirement (issue #32, 中断创建): move it to
+// the terminal `cancelled` state, which (via ApplyTransition's abort hook)
+// terminates its in-progress run, cancels its pending gate reviews +
+// clarifications, and projects the issue to cancelled. Only in-progress
+// requirements can be aborted; a delivered/settled one returns 409. Reason is
+// optional. On success the requirement's pending decision inbox items are
+// cleared so the letter leaves every 待我处理 queue.
+func (h *Handler) CancelRavenRequirement(w http.ResponseWriter, r *http.Request) {
+	idUUID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "id"), "requirement id")
+	if !ok {
+		return
+	}
+	wsUUID, ok := parseUUIDOrBadRequest(w, h.resolveWorkspaceID(r), "workspace id")
+	if !ok {
+		return
+	}
+
+	// Reason is optional; an absent or empty body is fine.
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	requirement, err := h.Queries.GetRavenRequirement(r.Context(), db.GetRavenRequirementParams{
+		ID: idUUID, WorkspaceID: wsUUID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "requirement not found")
+			return
+		}
+		slog.Warn("CancelRavenRequirement: load failed", append(logger.RequestAttrs(r), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to load requirement")
+		return
+	}
+
+	reason := req.Reason
+	if reason == "" {
+		reason = "requirement cancelled"
+	}
+	updated, err := h.applyRavenTransition(r, requirement, raven.StateCancelled, reason)
+	if err != nil {
+		if errors.Is(err, errIllegalRavenTransition) {
+			writeError(w, http.StatusConflict, fmt.Sprintf(
+				"cannot cancel a %s requirement; only in-progress requirements can be aborted",
+				requirement.State))
+			return
+		}
+		slog.Warn("CancelRavenRequirement: transition failed", append(logger.RequestAttrs(r), "error", err)...)
+		writeError(w, http.StatusInternalServerError, "failed to cancel requirement")
+		return
+	}
+
+	h.clearRavenDecisionInbox(r, requirement)
+
+	writeJSON(w, http.StatusOK, ravenRequirementToResponse(updated))
+}
+
+// clearRavenDecisionInbox archives the requirement's action-required decision
+// inbox items (raven_gate_pending / raven_clarify_pending) and notifies each
+// recipient, mirroring how gates/clarify wrote them — so a cancelled
+// requirement's letters vanish from every open inbox. Best-effort.
+func (h *Handler) clearRavenDecisionInbox(r *http.Request, requirement db.RavenRequirement) {
+	ctx := r.Context()
+	workspaceID := uuidToString(requirement.WorkspaceID)
+	for _, itemType := range []string{"raven_gate_pending", "raven_clarify_pending"} {
+		recipients, err := h.Queries.ArchiveInboxByIssueAndType(ctx, db.ArchiveInboxByIssueAndTypeParams{
+			WorkspaceID: requirement.WorkspaceID,
+			IssueID:     requirement.IssueID,
+			Type:        itemType,
+		})
+		if err != nil {
+			slog.Warn("raven: cancel: archive inbox failed", "error", err, "type", itemType)
+			continue
+		}
+		for _, rec := range recipients {
+			h.publish(protocol.EventInboxArchived, workspaceID, rec.RecipientType, uuidToString(rec.RecipientID), map[string]any{
+				"issue_id":     uuidToString(requirement.IssueID),
+				"recipient_id": uuidToString(rec.RecipientID),
+			})
+		}
+	}
 }
 
 var errIllegalRavenTransition = raven.ErrIllegalTransition

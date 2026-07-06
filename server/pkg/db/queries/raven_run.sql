@@ -38,6 +38,15 @@ UPDATE raven_run SET
 WHERE id = $1 AND workspace_id = $2
 RETURNING *;
 
+-- name: TerminateRavenRunsByRequirement :execrows
+-- Abort (issue #32): stop the requirement's in-flight run(s) when it is
+-- cancelled. Completed/failed/already-terminated runs are left untouched.
+UPDATE raven_run SET
+    status = 'terminated',
+    termination_reason = $3,
+    updated_at = now()
+WHERE requirement_id = $1 AND workspace_id = $2 AND status IN ('pending', 'running');
+
 -- name: CreateRavenRunStageEvent :one
 INSERT INTO raven_run_stage_event (workspace_id, run_id, stage, event)
 VALUES ($1, $2, $3, $4)

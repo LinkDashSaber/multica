@@ -154,6 +154,18 @@
     "why_clarify": "执行中的 agent 有 {{num}} 个问题需要澄清",
     "open_detail": "查看审查包",
     "view_run_room": "打开运行室",
+    "abort": {
+      "button": "中断创建",
+      "hint": "需求本身有误？可以整体放弃。",
+      "confirm_title": "确认中断这条需求？",
+      "confirm_description": "将放弃该需求及其运行，拍板信会离开待处理队列且无法恢复。已交付的成果不受影响。",
+      "reason_placeholder": "为什么要中断？（可选）",
+      "reason_label": "中断原因",
+      "confirm_cancel": "再想想",
+      "confirm_action": "确认中断",
+      "success": "需求已中断",
+      "failed": "中断需求失败"
+    },
     "consequence": {
       "title": "后果预览",
       "approve_next": "通过 → 进入 {{stage}} 阶段",

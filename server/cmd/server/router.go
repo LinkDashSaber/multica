@@ -1038,6 +1038,8 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/", h.GetRavenRequirement)
 					r.Get("/transitions", h.ListRavenTransitions)
 					r.Post("/transition", h.TransitionRavenRequirement)
+					// Requirement-level abort (issue #32): 中断创建.
+					r.Post("/cancel", h.CancelRavenRequirement)
 					r.Get("/runs", h.ListRavenRuns)
 					r.Post("/runs", h.CreateRavenRun)
 					r.Get("/evidence", h.ListRavenEvidence)
