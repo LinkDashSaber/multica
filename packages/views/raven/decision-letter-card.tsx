@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useActorName } from "@multica/core/workspace/hooks";
+import { useWorkspacePaths } from "@multica/core/paths";
+import { issueDetailOptions } from "@multica/core/issues/queries";
 import {
   clarificationOptions,
   gateOptions,
@@ -14,6 +16,7 @@ import {
   ravenRequirementOptions,
   ravenWorkflowOptions,
   ravenWorkflowStatsOptions,
+  requirementEvidenceOptions,
   requirementRunsOptions,
   useAnswerRavenClarification,
   useDecideRavenGate,
@@ -29,6 +32,7 @@ import { Textarea } from "@multica/ui/components/ui/textarea";
 import { cn } from "@multica/ui/lib/utils";
 import { AppLink } from "../navigation";
 import { CollapsibleMarkdown } from "../common/collapsible-markdown";
+import { STATE_CLASSES, STATE_LABELS } from "../issues/components/raven-lifecycle-badge";
 import { formatRunDuration } from "./workflow-list-page";
 import { DOT_CLASSES, LABEL_CLASSES, type StageNodeState } from "./run-stage-strip";
 import { useT } from "../i18n";
@@ -155,6 +159,40 @@ export function splitReviewPackage(pkg: unknown): {
   };
 }
 
+export interface PromotionReviewView {
+  id: string;
+  gate_name: string;
+  status: string;
+  decided_by: string | null;
+  decided_at: string;
+  created_at: string;
+  decision_reason: string;
+}
+
+/**
+ * Defensive reader for a promotion letter's untyped `evidence` JSON: the
+ * server stores the streak's gate-review records as an array. Non-array input
+ * and malformed items are skipped so a promotion card never crashes on drift.
+ */
+export function parsePromotionReviews(raw: unknown): PromotionReviewView[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  const out: PromotionReviewView[] = [];
+  for (const item of arr) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    out.push({
+      id: typeof o.id === "string" ? o.id : "",
+      gate_name: typeof o.gate_name === "string" ? o.gate_name : "",
+      status: typeof o.status === "string" ? o.status : "",
+      decided_by: typeof o.decided_by === "string" ? o.decided_by : null,
+      decided_at: typeof o.decided_at === "string" ? o.decided_at : "",
+      created_at: typeof o.created_at === "string" ? o.created_at : "",
+      decision_reason: typeof o.decision_reason === "string" ? o.decision_reason : "",
+    });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Section 1 — mini stage strip (derived from the contract + stuck stage)
 // ---------------------------------------------------------------------------
@@ -247,6 +285,122 @@ export function ReviewPackageSection({ pkg }: { pkg: unknown }) {
             </details>
           )}
         </div>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Section 2 — requirement context (the original ask) + exit links + evidence
+// ---------------------------------------------------------------------------
+
+/**
+ * The original ask behind the decision: the issue title/description, the
+ * requirement's lifecycle state, and exit links to the issue and — when the
+ * decision belongs to a run — the run room (运行室). Makes the letter usable
+ * from the inbox and 待我处理 without opening the review-package page.
+ */
+function RequirementContextSection({
+  wsId,
+  issueId,
+  state,
+  runId,
+}: {
+  wsId: string;
+  issueId: string;
+  state: string;
+  runId: string | null;
+}) {
+  const { t } = useT("raven");
+  const wsPaths = useWorkspacePaths();
+  const { data: issue } = useQuery({
+    ...issueDetailOptions(wsId, issueId),
+    enabled: issueId !== "",
+  });
+  if (issueId === "") return null;
+
+  return (
+    <section data-testid="letter-requirement">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-semibold">{t(($) => $.gate.requirement.title)}</h2>
+        {state && (
+          <Badge variant="secondary" className={STATE_CLASSES[state] ?? ""}>
+            {STATE_LABELS[state] ?? state}
+          </Badge>
+        )}
+      </div>
+      {issue ? (
+        <>
+          <p className="mt-1 text-sm font-medium">{issue.title}</p>
+          {issue.description && (
+            <CollapsibleMarkdown content={issue.description} className="mt-1" maxLines={4} />
+          )}
+        </>
+      ) : (
+        <Skeleton className="mt-2 h-5 w-48" />
+      )}
+      <div className="mt-2 flex flex-wrap gap-3 text-xs">
+        <AppLink
+          href={wsPaths.issueDetail(issueId)}
+          className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          {t(($) => $.gate.requirement.view_issue)}
+        </AppLink>
+        {runId && (
+          <AppLink
+            href={wsPaths.ravenRunDetail(runId)}
+            className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            {t(($) => $.letter.view_run_room)}
+          </AppLink>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The requirement's evidence trail (证据), self-fetching so the letter carries
+ * its own supporting proof in the inbox and 待我处理 queue — the same list the
+ * review-package page used to render separately. Nothing until a requirement
+ * is known.
+ */
+export function EvidenceSection({
+  wsId,
+  requirementId,
+}: {
+  wsId: string;
+  requirementId: string;
+}) {
+  const { t } = useT("raven");
+  const { data: evidence = [] } = useQuery({
+    ...requirementEvidenceOptions(wsId, requirementId),
+    enabled: requirementId !== "",
+  });
+  if (requirementId === "") return null;
+
+  return (
+    <section data-testid="letter-evidence">
+      <h2 className="text-sm font-semibold">{t(($) => $.gate.evidence.title)}</h2>
+      {evidence.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">{t(($) => $.gate.evidence.empty)}</p>
+      ) : (
+        <ul className="mt-2 divide-y rounded-md border">
+          {evidence.map((item) => (
+            <li key={item.id} className="px-3 py-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground/80">{item.kind}</span>
+                {item.source && <span>{item.source}</span>}
+                {item.created_at && (
+                  <span className="ml-auto shrink-0">
+                    {new Date(item.created_at).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              {item.summary && <CollapsibleMarkdown content={item.summary} className="mt-1" />}
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );
@@ -586,7 +740,7 @@ function PromotionLetterCard({
     );
   }
 
-  const reviews = Array.isArray(promotion.evidence) ? promotion.evidence : [];
+  const reviews = parsePromotionReviews(promotion.evidence);
   const isPending = promotion.status === "pending";
 
   const submit = (approve: boolean) => {
@@ -624,9 +778,60 @@ function PromotionLetterCard({
         )}
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        {t(($) => $.letter.promotion.evidence_count, { count: reviews.length })}
-      </p>
+      {/* "为什么可以晋升" backed by the visible streak, not just a count. */}
+      <section data-testid="promotion-evidence">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold">
+            {t(($) => $.letter.promotion.reviews_title)}
+          </h2>
+          <span className="text-sm text-muted-foreground">
+            {t(($) => $.letter.promotion.evidence_count, { count: reviews.length })}
+          </span>
+        </div>
+        {reviews.length > 0 && (
+          <ul className="mt-2 divide-y rounded-md border">
+            {reviews.map((rev, i) => {
+              const when = rev.decided_at || rev.created_at;
+              return (
+                <li
+                  key={rev.id || i}
+                  data-testid="promotion-review"
+                  className="px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-medium text-foreground/80">
+                      {rev.gate_name || promotion.gate_name}
+                    </span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-500/15 text-green-600 dark:text-green-400"
+                    >
+                      {t(($) => $.gate.status.approved)}
+                    </Badge>
+                    {rev.decided_by && (
+                      <span className="text-muted-foreground">
+                        {t(($) => $.gate.decision.decided_by, {
+                          name: getActorName("member", rev.decided_by),
+                        })}
+                      </span>
+                    )}
+                    {when && (
+                      <span className="ml-auto shrink-0 text-muted-foreground">
+                        {new Date(when).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  {rev.decision_reason && (
+                    <p className="mt-1 whitespace-pre-wrap text-sm">
+                      {rev.decision_reason}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       {!isPending ? (
         <section data-testid="promotion-decided">
@@ -762,6 +967,7 @@ function GateOrClarifyLetterCard({
     ...ravenRequirementOptions(wsId, requirementId),
     enabled: requirementId !== "",
   });
+  const issueId = requirement?.issue_id ?? "";
   const workflowId = requirement?.workflow_id ?? "";
   const { data: workflow } = useQuery({
     ...ravenWorkflowOptions(wsId, workflowId),
@@ -884,7 +1090,16 @@ function GateOrClarifyLetterCard({
         )}
       </div>
 
-      {/* 3. Context summary — collapsed markdown by default. */}
+      {/* 3. The original ask + exit links to the issue and run room. */}
+      <RequirementContextSection
+        wsId={wsId}
+        issueId={issueId}
+        state={requirement?.state ?? ""}
+        runId={runId}
+      />
+
+      {/* 4. Context summary — collapsed markdown by default. Clarify also
+          spells out where execution is stuck. */}
       {isGate ? (
         <ReviewPackageSection pkg={gate?.review_package} />
       ) : (
@@ -895,7 +1110,10 @@ function GateOrClarifyLetterCard({
         )
       )}
 
-      {/* 4. Consequence preview (pending only). */}
+      {/* 5. Evidence trail — the proof produced so far. */}
+      <EvidenceSection wsId={wsId} requirementId={requirementId} />
+
+      {/* 6. Consequence preview (pending only). */}
       {consequences.length > 0 && (
         <section data-testid="letter-consequence">
           <h2 className="text-sm font-semibold">
@@ -909,7 +1127,7 @@ function GateOrClarifyLetterCard({
         </section>
       )}
 
-      {/* 5. Response controls. */}
+      {/* 7. Response controls. */}
       {isGate
         ? gate && <DecisionSection gate={gate} wsId={wsId} />
         : clarification && (

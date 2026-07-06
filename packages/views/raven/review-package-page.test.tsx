@@ -13,6 +13,7 @@ import enRaven from "../locales/en/raven.json";
 
 const mockGetGate = vi.hoisted(() => vi.fn());
 const mockGetRequirement = vi.hoisted(() => vi.fn());
+const mockGetIssue = vi.hoisted(() => vi.fn());
 const mockListEvidence = vi.hoisted(() => vi.fn());
 const mockDecide = vi.hoisted(() => vi.fn());
 
@@ -20,6 +21,7 @@ vi.mock("@multica/core/api", () => ({
   api: {
     getRavenGate: mockGetGate,
     getRavenRequirement: mockGetRequirement,
+    getIssue: mockGetIssue,
     listRavenEvidence: mockListEvidence,
     decideRavenGate: mockDecide,
   },
@@ -71,6 +73,12 @@ const REQUIREMENT = {
   updated_at: "",
 };
 
+const ISSUE = {
+  id: "issue-1",
+  title: "Add dark mode toggle",
+  description: "Users want a dark theme in settings.",
+};
+
 const EVIDENCE = {
   evidence: [
     {
@@ -119,6 +127,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockGetGate.mockResolvedValue(PENDING_GATE);
   mockGetRequirement.mockResolvedValue(REQUIREMENT);
+  mockGetIssue.mockResolvedValue(ISSUE);
   mockListEvidence.mockResolvedValue(EVIDENCE);
   mockDecide.mockResolvedValue({ ...PENDING_GATE, status: "approved" });
 });

@@ -6,6 +6,7 @@ import { render, screen, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider } from "@multica/core/i18n/react";
+import { WorkspaceSlugProvider } from "@multica/core/paths";
 import { NavigationProvider } from "../navigation";
 import type { NavigationAdapter } from "../navigation";
 import enRaven from "../locales/en/raven.json";
@@ -17,6 +18,10 @@ const mockGetRequirement = vi.hoisted(() => vi.fn());
 const mockGetWorkflow = vi.hoisted(() => vi.fn());
 const mockListStats = vi.hoisted(() => vi.fn());
 const mockListRuns = vi.hoisted(() => vi.fn());
+const mockGetIssue = vi.hoisted(() => vi.fn());
+const mockListEvidence = vi.hoisted(() => vi.fn());
+const mockGetPromotion = vi.hoisted(() => vi.fn());
+const mockDecidePromotion = vi.hoisted(() => vi.fn());
 const mockDecide = vi.hoisted(() => vi.fn());
 const mockAnswer = vi.hoisted(() => vi.fn());
 
@@ -28,6 +33,10 @@ vi.mock("@multica/core/api", () => ({
     getRavenWorkflow: mockGetWorkflow,
     listRavenWorkflowStats: mockListStats,
     listRavenRuns: mockListRuns,
+    getIssue: mockGetIssue,
+    listRavenEvidence: mockListEvidence,
+    getRavenPromotion: mockGetPromotion,
+    decideRavenPromotion: mockDecidePromotion,
     decideRavenGate: mockDecide,
     answerRavenClarification: mockAnswer,
   },
@@ -51,6 +60,7 @@ import {
   composeClarifyAnswer,
   formatPendingDuration,
   parseClarifyQuestions,
+  parsePromotionReviews,
 } from "./decision-letter-card";
 
 const GATE = {
@@ -109,6 +119,60 @@ const WORKFLOW = {
   updated_at: "",
 };
 
+const ISSUE = {
+  id: "issue-1",
+  title: "Add dark mode toggle",
+  description: "Users want a dark theme in settings.",
+};
+
+const EVIDENCE = {
+  evidence: [
+    {
+      id: "ev-1",
+      requirement_id: "req-1",
+      run_id: "run-1",
+      kind: "test_run",
+      source: "ci",
+      summary: "212 tests green",
+      payload: undefined,
+      created_at: "2026-07-01T00:00:00Z",
+    },
+  ],
+  total: 1,
+};
+
+const PROMOTION = {
+  id: "promo-1",
+  workspace_id: "ws-1",
+  workflow_id: "wf-1",
+  gate_name: "self-check",
+  status: "pending",
+  evidence: [
+    {
+      id: "g-1",
+      gate_name: "self-check",
+      status: "approved",
+      decided_by: "user-1",
+      decided_at: "2026-06-01T09:00:00Z",
+      created_at: "2026-06-01T08:00:00Z",
+      decision_reason: "",
+    },
+    {
+      id: "g-2",
+      gate_name: "self-check",
+      status: "approved",
+      decided_by: "user-1",
+      decided_at: "2026-06-02T09:00:00Z",
+      created_at: "2026-06-02T08:00:00Z",
+      decision_reason: "",
+    },
+  ],
+  decided_by: null,
+  decision_reason: "",
+  created_at: "2026-07-01T00:00:00Z",
+  decided_at: null,
+};
+
 const STATS = {
   stats: [
     {
@@ -159,7 +223,9 @@ function Wrapper({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={qc}>
       <I18nProvider locale="en" resources={{ en: { raven: enRaven, common: enCommon } }}>
-        <NavigationProvider value={navigation}>{children}</NavigationProvider>
+        <WorkspaceSlugProvider slug="acme">
+          <NavigationProvider value={navigation}>{children}</NavigationProvider>
+        </WorkspaceSlugProvider>
       </I18nProvider>
     </QueryClientProvider>
   );
@@ -173,6 +239,10 @@ beforeEach(() => {
   mockGetWorkflow.mockResolvedValue(WORKFLOW);
   mockListStats.mockResolvedValue(STATS);
   mockListRuns.mockResolvedValue(RUNS);
+  mockGetIssue.mockResolvedValue(ISSUE);
+  mockListEvidence.mockResolvedValue(EVIDENCE);
+  mockGetPromotion.mockResolvedValue(PROMOTION);
+  mockDecidePromotion.mockResolvedValue({ ...PROMOTION, status: "approved" });
   mockDecide.mockResolvedValue({ ...GATE, status: "approved" });
   mockAnswer.mockResolvedValue({ ...CLARIFICATION, status: "answered" });
 });
@@ -243,6 +313,42 @@ describe("DecisionLetterCard (gate)", () => {
     // 5. Verdict controls.
     expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
+  });
+
+  it("renders the requirement context, exit links, and evidence trail", async () => {
+    render(<DecisionLetterCard wsId="ws-1" kind="gate" id="gate-1" />, { wrapper: Wrapper });
+
+    // The original ask, pulled from the issue behind the requirement.
+    expect(await screen.findByText("Add dark mode toggle")).toBeInTheDocument();
+    expect(screen.getByText("Users want a dark theme in settings.")).toBeInTheDocument();
+
+    // Exit links: the issue and the run room (运行室).
+    expect(screen.getByRole("link", { name: "View issue" })).toHaveAttribute(
+      "href",
+      "/acme/issues/issue-1",
+    );
+    expect(screen.getByRole("link", { name: "Open run room" })).toHaveAttribute(
+      "href",
+      "/acme/raven/runs/run-1",
+    );
+
+    // Evidence produced so far.
+    const evidence = await screen.findByTestId("letter-evidence");
+    expect(evidence).toHaveTextContent("212 tests green");
+  });
+
+  it("degrades gracefully when the issue and evidence are missing", async () => {
+    mockGetIssue.mockRejectedValue(new Error("not found"));
+    mockListEvidence.mockResolvedValue({ evidence: [], total: 0 });
+    render(<DecisionLetterCard wsId="ws-1" kind="gate" id="gate-1" />, { wrapper: Wrapper });
+
+    // The requirement block still renders (state badge + view-issue link)
+    // from the requirement alone, even without the issue body.
+    expect(await screen.findByTestId("letter-requirement")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View issue" })).toBeInTheDocument();
+    // Empty evidence shows the empty hint, not a crash.
+    const evidence = await screen.findByTestId("letter-evidence");
+    expect(evidence).toHaveTextContent("No evidence recorded");
   });
 
   it("omits estimates when there is no history — static parts only", async () => {
@@ -381,5 +487,79 @@ describe("DecisionLetterCard (clarify)", () => {
     ).not.toBeInTheDocument();
     // Consequence preview is pending-only.
     expect(screen.queryByTestId("letter-consequence")).not.toBeInTheDocument();
+  });
+});
+
+describe("parsePromotionReviews", () => {
+  it("reads gate-review records and skips malformed / non-array input", () => {
+    expect(
+      parsePromotionReviews([
+        { id: "g-1", gate_name: "self-check", status: "approved", decided_by: "u1" },
+        42,
+        null,
+        { status: "approved" },
+      ]),
+    ).toEqual([
+      {
+        id: "g-1",
+        gate_name: "self-check",
+        status: "approved",
+        decided_by: "u1",
+        decided_at: "",
+        created_at: "",
+        decision_reason: "",
+      },
+      {
+        id: "",
+        gate_name: "",
+        status: "approved",
+        decided_by: null,
+        decided_at: "",
+        created_at: "",
+        decision_reason: "",
+      },
+    ]);
+    expect(parsePromotionReviews(undefined)).toEqual([]);
+    expect(parsePromotionReviews({ not: "an array" })).toEqual([]);
+  });
+});
+
+describe("DecisionLetterCard (promotion)", () => {
+  it("renders the actual zero-reject review entries, not just a count", async () => {
+    render(<DecisionLetterCard wsId="ws-1" kind="promotion" id="promo-1" />, {
+      wrapper: Wrapper,
+    });
+
+    // Why-line + the streak count summary.
+    expect(
+      await screen.findByText(
+        "Gate self-check is applying for promotion to spot checks",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("2 consecutive zero-reject reviews as evidence"),
+    ).toBeInTheDocument();
+
+    // The evidence is visible: one row per review, each approved.
+    const rows = await screen.findAllByTestId("promotion-review");
+    expect(rows).toHaveLength(2);
+    expect(screen.getAllByText("Approved").length).toBe(2);
+    expect(screen.getAllByText(/Decided by Alice/).length).toBe(2);
+
+    // Verdict controls.
+    expect(screen.getByTestId("promotion-approve")).toBeInTheDocument();
+  });
+
+  it("degrades to an empty streak list on malformed evidence", async () => {
+    mockGetPromotion.mockResolvedValue({ ...PROMOTION, evidence: "corrupt" });
+    render(<DecisionLetterCard wsId="ws-1" kind="promotion" id="promo-1" />, {
+      wrapper: Wrapper,
+    });
+
+    // Count reflects zero and no rows render — no crash.
+    expect(
+      await screen.findByText("0 consecutive zero-reject reviews as evidence"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("promotion-review")).not.toBeInTheDocument();
   });
 });

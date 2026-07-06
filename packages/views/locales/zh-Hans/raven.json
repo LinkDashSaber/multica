@@ -135,6 +135,7 @@
     "why_gate": "策略在 {{gate}} 门禁等你裁决",
     "why_clarify": "执行中的 agent 有 {{num}} 个问题需要澄清",
     "open_detail": "查看审查包",
+    "view_run_room": "打开运行室",
     "consequence": {
       "title": "后果预览",
       "approve_next": "通过 → 进入 {{stage}} 阶段",
@@ -161,6 +162,7 @@
     },
     "why_promotion": "策略 {{gate}} 门禁申请晋升为抽查",
     "promotion": {
+      "reviews_title": "零驳回审查记录",
       "evidence_count": "已积累 {{count}} 次连续零驳回作为证据"
     }
   },

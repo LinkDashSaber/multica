@@ -135,6 +135,7 @@
     "why_gate": "워크플로가 게이트 {{gate}}에서 당신의 결정을 기다리고 있습니다",
     "why_clarify": "실행 중인 에이전트에 확인이 필요한 질문이 {{num}}개 있습니다",
     "open_detail": "리뷰 패키지 열기",
+    "view_run_room": "실행 룸 열기",
     "consequence": {
       "title": "결과 미리보기",
       "approve_next": "승인 → {{stage}} 단계로 진행",
@@ -161,6 +162,7 @@
     },
     "why_promotion": "게이트 {{gate}}가 표본 검사로의 승격을 신청합니다",
     "promotion": {
+      "reviews_title": "무반려 심사 이력",
       "evidence_count": "증거로 연속 무반려 {{count}}회"
     }
   },

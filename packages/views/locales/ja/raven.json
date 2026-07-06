@@ -135,6 +135,7 @@
     "why_gate": "ワークフローがゲート {{gate}} であなたの裁決を待っています",
     "why_clarify": "実行中のエージェントに確認したい質問が {{num}} 件あります",
     "open_detail": "レビューパッケージを開く",
+    "view_run_room": "実行ルームを開く",
     "consequence": {
       "title": "結果プレビュー",
       "approve_next": "承認 → {{stage}} ステージへ進む",
@@ -161,6 +162,7 @@
     },
     "why_promotion": "ゲート {{gate}} が抜き取り検査への昇格を申請しています",
     "promotion": {
+      "reviews_title": "ゼロ差し戻しレビュー履歴",
       "evidence_count": "証拠として連続ゼロ差し戻し {{count}} 回"
     }
   },
