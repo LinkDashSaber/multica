@@ -9,7 +9,7 @@ import {
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { BreadcrumbHeader } from "../layout/breadcrumb-header";
 import { useT } from "../i18n";
-import { LearningList } from "./learning-list";
+import { LearningList, LearningDestinationsLegend } from "./learning-list";
 
 /**
  * Learning stream (沉淀流, issue #22): every execution self-report in the
@@ -34,7 +34,20 @@ export function LearningStreamPage() {
         }
       />
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl p-6">
+        <div className="mx-auto w-full max-w-3xl space-y-4 p-6">
+          {/* Inline guidance (#29): what 沉淀 is and what each destination does.
+              Always visible, so the empty first-run explains the mechanism. */}
+          <section
+            data-testid="learnings-about"
+            className="rounded-md border bg-muted/30 p-4"
+          >
+            <p className="text-sm text-muted-foreground">
+              {t(($) => $.learnings.about.body)}
+            </p>
+            <div className="mt-3">
+              <LearningDestinationsLegend />
+            </div>
+          </section>
           {isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-16 w-full" />

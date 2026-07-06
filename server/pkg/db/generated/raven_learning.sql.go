@@ -87,10 +87,16 @@ func (q *Queries) GetRavenLearning(ctx context.Context, arg GetRavenLearningPara
 }
 
 const listRavenLearnings = `-- name: ListRavenLearnings :many
-SELECT l.id, l.workspace_id, l.run_id, l.stage, l.content, l.status, l.promoted_to, l.created_at, l.updated_at, req.issue_id
+SELECT l.id, l.workspace_id, l.run_id, l.stage, l.content, l.status, l.promoted_to, l.created_at, l.updated_at, req.issue_id,
+       a.id AS asset_id,
+       a.kind AS asset_kind,
+       a.title AS asset_title,
+       a.skill_id AS asset_skill_id,
+       a.workflow_id AS asset_workflow_id
 FROM raven_learning l
 JOIN raven_run r ON r.id = l.run_id
 JOIN raven_requirement req ON req.id = r.requirement_id
+LEFT JOIN raven_asset a ON a.learning_id = l.id
 WHERE l.workspace_id = $1
   AND ($2::uuid IS NULL OR l.run_id = $2)
 ORDER BY l.created_at DESC
@@ -102,20 +108,27 @@ type ListRavenLearningsParams struct {
 }
 
 type ListRavenLearningsRow struct {
-	ID          pgtype.UUID        `json:"id"`
-	WorkspaceID pgtype.UUID        `json:"workspace_id"`
-	RunID       pgtype.UUID        `json:"run_id"`
-	Stage       string             `json:"stage"`
-	Content     string             `json:"content"`
-	Status      string             `json:"status"`
-	PromotedTo  string             `json:"promoted_to"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	IssueID     pgtype.UUID        `json:"issue_id"`
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	RunID           pgtype.UUID        `json:"run_id"`
+	Stage           string             `json:"stage"`
+	Content         string             `json:"content"`
+	Status          string             `json:"status"`
+	PromotedTo      string             `json:"promoted_to"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	IssueID         pgtype.UUID        `json:"issue_id"`
+	AssetID         pgtype.UUID        `json:"asset_id"`
+	AssetKind       pgtype.Text        `json:"asset_kind"`
+	AssetTitle      pgtype.Text        `json:"asset_title"`
+	AssetSkillID    pgtype.UUID        `json:"asset_skill_id"`
+	AssetWorkflowID pgtype.UUID        `json:"asset_workflow_id"`
 }
 
 // Workspace learning stream, newest first, with provenance for linking:
-// the requirement's issue. Optional run filter.
+// the requirement's issue. Each promoted row carries the produced asset
+// (issue #28) so the UI can link back to the reusable skill / fact / evidence.
+// Optional run filter.
 func (q *Queries) ListRavenLearnings(ctx context.Context, arg ListRavenLearningsParams) ([]ListRavenLearningsRow, error) {
 	rows, err := q.db.Query(ctx, listRavenLearnings, arg.WorkspaceID, arg.RunID)
 	if err != nil {
@@ -136,6 +149,11 @@ func (q *Queries) ListRavenLearnings(ctx context.Context, arg ListRavenLearnings
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.IssueID,
+			&i.AssetID,
+			&i.AssetKind,
+			&i.AssetTitle,
+			&i.AssetSkillID,
+			&i.AssetWorkflowID,
 		); err != nil {
 			return nil, err
 		}

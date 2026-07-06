@@ -214,7 +214,27 @@
     },
     "promoted_to_label": "昇格先: {{dest}}",
     "expire": "期限切れにする",
-    "action_failed": "操作に失敗しました"
+    "action_failed": "操作に失敗しました",
+    "asset": {
+      "view_skill": "スキル下書きを見る",
+      "view_workflow": "ワークフローの信頼を見る"
+    },
+    "about": {
+      "body": "実行中の agent が再利用に値する気づきをメモしたものが自己報告です。ここで各報告を再利用可能な資産へ振り分けます——資産が実行を改善し、実行が沈殿を養い、自己進化のループを閉じます。本当に値するものだけを沈殿させます。",
+      "destinations_title": "3つの振り分け先"
+    },
+    "purpose": {
+      "skill_proposal": "再利用可能なスキル下書きへ抽象化し、後で agent が直接呼び出せます。",
+      "fact": "ワークスペースの事実と基準として固定し、認識の基準を揃えます。",
+      "uptrack_evidence": "昇格の証拠として、このワークフローゲートの信頼昇格を裏付けます。"
+    },
+    "evidence": {
+      "report": "自己報告",
+      "source_run": "元の実行",
+      "stage": "ステージ",
+      "requirement": "関連要件",
+      "recorded_at": "記録日時"
+    }
   },
   "run_room": {
     "title": "実行ルーム",

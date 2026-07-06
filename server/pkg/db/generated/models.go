@@ -702,6 +702,18 @@ type ProjectResource struct {
 	CreatedBy    pgtype.UUID        `json:"created_by"`
 }
 
+type RavenAsset struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	LearningID  pgtype.UUID        `json:"learning_id"`
+	Kind        string             `json:"kind"`
+	Title       string             `json:"title"`
+	Content     string             `json:"content"`
+	SkillID     pgtype.UUID        `json:"skill_id"`
+	WorkflowID  pgtype.UUID        `json:"workflow_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type RavenClarification struct {
 	ID            pgtype.UUID        `json:"id"`
 	WorkspaceID   pgtype.UUID        `json:"workspace_id"`

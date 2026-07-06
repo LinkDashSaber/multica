@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
 func createTestRavenRun(t *testing.T, requirementID string) RavenRunResponse {
@@ -133,17 +136,62 @@ func TestRavenLearningTriage(t *testing.T) {
 		return l
 	}
 
-	// Promote to each destination.
+	// Promote to each destination now produces a reusable asset (issue #28).
 	for _, dest := range []string{"skill_proposal", "fact", "uptrack_evidence"} {
-		l := newFresh("promote to " + dest)
+		l := newFresh("promote to " + dest + "\nsecond line detail")
 		code, got := patchLearning(t, l.ID, map[string]any{"status": "promoted", "promoted_to": dest})
 		if code != http.StatusOK || got.Status != "promoted" || got.PromotedTo != dest {
 			t.Fatalf("promote to %s: code=%d resp=%+v", dest, code, got)
 		}
-		// Re-triage is rejected.
+		if got.Asset == nil || got.Asset.Kind != dest || got.Asset.ID == "" {
+			t.Fatalf("promote to %s: expected produced asset, got %+v", dest, got.Asset)
+		}
+		// Title is the self-report's first line, not the raw multi-line string.
+		if got.Asset.Title != "promote to "+dest {
+			t.Fatalf("promote to %s: asset title = %q", dest, got.Asset.Title)
+		}
+		switch dest {
+		case "skill_proposal":
+			if got.Asset.SkillID == "" {
+				t.Fatalf("skill_proposal: expected a minted skill draft, got %+v", got.Asset)
+			}
+			// The minted skill is a real, reusable skill carrying the self-report.
+			skill, err := testHandler.Queries.GetSkillInWorkspace(context.Background(), db.GetSkillInWorkspaceParams{
+				ID: parseUUID(got.Asset.SkillID), WorkspaceID: parseUUID(testWorkspaceID),
+			})
+			if err != nil || skill.Content != "promote to skill_proposal\nsecond line detail" {
+				t.Fatalf("skill_proposal: minted skill missing/mismatched: err=%v skill=%+v", err, skill)
+			}
+		default:
+			if got.Asset.SkillID != "" {
+				t.Fatalf("%s: unexpected skill_id %q", dest, got.Asset.SkillID)
+			}
+		}
+		// Re-triage is rejected and produces no second asset (idempotent).
 		if code, _ := patchLearning(t, l.ID, map[string]any{"status": "expired"}); code != http.StatusConflict {
 			t.Fatalf("re-triage promoted: expected 409, got %d", code)
 		}
+	}
+
+	// The workspace stream surfaces each produced asset for link-back.
+	wAssets := httptest.NewRecorder()
+	testHandler.ListRavenLearnings(wAssets, newRequest("GET", "/api/raven/learnings?run_id="+run.ID, nil))
+	var withAssets struct {
+		Learnings []RavenLearningResponse `json:"learnings"`
+	}
+	json.NewDecoder(wAssets.Body).Decode(&withAssets)
+	promotedWithAsset := 0
+	for _, l := range withAssets.Learnings {
+		if l.Status != "promoted" {
+			continue
+		}
+		if l.Asset == nil || l.Asset.Kind != l.PromotedTo {
+			t.Fatalf("promoted list row missing asset: %+v", l)
+		}
+		promotedWithAsset++
+	}
+	if promotedWithAsset != 3 {
+		t.Fatalf("expected 3 promoted rows with assets, got %d", promotedWithAsset)
 	}
 
 	// Expire clears any destination and is also one-shot.
