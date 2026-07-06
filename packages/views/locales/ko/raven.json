@@ -212,7 +212,11 @@
     },
     "promoted_to_label": "승격 대상: {{dest}}",
     "expire": "만료 처리",
-    "action_failed": "작업 실패"
+    "action_failed": "작업 실패",
+    "asset": {
+      "view_skill": "스킬 초안 보기",
+      "view_workflow": "워크플로 신뢰 보기"
+    }
   },
   "run_room": {
     "title": "실행 룸",

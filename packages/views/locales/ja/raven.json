@@ -212,7 +212,11 @@
     },
     "promoted_to_label": "昇格先: {{dest}}",
     "expire": "期限切れにする",
-    "action_failed": "操作に失敗しました"
+    "action_failed": "操作に失敗しました",
+    "asset": {
+      "view_skill": "スキル下書きを見る",
+      "view_workflow": "ワークフローの信頼を見る"
+    }
   },
   "run_room": {
     "title": "実行ルーム",

@@ -212,7 +212,11 @@
     },
     "promoted_to_label": "Promoted to: {{dest}}",
     "expire": "Mark expired",
-    "action_failed": "Action failed"
+    "action_failed": "Action failed",
+    "asset": {
+      "view_skill": "View skill draft",
+      "view_workflow": "View workflow trust"
+    }
   },
   "run_room": {
     "title": "Run room",

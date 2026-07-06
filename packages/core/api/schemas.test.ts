@@ -905,6 +905,32 @@ describe("RavenLearningSchema / RavenLearningListSchema", () => {
     const empty = parseWithFallback({}, RavenLearningListSchema, EMPTY_RAVEN_LEARNING_LIST, ENDPOINT);
     expect(empty.learnings).toEqual([]);
   });
+
+  it("parses the produced asset on promoted rows and defaults its fields (issue #28)", () => {
+    const parsed = parseWithFallback(
+      {
+        learnings: [
+          {
+            id: "l-1",
+            status: "promoted",
+            promoted_to: "skill_proposal",
+            content: "先读现有测试",
+            asset: { id: "a-1", kind: "skill_proposal", skill_id: "skl-1" },
+          },
+          // Fresh row: no asset field at all.
+          { id: "l-2", status: "fresh" },
+        ],
+      },
+      RavenLearningListSchema,
+      EMPTY_RAVEN_LEARNING_LIST,
+      ENDPOINT,
+    );
+    expect(parsed.learnings[0]?.asset?.skill_id).toBe("skl-1");
+    // Missing sub-fields default rather than throwing.
+    expect(parsed.learnings[0]?.asset?.workflow_id).toBe("");
+    expect(parsed.learnings[0]?.asset?.title).toBe("");
+    expect(parsed.learnings[1]?.asset ?? null).toBeNull();
+  });
 });
 
 describe("trust promotion schemas (issue #25)", () => {

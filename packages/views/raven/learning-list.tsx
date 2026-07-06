@@ -92,6 +92,29 @@ export function LearningList({
                 })}
               </span>
             )}
+            {/* Link back to the reusable asset the promotion produced (#28). */}
+            {l.status === "promoted" &&
+              l.asset?.kind === "skill_proposal" &&
+              l.asset.skill_id !== "" && (
+                <AppLink
+                  data-testid="learning-asset-link"
+                  href={wsPaths.skillDetail(l.asset.skill_id)}
+                  className="hover:underline text-foreground/80"
+                >
+                  {t(($) => $.learnings.asset.view_skill)}
+                </AppLink>
+              )}
+            {l.status === "promoted" &&
+              l.asset?.kind === "uptrack_evidence" &&
+              l.asset.workflow_id !== "" && (
+                <AppLink
+                  data-testid="learning-asset-link"
+                  href={wsPaths.ravenWorkflowDetail(l.asset.workflow_id)}
+                  className="hover:underline text-foreground/80"
+                >
+                  {t(($) => $.learnings.asset.view_workflow)}
+                </AppLink>
+              )}
             <span className="font-mono">
               {t(($) => $.learnings.source_run, { run: l.run_id.slice(0, 8) })}
             </span>

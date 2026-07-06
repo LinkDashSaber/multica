@@ -212,7 +212,11 @@
     },
     "promoted_to_label": "去向：{{dest}}",
     "expire": "标记过期",
-    "action_failed": "操作失败"
+    "action_failed": "操作失败",
+    "asset": {
+      "view_skill": "查看 Skill 草稿",
+      "view_workflow": "查看交付策略信任"
+    }
   },
   "run_room": {
     "title": "运行室",

@@ -808,6 +808,30 @@ export const EMPTY_RAVEN_TRANSITION_LIST: RavenTransitionListResponse = {
 // Raven execution self-reported learnings (issue #22, ADR-0008 主进料口).
 // ---------------------------------------------------------------------------
 
+/**
+ * The reusable asset a promotion produced (issue #28). Absent on fresh /
+ * expired learnings. `skill_id` links to a minted skill draft; `workflow_id`
+ * links to the workflow whose trust promotion this evidence supports.
+ */
+export interface RavenLearningAsset {
+  id: string;
+  /** "skill_proposal" | "fact" | "uptrack_evidence"; unknown = display-only. */
+  kind: string;
+  title: string;
+  /** Set for skill_proposal — the minted skill draft; "" otherwise. */
+  skill_id: string;
+  /** Set for uptrack_evidence tied to a workflow; "" otherwise. */
+  workflow_id: string;
+}
+
+export const RavenLearningAssetSchema = z.object({
+  id: z.string(),
+  kind: z.string().default(""),
+  title: z.string().default(""),
+  skill_id: z.string().default(""),
+  workflow_id: z.string().default(""),
+}).loose();
+
 export interface RavenLearning {
   id: string;
   workspace_id: string;
@@ -821,6 +845,8 @@ export interface RavenLearning {
   promoted_to: string;
   /** Origin issue of the run's requirement, for linking; "" on create responses. */
   issue_id: string;
+  /** The produced asset once promoted (issue #28); null/absent otherwise. */
+  asset?: RavenLearningAsset | null;
   created_at: string;
   updated_at: string;
 }
@@ -834,6 +860,7 @@ export const RavenLearningSchema = z.object({
   status: z.string().default("fresh"),
   promoted_to: z.string().default(""),
   issue_id: z.string().default(""),
+  asset: RavenLearningAssetSchema.nullish(),
   created_at: z.string().default(""),
   updated_at: z.string().default(""),
 }).loose();
