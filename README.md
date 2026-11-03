@@ -196,3 +196,5 @@ An iOS mobile client lives in [`apps/mobile/`](apps/mobile/) — see its [README
 ## Wiki synchronization test
 
 See [Wiki synchronization acceptance](docs/wiki-acceptance.md) for the current test export format and retention period.
+
+The Wiki acceptance scenario now exports PDF reports and retains them for 21 days.
