@@ -192,3 +192,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development workflow, worktr
 
 An iOS mobile client lives in [`apps/mobile/`](apps/mobile/) — see its [README](apps/mobile/README.md) for how to build it onto your own iPhone.
 
+
+## Wiki synchronization test
+
+See [Wiki synchronization acceptance](docs/wiki-acceptance.md) for the current test export format and retention period.
