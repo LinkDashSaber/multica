@@ -13,3 +13,7 @@ Tests run against a local Raven Development backend. They do not deploy Multica 
 ## Updated behavior
 
 Exported acceptance reports now use PDF and are retained for 21 days. This supersedes the baseline Markdown and 14-day settings.
+
+## Export retry policy
+
+Retries of a failed acceptance export preserve the report identifier instead of creating another report.
